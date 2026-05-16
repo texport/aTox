@@ -36,6 +36,10 @@ import ltd.evilcorp.atox.ui.BaseFragment
 import ltd.evilcorp.atox.vmFactory
 import ltd.evilcorp.domain.tox.ProxyType
 
+private const val MAX_PORT = 65535
+private const val NOSPAM_LENGTH = 8
+private const val HEX_RADIX = 16
+
 private fun Spinner.onItemSelectedListener(callback: (Int) -> Unit) {
     this.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -193,7 +197,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(FragmentSettingsB
                 return@doAfterTextChanged
             }
 
-            if (port < 1 || port > 65535) {
+            if (port < 1 || port > MAX_PORT) {
                 proxyPort.error = getString(R.string.bad_port)
                 return@doAfterTextChanged
             }
@@ -250,12 +254,12 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(FragmentSettingsB
             nospam.setText("%08X".format(vm.getNospam()))
             nospam.doAfterTextChanged {
                 saveNospam.isEnabled =
-                    nospam.text.length == 8 &&
-                    nospam.text.toString().toUInt(16).toInt() != vm.getNospam()
+                    nospam.text.length == NOSPAM_LENGTH &&
+                    nospam.text.toString().toUInt(HEX_RADIX).toInt() != vm.getNospam()
             }
             saveNospam.isEnabled = false
             saveNospam.setOnClickListener {
-                vm.setNospam(nospam.text.toString().toUInt(16).toInt())
+                vm.setNospam(nospam.text.toString().toUInt(HEX_RADIX).toInt())
                 saveNospam.isEnabled = false
                 Toast.makeText(requireContext(), R.string.saved, Toast.LENGTH_LONG).show()
             }

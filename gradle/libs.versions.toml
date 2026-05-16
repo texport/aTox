@@ -1,4 +1,6 @@
 [versions]
+detekt = "1.23.8"
+
 sdk-min = "21"
 sdk-target = "35"
 
@@ -27,6 +29,7 @@ toxcore = "v0.2.20"
 kotlinKsp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidApplication = { id = "com.android.application", version.ref = "android-plugin" }
 androidLibrary = { id = "com.android.library", version.ref = "android-plugin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
 [libraries]
 androidx-activity = "androidx.activity:activity:1.10.1" # >=1.11.0 needs compileSdk 36.

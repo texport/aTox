@@ -31,8 +31,10 @@ internal value class Dp(val dp: Float) : Size {
         Px(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, res.displayMetrics).toInt())
 }
 
+private const val OFFLINE_CONTACT_SORT_PRIORITY = -1000L
+
 internal fun contactListSorter(contact: Contact) = when {
     contact.lastMessage != 0L -> contact.lastMessage
-    contact.connectionStatus == ConnectionStatus.None -> -1000L
+    contact.connectionStatus == ConnectionStatus.None -> OFFLINE_CONTACT_SORT_PRIORITY
     else -> -contact.status.ordinal.toLong()
 }

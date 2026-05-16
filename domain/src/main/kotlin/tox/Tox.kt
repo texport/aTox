@@ -28,6 +28,8 @@ import ltd.evilcorp.core.vo.UserStatus
 private const val TAG = "Tox"
 private const val SLOW_ITERATION_LIMIT_MS = 10
 private const val TOX_SALT_LENGTH = 32
+private const val STOP_DELAY_MS = 10L
+private const val BOOTSTRAP_NODES_COUNT = 4
 
 @Singleton
 class Tox @Inject constructor(
@@ -37,11 +39,11 @@ class Tox @Inject constructor(
     private val saveManager: SaveManager,
     private val nodeRegistry: BootstrapNodeRegistry,
 ) {
-    val toxId: ToxID get() = tox.getToxId()
-    val publicKey: PublicKey by lazy { tox.getPublicKey() }
+    val toxId: ToxID get() = toxWrapper.getToxId()
+    val publicKey: PublicKey by lazy { toxWrapper.getPublicKey() }
     var nospam: Int
-        get() = tox.getNospam()
-        set(value) = tox.setNospam(value)
+    get() = toxWrapper.getNospam()
+    set(value) = toxWrapper.setNospam(value)
 
     var started = false
     var isBootstrapNeeded = true
@@ -66,11 +68,11 @@ class Tox @Inject constructor(
         save()
     }
 
-    private lateinit var tox: ToxWrapper
+    private lateinit var toxWrapper: ToxWrapper
 
     fun start(saveOption: SaveOptions, password: String?, listener: ToxEventListener, avListener: ToxAvEventListener) {
         val nativeTox = NativeTox()
-        tox = if (password == null) {
+        toxWrapper = if (password == null) {
             passkey = null
             ToxWrapper(listener, avListener, saveOption)
         } else {
@@ -91,7 +93,7 @@ class Tox @Inject constructor(
         fun loadContacts() = scope.launch {
             contactRepository.resetTransientData()
 
-            for ((publicKey, _) in tox.getContacts()) {
+            for ((publicKey, _) in toxWrapper.getContacts()) {
                 if (!contactRepository.exists(publicKey.string())) {
                     contactRepository.add(Contact(publicKey.string()))
                 }
@@ -101,8 +103,8 @@ class Tox @Inject constructor(
         fun iterateForeverAv() = scope.launch {
             toxAvRunning = true
             while (running) {
-                tox.iterateAv()
-                delay(tox.iterationIntervalAv())
+                toxWrapper.iterateAv()
+                delay(toxWrapper.iterationIntervalAv())
             }
             toxAvRunning = false
         }
@@ -121,9 +123,9 @@ class Tox @Inject constructor(
                 }
 
                 val before = System.currentTimeMillis()
-                tox.iterate()
+                toxWrapper.iterate()
                 val timeTaken = System.currentTimeMillis() - before
-                val iterationInterval = tox.iterationInterval()
+                val iterationInterval = toxWrapper.iterationInterval()
                 if (timeTaken > SLOW_ITERATION_LIMIT_MS && timeTaken > iterationInterval) {
                     Log.w(TAG, "Tox thread overran: $timeTaken/$iterationInterval.")
                 }
@@ -140,9 +142,9 @@ class Tox @Inject constructor(
 
     fun stop() = scope.launch {
         running = false
-        while (started) delay(10)
+        while (started) delay(STOP_DELAY_MS)
         save().join()
-        tox.stop()
+        toxWrapper.stop()
         passkey = null
     }
 
@@ -150,7 +152,7 @@ class Tox @Inject constructor(
     private fun save() = scope.launch {
         saveMutex.withLock {
             if (!started) return@withLock
-            val saveData = tox.getSaveData()
+            val saveData = toxWrapper.getSaveData()
             val encryptedData = if (passkey != null) {
                 val nativeTox = NativeTox()
                 nativeTox.passEncrypt(saveData, passkey!!) ?: saveData
@@ -165,81 +167,81 @@ class Tox @Inject constructor(
     }
 
     fun acceptFriendRequest(publicKey: PublicKey) {
-        tox.acceptFriendRequest(publicKey)
+        toxWrapper.acceptFriendRequest(publicKey)
         save()
     }
 
     fun startFileTransfer(pk: PublicKey, fileNumber: Int) {
         Log.i(TAG, "Starting file transfer $fileNumber from ${pk.fingerprint()}")
-        tox.startFileTransfer(pk, fileNumber)
+        toxWrapper.startFileTransfer(pk, fileNumber)
     }
 
     fun stopFileTransfer(pk: PublicKey, fileNumber: Int) {
         Log.i(TAG, "Stopping file transfer $fileNumber from ${pk.fingerprint()}")
-        tox.stopFileTransfer(pk, fileNumber)
+        toxWrapper.stopFileTransfer(pk, fileNumber)
     }
 
     fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String) =
-        tox.sendFile(pk, fileKind, fileSize, fileName)
+        toxWrapper.sendFile(pk, fileKind, fileSize, fileName)
 
     fun sendFileChunk(pk: PublicKey, fileNo: Int, pos: Long, data: ByteArray): Result<Unit> =
-        tox.sendFileChunk(pk, fileNo, pos, data)
+        toxWrapper.sendFileChunk(pk, fileNo, pos, data)
 
-    fun getName() = tox.getName()
+    fun getName() = toxWrapper.getName()
     fun setName(name: String) {
-        tox.setName(name)
+        toxWrapper.setName(name)
         save()
     }
 
-    fun getStatusMessage() = tox.getStatusMessage()
+    fun getStatusMessage() = toxWrapper.getStatusMessage()
     fun setStatusMessage(statusMessage: String) {
-        tox.setStatusMessage(statusMessage)
+        toxWrapper.setStatusMessage(statusMessage)
         save()
     }
 
     fun addContact(toxId: ToxID, message: String) {
-        tox.addContact(toxId, message)
+        toxWrapper.addContact(toxId, message)
         save()
     }
 
     fun deleteContact(publicKey: PublicKey) {
-        tox.deleteContact(publicKey)
+        toxWrapper.deleteContact(publicKey)
         save()
     }
 
     fun sendMessage(publicKey: PublicKey, message: String, type: MessageType) =
-        tox.sendMessage(publicKey, message, type)
+        toxWrapper.sendMessage(publicKey, message, type)
 
     fun getSaveData(): ByteArray {
         val pk = passkey
         return if (pk == null) {
-            tox.getSaveData()
+            toxWrapper.getSaveData()
         } else {
-            NativeTox().passEncrypt(tox.getSaveData(), pk) ?: tox.getSaveData()
+            NativeTox().passEncrypt(toxWrapper.getSaveData(), pk) ?: toxWrapper.getSaveData()
         }
     }
 
     private fun bootstrap() {
-        nodeRegistry.get(4).kForEach { node ->
+        nodeRegistry.get(BOOTSTRAP_NODES_COUNT).kForEach { node ->
             Log.i(TAG, "Bootstrapping from $node")
-            tox.bootstrap(node.address, node.port, node.publicKey.bytes())
+            toxWrapper.bootstrap(node.address, node.port, node.publicKey.bytes())
         }
     }
 
-    fun setTyping(publicKey: PublicKey, typing: Boolean) = tox.setTyping(publicKey, typing)
+    fun setTyping(publicKey: PublicKey, typing: Boolean) = toxWrapper.setTyping(publicKey, typing)
 
-    fun getStatus() = tox.getStatus()
+    fun getStatus() = toxWrapper.getStatus()
     fun setStatus(status: UserStatus) {
-        tox.setStatus(status)
+        toxWrapper.setStatus(status)
         save()
     }
 
-    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) = tox.sendLosslessPacket(pk, packet)
+    fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) = toxWrapper.sendLosslessPacket(pk, packet)
 
     // ToxAv, probably move these.
-    fun startCall(pk: PublicKey) = tox.startCall(pk)
-    fun answerCall(pk: PublicKey) = tox.answerCall(pk)
-    fun endCall(pk: PublicKey) = tox.endCall(pk)
+    fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
+    fun answerCall(pk: PublicKey) = toxWrapper.answerCall(pk)
+    fun endCall(pk: PublicKey) = toxWrapper.endCall(pk)
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
-        tox.sendAudio(pk, pcm, channels, samplingRate)
+        toxWrapper.sendAudio(pk, pcm, channels, samplingRate)
 }

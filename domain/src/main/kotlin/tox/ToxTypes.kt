@@ -6,12 +6,14 @@ package ltd.evilcorp.domain.tox
 
 import ltd.evilcorp.core.vo.PublicKey
 
+private const val ID_METADATA_LEN = 12
+
 @JvmInline
 value class ToxID(private val value: String) {
     fun bytes() = value.hexToBytes()
     fun string() = value
 
-    fun toPublicKey() = PublicKey(value.dropLast(12))
+    fun toPublicKey() = PublicKey(value.dropLast(ID_METADATA_LEN))
 
     companion object {
         fun fromBytes(toxId: ByteArray) = ToxID(toxId.bytesToHex())

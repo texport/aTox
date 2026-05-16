@@ -56,6 +56,7 @@ private const val TOX_MAX_NAME_LENGTH = 128
 private const val TOX_MAX_STATUS_MESSAGE_LENGTH = 1007
 
 private const val QR_CODE_TO_SCREEN_RATIO = 0.5f
+private const val PNG_QUALITY = 90
 private val qrCodePadding = Dp(16f)
 private val qrCodeSharedImageSize = Px(1024)
 private val qrCodeSharedImagePadding = Px(200)
@@ -208,7 +209,7 @@ class UserProfileFragment : BaseFragment<FragmentUserProfileBinding>(FragmentUse
         val imagesFolder = File(requireContext().cacheDir, "shared_images").apply { mkdirs() }
         val file = File(imagesFolder, "tox_id_qr_code.png")
         FileOutputStream(file).use { stream ->
-            qrBmp.compress(Bitmap.CompressFormat.PNG, 90, stream)
+            qrBmp.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, stream)
         }
 
         return FileProvider.getUriForFile(requireContext(), "${BuildConfig.APPLICATION_ID}.fileprovider", file)

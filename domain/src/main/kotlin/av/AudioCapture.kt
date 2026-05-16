@@ -49,6 +49,8 @@ private fun findAudioRecord(sampleRate: Int, channels: Int): AudioRecord? {
     return null
 }
 
+private const val MS_PER_SECOND = 1000.0
+
 class AudioCapture private constructor(
     private val sampleRate: Int,
     private val channels: Int,
@@ -59,7 +61,7 @@ class AudioCapture private constructor(
     fun stop() = audioRecord.stop()
     fun release() = audioRecord.release()
     fun read(): ShortArray {
-        val bytes = ShortArray((sampleRate * channels * frameLengthMs / 1000.0).toInt())
+        val bytes = ShortArray((sampleRate * channels * frameLengthMs / MS_PER_SECOND).toInt())
         audioRecord.read(bytes, 0, bytes.size)
         return bytes
     }

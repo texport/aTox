@@ -58,7 +58,7 @@ private class ReceiveShareDialog(
         setContentView(binding.root)
         window?.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
 
-        binding.sharingText.text = String.format("%s", sharePreview.truncated(SHARE_TEXT_PREVIEW_LENGTH))
+        binding.sharingText.text = String.format(java.util.Locale.US, "%s", sharePreview.truncated(SHARE_TEXT_PREVIEW_LENGTH))
 
         binding.contacts.let {
             it.adapter = ContactAdapter(layoutInflater, context)

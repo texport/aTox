@@ -17,6 +17,7 @@ import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.Tox
 
 private const val TAG = "AutoAway"
+private const val MILLIS_PER_SECOND = 1000L
 
 @Singleton
 class AutoAway @Inject constructor(
@@ -26,18 +27,18 @@ class AutoAway @Inject constructor(
     private val tox: Tox,
 ) {
     private var awayTimer = Timer()
-    private var autoAway = false
+    private var isAutoAway = false
 
     fun onBackground() {
         if (!settings.autoAwayEnabled) return
 
         Log.i(TAG, "In background, scheduling away")
-        awayTimer.schedule(settings.autoAwaySeconds * 1_000) {
+        awayTimer.schedule(settings.autoAwaySeconds * MILLIS_PER_SECOND) {
             scope.launch {
                 if (tox.getStatus() != UserStatus.None) return@launch
                 Log.i(TAG, "Setting away")
                 userManager.setStatus(UserStatus.Away)
-                autoAway = true
+                isAutoAway = true
             }
         }
     }
@@ -47,10 +48,10 @@ class AutoAway @Inject constructor(
         Log.i(TAG, "In foreground, canceling away")
         awayTimer.cancel()
         awayTimer = Timer()
-        if (autoAway) {
+        if (isAutoAway) {
             Log.i(TAG, "Restoring status")
             userManager.setStatus(UserStatus.None)
-            autoAway = false
+            isAutoAway = false
         }
     }
 }

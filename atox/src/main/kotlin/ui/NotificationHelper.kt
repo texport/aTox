@@ -50,7 +50,7 @@ import ltd.evilcorp.core.vo.Contact
 import ltd.evilcorp.core.vo.FriendRequest
 import ltd.evilcorp.core.vo.PublicKey
 import ltd.evilcorp.core.vo.UserStatus
-import ltd.evilcorp.domain.tox.FINGERPRINT_LEN
+import ltd.evilcorp.core.vo.FINGERPRINT_LEN
 
 private const val TAG = "NotificationHelper"
 

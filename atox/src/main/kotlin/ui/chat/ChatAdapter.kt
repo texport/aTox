@@ -35,6 +35,7 @@ import ltd.evilcorp.core.vo.isStarted
 
 private const val TAG = "ChatAdapter"
 private const val IMAGE_TO_SCREEN_RATIO = 0.75
+private const val ONE_MINUTE_MS = 60_000
 
 private fun FileTransfer.isImage() = try {
     URLConnection.guessContentTypeFromName(fileName).startsWith("image/")
@@ -144,7 +145,7 @@ class ChatAdapter(private val inflater: LayoutInflater, private val resources: R
                     val next = messages[position + 1]
                     if (next.timestamp != 0L &&
                         next.sender == message.sender &&
-                        next.timestamp - message.timestamp < 60_000
+                        next.timestamp - message.timestamp < ONE_MINUTE_MS
                     ) {
                         View.GONE
                     } else {
@@ -233,7 +234,7 @@ class ChatAdapter(private val inflater: LayoutInflater, private val resources: R
                     View.VISIBLE
                 } else {
                     val next = messages[position + 1]
-                    if (next.sender == message.sender && next.timestamp - message.timestamp < 60_000) {
+                    if (next.sender == message.sender && next.timestamp - message.timestamp < ONE_MINUTE_MS) {
                         View.GONE
                     } else {
                         View.VISIBLE

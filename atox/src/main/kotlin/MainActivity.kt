@@ -23,9 +23,9 @@ import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.atox.ui.chat.CONTACT_PUBLIC_KEY
 import ltd.evilcorp.atox.ui.contactlist.ARG_ADD_CONTACT
 import ltd.evilcorp.atox.ui.contactlist.ARG_SHARE
+import ltd.evilcorp.core.vo.FINGERPRINT_LEN
 import ltd.evilcorp.core.vo.PublicKey
 import ltd.evilcorp.domain.feature.CallManager
-import ltd.evilcorp.domain.tox.FINGERPRINT_LEN
 
 private const val TAG = "MainActivity"
 private const val SCHEME = "tox:"

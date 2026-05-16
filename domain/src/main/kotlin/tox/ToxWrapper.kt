@@ -19,6 +19,7 @@ private const val TAG = "ToxWrapper"
 // https://wiki.xiph.org/Opus_Recommended_Settings
 // 32 should be good enough for fullband stereo.
 private const val AUDIO_BIT_RATE = 32
+private const val FILE_ID_LENGTH = 32
 
 enum class CustomPacketError {
     Success,
@@ -151,7 +152,7 @@ class ToxWrapper(
 
     fun sendFile(pk: PublicKey, fileKind: FileKind, fileSize: Long, fileName: String): Int {
         return try {
-            nativeTox.toxFileSend(toxPtr, contactByKey(pk), fileKind.toToxtype(), fileSize, Random.nextBytes(32), fileName.toByteArray())
+            nativeTox.toxFileSend(toxPtr, contactByKey(pk), fileKind.toToxtype(), fileSize, Random.nextBytes(FILE_ID_LENGTH), fileName.toByteArray())
         } catch (e: Exception) {
             Log.e(TAG, "Error sending ft $fileName ${pk.fingerprint()}\n$e")
             -1

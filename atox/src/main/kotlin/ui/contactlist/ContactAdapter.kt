@@ -83,7 +83,7 @@ class ContactAdapter(private val inflater: LayoutInflater, private val context: 
                     name = name.ifEmpty { context.getString(R.string.contact_default_name) }
 
                     val shortId = publicKey.take(FINGERPRINT_LEN)
-                    vh.publicKey.text = String.format("%s %s", shortId.take(shortId.length / 2), shortId.takeLast(shortId.length / 2))
+                    vh.publicKey.text = String.format(java.util.Locale.US, "%s %s", shortId.take(shortId.length / 2), shortId.takeLast(shortId.length / 2))
                     vh.name.text = name
                     vh.lastMessage.text = if (lastMessage != 0L) {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)

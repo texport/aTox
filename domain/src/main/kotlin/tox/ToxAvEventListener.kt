@@ -27,6 +27,13 @@ typealias VideoReceiveFrameHandler = (
 typealias AudioReceiveFrameHandler = (pk: String, pcm: ShortArray, channels: Int, samplingRate: Int) -> Unit
 typealias AudioBitRateHandler = (pk: String, bitRate: Int) -> Unit
 
+private const val CALL_STATE_ERROR = 1
+private const val CALL_STATE_FINISHED = 2
+private const val CALL_STATE_SENDING_AUDIO = 4
+private const val CALL_STATE_SENDING_VIDEO = 8
+private const val CALL_STATE_RECEIVING_AUDIO = 16
+private const val CALL_STATE_RECEIVING_VIDEO = 32
+
 class ToxAvEventListener @Inject constructor() {
     var contactMapping: List<Pair<PublicKey, Int>> = listOf()
 
@@ -71,16 +78,16 @@ class ToxAvEventListener @Inject constructor() {
     fun onCallState(friendNo: Int, state: Int) {
         // Map Int bitmask to EnumSet
         val set = EnumSet.noneOf(ToxavFriendCallState::class.java)
-        if (state and 1 != 0) set.add(ToxavFriendCallState.Error)
-        if (state and 2 != 0) set.add(ToxavFriendCallState.Finished)
-        if (state and 4 != 0) set.add(ToxavFriendCallState.SendingAudio)
-        if (state and 8 != 0) set.add(ToxavFriendCallState.SendingVideo)
-        if (state and 16 != 0) set.add(ToxavFriendCallState.ReceivingAudio)
-        if (state and 32 != 0) set.add(ToxavFriendCallState.ReceivingVideo)
+        if (state and CALL_STATE_ERROR != 0) set.add(ToxavFriendCallState.Error)
+        if (state and CALL_STATE_FINISHED != 0) set.add(ToxavFriendCallState.Finished)
+        if (state and CALL_STATE_SENDING_AUDIO != 0) set.add(ToxavFriendCallState.SendingAudio)
+        if (state and CALL_STATE_SENDING_VIDEO != 0) set.add(ToxavFriendCallState.SendingVideo)
+        if (state and CALL_STATE_RECEIVING_AUDIO != 0) set.add(ToxavFriendCallState.ReceivingAudio)
+        if (state and CALL_STATE_RECEIVING_VIDEO != 0) set.add(ToxavFriendCallState.ReceivingVideo)
         callState(friendNo, set)
     }
 
-    fun onAudioReceiveFrame(friendNo: Int, pcm: ShortArray, sampleCount: Int, channels: Int, samplingRate: Int) =
+    fun onAudioReceiveFrame(friendNo: Int, pcm: ShortArray, @Suppress("UNUSED_PARAMETER") sampleCount: Int, channels: Int, samplingRate: Int) =
         audioReceiveFrame(friendNo, pcm, channels, samplingRate)
 
     fun onVideoReceiveFrame(
