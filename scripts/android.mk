@@ -8,6 +8,8 @@ endif
 HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(HOST_OS),darwin)
     HOST_ARCH := darwin-x86_64
+else ifneq ($(filter msys% mingw% cygwin%,$(HOST_OS)),)
+    HOST_ARCH := windows-x86_64
 else
     HOST_ARCH := linux-x86_64
 endif
