@@ -31,6 +31,7 @@ static jmethodID mid_onConferenceInvite;
 static jmethodID mid_onConferenceMessage;
 static jmethodID mid_onConferencePeerListChanged;
 static jmethodID mid_onConferencePeerName;
+static jmethodID mid_onConferenceTitle;
 
 static std::map<Tox*, jobject> tox_listeners;
 
@@ -233,6 +234,18 @@ void cb_conference_peer_name(Tox *tox, uint32_t conference_number, uint32_t peer
     }
 }
 
+// Обратный вызов при изменении названия (заголовка) конференции
+void cb_conference_title(Tox *tox, uint32_t conference_number, uint32_t peer_number, const uint8_t *title, size_t length, void *user_data) {
+    JNIEnv* env = get_env();
+    jobject listener = tox_listeners[tox];
+    if (listener && mid_onConferenceTitle) {
+        jbyteArray t = env->NewByteArray(length);
+        env->SetByteArrayRegion(t, 0, length, (const jbyte*)title);
+        env->CallVoidMethod(listener, mid_onConferenceTitle, (jint)conference_number, (jint)peer_number, t);
+        env->DeleteLocalRef(t);
+    }
+}
+
 static std::vector<uint8_t> jba2vec(JNIEnv *env, jbyteArray array) {
     std::vector<uint8_t> res;
     if (array) {
@@ -254,6 +267,11 @@ extern "C" {
     bool register_toxav_methods(JNIEnv* env);
     void init_toxav_vm(JavaVM* vm);
 
+// ===================================================================================
+// Управление инстансом Tox (Инициализация, завершение работы, цикл toxIterate)
+// ===================================================================================
+
+// Создание нового инстанса Tox с настройками по умолчанию
 JNIEXPORT jlong JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxNew(JNIEnv *env, jobject thiz, jbyteArray savedata) {
     struct Tox_Options *options = tox_options_new(nullptr);
@@ -271,6 +289,41 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxNew(JNIEnv *env, jobject thiz, jbyteArra
     return reinterpret_cast<jlong>(tox);
 }
 
+// Создание нового инстанса Tox с расширенными настройками сети и прокси
+JNIEXPORT jlong JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxNewWithOptions(JNIEnv *env, jobject thiz, jbyteArray savedata,
+                                                       jboolean ipv6Enabled, jboolean udpEnabled, jboolean localDiscoveryEnabled,
+                                                       jint proxyType, jstring proxyHost, jint proxyPort) {
+    struct Tox_Options *options = tox_options_new(nullptr);
+    
+    std::vector<uint8_t> sd = jba2vec(env, savedata);
+    if (!sd.empty()) {
+        tox_options_set_savedata_type(options, TOX_SAVEDATA_TYPE_TOX_SAVE);
+        tox_options_set_savedata_data(options, sd.data(), sd.size());
+    }
+    
+    tox_options_set_ipv6_enabled(options, ipv6Enabled);
+    tox_options_set_udp_enabled(options, udpEnabled);
+    tox_options_set_local_discovery_enabled(options, localDiscoveryEnabled);
+    
+    if (proxyType > 0 && proxyHost) {
+        const char *host_str = env->GetStringUTFChars(proxyHost, nullptr);
+        if (host_str) {
+            tox_options_set_proxy_type(options, (TOX_PROXY_TYPE)proxyType);
+            tox_options_set_proxy_host(options, host_str);
+            tox_options_set_proxy_port(options, (uint16_t)proxyPort);
+            env->ReleaseStringUTFChars(proxyHost, host_str);
+        }
+    }
+    
+    TOX_ERR_NEW err;
+    Tox *tox = tox_new(options, &err);
+    tox_options_free(options);
+    if (err != TOX_ERR_NEW_OK) LOGE("tox_new_with_options failed: %d", err);
+    return reinterpret_cast<jlong>(tox);
+}
+
+// Уничтожение инстанса Tox и освобождение ресурсов
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxKill(JNIEnv *env, jobject thiz, jlong toxPtr) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
@@ -283,6 +336,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxKill(JNIEnv *env, jobject thiz, jlong to
     }
 }
 
+// Подключение к публичному узлу (Bootstrap)
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxBootstrap(JNIEnv *env, jobject thiz, jlong toxPtr, jstring address, jint port, jbyteArray publicKey) {
     const char *addr = env->GetStringUTFChars(address, nullptr);
@@ -291,6 +345,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxBootstrap(JNIEnv *env, jobject thiz, jlo
     env->ReleaseStringUTFChars(address, addr);
 }
 
+// Добавление TCP-релея для стабильного соединения
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxAddTcpRelay(JNIEnv *env, jobject thiz, jlong toxPtr, jstring address, jint port, jbyteArray publicKey) {
     const char *addr = env->GetStringUTFChars(address, nullptr);
@@ -299,6 +354,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxAddTcpRelay(JNIEnv *env, jobject thiz, j
     env->ReleaseStringUTFChars(address, addr);
 }
 
+// Проведение одной сетевой итерации ядра Tox и диспетчеризация callback-событий в Kotlin
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxIterate(JNIEnv *env, jobject thiz, jlong toxPtr, jobject listener) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
@@ -319,21 +375,28 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxIterate(JNIEnv *env, jobject thiz, jlong
         tox_callback_file_chunk_request(tox, cb_file_chunk_request);
         tox_callback_friend_lossless_packet(tox, cb_friend_lossless_packet);
         tox_callback_friend_lossy_packet(tox, cb_friend_lossy_packet);
-
+ 
         // Регистрация нативных C++ коллбеков для групповых событий
         tox_callback_conference_invite(tox, cb_conference_invite);
         tox_callback_conference_message(tox, cb_conference_message);
         tox_callback_conference_peer_list_changed(tox, cb_conference_peer_list_changed);
         tox_callback_conference_peer_name(tox, cb_conference_peer_name);
+        tox_callback_conference_title(tox, cb_conference_title);
     }
     tox_iterate(tox, nullptr);
 }
 
+// Получение рекомендованного интервала ожидания (в миллисекундах) перед следующей итерацией
 JNIEXPORT jint JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxIterationInterval(JNIEnv *env, jobject thiz, jlong toxPtr) {
     return tox_iteration_interval(reinterpret_cast<Tox*>(toxPtr));
 }
 
+// ===================================================================================
+// Профиль пользователя (Имя, статус-сообщение, адреса, ключи, порты)
+// ===================================================================================
+
+// Получение собственного имени пользователя
 JNIEXPORT jbyteArray JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetName(JNIEnv *env, jobject thiz, jlong toxPtr) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
@@ -343,12 +406,14 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetName(JNIEnv *env, jobject thiz, jlong
     return vec2jba(env, name.data(), len);
 }
 
+// Установка собственного имени пользователя
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxSetName(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray name) {
     std::vector<uint8_t> n = jba2vec(env, name);
     tox_self_set_name(reinterpret_cast<Tox*>(toxPtr), n.data(), n.size(), nullptr);
 }
 
+// Получение собственного статус-сообщения
 JNIEXPORT jbyteArray JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetStatusMessage(JNIEnv *env, jobject thiz, jlong toxPtr) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
@@ -358,12 +423,14 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetStatusMessage(JNIEnv *env, jobject th
     return vec2jba(env, msg.data(), len);
 }
 
+// Установка собственного статус-сообщения
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxSetStatusMessage(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray msg) {
     std::vector<uint8_t> m = jba2vec(env, msg);
     tox_self_set_status_message(reinterpret_cast<Tox*>(toxPtr), m.data(), m.size(), nullptr);
 }
 
+// Получение собственного полного Tox-адреса (Tox ID) для обмена контактами
 JNIEXPORT jbyteArray JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetAddress(JNIEnv *env, jobject thiz, jlong toxPtr) {
     uint8_t addr[TOX_ADDRESS_SIZE];
@@ -371,6 +438,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetAddress(JNIEnv *env, jobject thiz, jl
     return vec2jba(env, addr, TOX_ADDRESS_SIZE);
 }
 
+// Получение собственного публичного ключа (Public Key)
 JNIEXPORT jbyteArray JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetPublicKey(JNIEnv *env, jobject thiz, jlong toxPtr) {
     uint8_t pk[TOX_PUBLIC_KEY_SIZE];
@@ -378,16 +446,57 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetPublicKey(JNIEnv *env, jobject thiz, 
     return vec2jba(env, pk, TOX_PUBLIC_KEY_SIZE);
 }
 
+// Получение секретного ключа для резервной копии профиля
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxSelfGetSecretKey(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    uint8_t sk[TOX_SECRET_KEY_SIZE];
+    tox_self_get_secret_key(reinterpret_cast<Tox*>(toxPtr), sk);
+    return vec2jba(env, sk, TOX_SECRET_KEY_SIZE);
+}
+
+// Получение активного UDP-порта, занятого инстансом Tox
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxSelfGetUdpPort(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    TOX_ERR_GET_PORT err;
+    uint16_t port = tox_self_get_udp_port(reinterpret_cast<Tox*>(toxPtr), &err);
+    if (err != TOX_ERR_GET_PORT_OK) return 0;
+    return port;
+}
+
+// Получение активного TCP-порта, занятого инстансом Tox
+JNIEXPORT jint JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxSelfGetTcpPort(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    TOX_ERR_GET_PORT err;
+    uint16_t port = tox_self_get_tcp_port(reinterpret_cast<Tox*>(toxPtr), &err);
+    if (err != TOX_ERR_GET_PORT_OK) return 0;
+    return port;
+}
+
+// Получение временного DHT-идентификатора узла
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxSelfGetDhtId(JNIEnv *env, jobject thiz, jlong toxPtr) {
+    uint8_t dht_id[TOX_PUBLIC_KEY_SIZE];
+    tox_self_get_dht_id(reinterpret_cast<Tox*>(toxPtr), dht_id);
+    return vec2jba(env, dht_id, TOX_PUBLIC_KEY_SIZE);
+}
+
+// ===================================================================================
+// Настройки профиля (Nospam, сохранение сессии)
+// ===================================================================================
+
+// Получение текущего значения антиспам-кода (Nospam)
 JNIEXPORT jint JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetNospam(JNIEnv *env, jobject thiz, jlong toxPtr) {
     return tox_self_get_nospam(reinterpret_cast<Tox*>(toxPtr));
 }
 
+// Установка нового значения антиспам-кода (Nospam)
 JNIEXPORT void JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxSetNospam(JNIEnv *env, jobject thiz, jlong toxPtr, jint nospam) {
     tox_self_set_nospam(reinterpret_cast<Tox*>(toxPtr), nospam);
 }
 
+// Получение полной бинарной сессии Tox (Savedata) для сохранения профиля на диск
 JNIEXPORT jbyteArray JNICALL
 Java_ltd_evilcorp_core_tox_NativeTox_toxGetSavedata(JNIEnv *env, jobject thiz, jlong toxPtr) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
@@ -396,23 +505,29 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetSavedata(JNIEnv *env, jobject thiz, j
     tox_get_savedata(tox, sd.data());
     return vec2jba(env, sd.data(), len);
 }
+// ===================================================================================
+// Взаимодействие с друзьями (Добавление, удаление, отправка сообщений, запросы статуса)
+// ===================================================================================
 
-// ... I will skip the rest of the implementations for brevity and implement them incrementally if needed ...
+// Добавление друга (отправка запроса на добавление)
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxAddFriend(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray pubKey, jbyteArray message) {
     std::vector<uint8_t> pk = jba2vec(env, pubKey);
     std::vector<uint8_t> msg = jba2vec(env, message);
     return tox_friend_add(reinterpret_cast<Tox*>(toxPtr), pk.data(), msg.data(), msg.size(), nullptr);
 }
 
+// Добавление друга без отправки запроса (для подтверждения входящего запроса)
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxAddFriendNorequest(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray pubKey) {
     std::vector<uint8_t> pk = jba2vec(env, pubKey);
     return tox_friend_add_norequest(reinterpret_cast<Tox*>(toxPtr), pk.data(), nullptr);
 }
 
+// Удаление друга из списка контактов
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxDeleteFriend(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
     tox_friend_delete(reinterpret_cast<Tox*>(toxPtr), friendNumber, nullptr);
 }
 
+// Получение списка идентификаторов всех друзей
 JNIEXPORT jintArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxGetFriendList(JNIEnv *env, jobject thiz, jlong toxPtr) {
     Tox *tox = reinterpret_cast<Tox*>(toxPtr);
     size_t count = tox_self_get_friend_list_size(tox);
@@ -423,6 +538,7 @@ JNIEXPORT jintArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxGetFriendLis
     return res;
 }
 
+// Получение публичного ключа друга по его номеру
 JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxGetFriendPublicKey(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
     uint8_t pk[TOX_PUBLIC_KEY_SIZE];
     if (tox_friend_get_public_key(reinterpret_cast<Tox*>(toxPtr), friendNumber, pk, nullptr)) {
@@ -431,49 +547,143 @@ JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxGetFriendPu
     return nullptr;
 }
 
+// Поиск номера друга по его публичному ключу
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendByPublicKey(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray pubKey) {
     std::vector<uint8_t> pk = jba2vec(env, pubKey);
     return tox_friend_by_public_key(reinterpret_cast<Tox*>(toxPtr), pk.data(), nullptr);
 }
 
+// Проверка существования друга в списке контактов по его номеру
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendExists(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    return tox_friend_exists(reinterpret_cast<Tox*>(toxPtr), friendNumber);
+}
+
+// Получение имени друга по его номеру
+JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetName(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_FRIEND_QUERY err;
+    size_t len = tox_friend_get_name_size(tox, friendNumber, &err);
+    if (err != TOX_ERR_FRIEND_QUERY_OK || len == 0) return nullptr;
+    std::vector<uint8_t> name(len);
+    if (tox_friend_get_name(tox, friendNumber, name.data(), &err)) {
+        return vec2jba(env, name.data(), len);
+    }
+    return nullptr;
+}
+
+// Получение статус-сообщения друга по его номеру
+JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetStatusMessage(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_FRIEND_QUERY err;
+    size_t len = tox_friend_get_status_message_size(tox, friendNumber, &err);
+    if (err != TOX_ERR_FRIEND_QUERY_OK || len == 0) return nullptr;
+    std::vector<uint8_t> msg(len);
+    if (tox_friend_get_status_message(tox, friendNumber, msg.data(), &err)) {
+        return vec2jba(env, msg.data(), len);
+    }
+    return nullptr;
+}
+
+// Получение пользовательского статуса друга (Online, Away, Busy)
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetStatus(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    TOX_ERR_FRIEND_QUERY err;
+    TOX_USER_STATUS status = tox_friend_get_status(reinterpret_cast<Tox*>(toxPtr), friendNumber, &err);
+    if (err != TOX_ERR_FRIEND_QUERY_OK) return 0;
+    return (jint)status;
+}
+
+// Получение типа сетевого соединения с другом (Offline, TCP, UDP)
+JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetConnectionStatus(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    TOX_ERR_FRIEND_QUERY err;
+    TOX_CONNECTION conn = tox_friend_get_connection_status(reinterpret_cast<Tox*>(toxPtr), friendNumber, &err);
+    if (err != TOX_ERR_FRIEND_QUERY_OK) return 0;
+    return (jint)conn;
+}
+
+// Проверка, набирает ли друг сообщение в данный момент
+JNIEXPORT jboolean JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetTyping(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    TOX_ERR_FRIEND_QUERY err;
+    return tox_friend_get_typing(reinterpret_cast<Tox*>(toxPtr), friendNumber, &err);
+}
+
+// Получение времени последнего нахождения друга в сети (Unix Timestamp)
+JNIEXPORT jlong JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendGetLastOnline(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber) {
+    TOX_ERR_FRIEND_GET_LAST_ONLINE err;
+    uint64_t last_online = tox_friend_get_last_online(reinterpret_cast<Tox*>(toxPtr), friendNumber, &err);
+    if (err != TOX_ERR_FRIEND_GET_LAST_ONLINE_OK) return 0;
+    return (jlong)last_online;
+}
+
+// Отправка текстового сообщения другу
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendSendMessage(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint type, jbyteArray message) {
     std::vector<uint8_t> msg = jba2vec(env, message);
     return tox_friend_send_message(reinterpret_cast<Tox*>(toxPtr), friendNumber, (TOX_MESSAGE_TYPE)type, msg.data(), msg.size(), nullptr);
 }
 
+// Установка собственного статуса набора текста для конкретного друга
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxSetTyping(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jboolean typing) {
     tox_self_set_typing(reinterpret_cast<Tox*>(toxPtr), friendNumber, typing, nullptr);
 }
 
+// Получение собственного пользовательского статуса (Online, Away, Busy)
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxGetSelfUserStatus(JNIEnv *env, jobject thiz, jlong toxPtr) {
     return tox_self_get_status(reinterpret_cast<Tox*>(toxPtr));
 }
 
+// Установка собственного пользовательского статуса (Online, Away, Busy)
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxSetSelfUserStatus(JNIEnv *env, jobject thiz, jlong toxPtr, jint status) {
     tox_self_set_status(reinterpret_cast<Tox*>(toxPtr), (TOX_USER_STATUS)status);
 }
 
+// ===================================================================================
+// Передача файлов и кастомные пакеты данных
+// ===================================================================================
+
+// Отправка управляющей команды для передачи файла (пауза, возобновление, отмена)
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFileControl(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint fileNumber, jint control) {
     tox_file_control(reinterpret_cast<Tox*>(toxPtr), friendNumber, fileNumber, (TOX_FILE_CONTROL)control, nullptr);
 }
 
+// Инициирование новой передачи файла другу
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFileSend(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint kind, jlong fileSize, jbyteArray fileId, jbyteArray filename) {
     std::vector<uint8_t> id = jba2vec(env, fileId);
     std::vector<uint8_t> name = jba2vec(env, filename);
     return tox_file_send(reinterpret_cast<Tox*>(toxPtr), friendNumber, kind, fileSize, id.data(), name.data(), name.size(), nullptr);
 }
 
+// Отправка фрагмента (чанка) данных файла
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFileSendChunk(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint fileNumber, jlong position, jbyteArray data) {
     std::vector<uint8_t> d = jba2vec(env, data);
     tox_file_send_chunk(reinterpret_cast<Tox*>(toxPtr), friendNumber, fileNumber, position, d.data(), d.size(), nullptr);
 }
 
+// Получение уникального идентификатора файла (File ID) для передачи
+JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFileGetFileId(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jint fileNumber) {
+    uint8_t file_id[TOX_FILE_ID_LENGTH];
+    TOX_ERR_FILE_GET err;
+    if (tox_file_get_file_id(reinterpret_cast<Tox*>(toxPtr), friendNumber, fileNumber, file_id, &err)) {
+        return vec2jba(env, file_id, TOX_FILE_ID_LENGTH);
+    }
+    return nullptr;
+}
+
+// Отправка надежного (Lossless) пользовательского пакета другу
 JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendSendLosslessPacket(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jbyteArray data) {
     std::vector<uint8_t> d = jba2vec(env, data);
     tox_friend_send_lossless_packet(reinterpret_cast<Tox*>(toxPtr), friendNumber, d.data(), d.size(), nullptr);
 }
 
-// Crypto
+// Отправка ненадежного (Lossy) пользовательского пакета другу
+JNIEXPORT void JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxFriendSendLossyPacket(JNIEnv *env, jobject thiz, jlong toxPtr, jint friendNumber, jbyteArray data) {
+    std::vector<uint8_t> d = jba2vec(env, data);
+    tox_friend_send_lossy_packet(reinterpret_cast<Tox*>(toxPtr), friendNumber, d.data(), d.size(), nullptr);
+}
+
+// ===================================================================================
+// Криптография и шифрование профиля
+// ===================================================================================
+
+// Извлечение соли (Salt) из зашифрованных данных профиля
 JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_getSalt(JNIEnv *env, jobject thiz, jbyteArray data) {
     std::vector<uint8_t> d = jba2vec(env, data);
     uint32_t salt_len = tox_pass_salt_length();
@@ -484,12 +694,14 @@ JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_getSalt(JNIEnv
     return nullptr;
 }
 
+// Получение ключа шифрования из пароля с использованием соли
 JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passKeyDeriveWithSalt(JNIEnv *env, jobject thiz, jbyteArray passphrase, jbyteArray salt) {
     // In the simple API approach, we just return the passphrase as the "key".
     // The actual key derivation happens inside tox_pass_encrypt/decrypt.
     return (jbyteArray)env->NewLocalRef(passphrase);
 }
 
+// Расшифрование данных профиля с использованием пароля/ключа
 JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passDecrypt(JNIEnv *env, jobject thiz, jbyteArray data, jbyteArray passkey) {
     std::vector<uint8_t> d = jba2vec(env, data);
     std::vector<uint8_t> p = jba2vec(env, passkey);
@@ -504,6 +716,7 @@ JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passDecrypt(JN
     return nullptr;
 }
 
+// Зашифрование данных профиля с использованием пароля/ключа
 JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passEncrypt(JNIEnv *env, jobject thiz, jbyteArray data, jbyteArray passkey) {
     std::vector<uint8_t> d = jba2vec(env, data);
     std::vector<uint8_t> p = jba2vec(env, passkey);
@@ -516,6 +729,10 @@ JNIEXPORT jbyteArray JNICALL Java_ltd_evilcorp_core_tox_NativeTox_passEncrypt(JN
     LOGE("tox_pass_encrypt failed: %d", err);
     return nullptr;
 }
+
+// ===================================================================================
+// Управление конференциями (Групповые чаты)
+// ===================================================================================
 
 // Создание новой текстовой конференции (группового чата)
 JNIEXPORT jint JNICALL
@@ -578,6 +795,44 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceSendMessage(JNIEnv *env, jobje
         return 0;
     }
     return res ? 1 : 0;
+}
+
+// Установка нового названия (заголовка) конференции
+JNIEXPORT void JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceSetTitle(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber, jbyteArray title) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    std::vector<uint8_t> t = jba2vec(env, title);
+    TOX_ERR_CONFERENCE_TITLE err;
+    tox_conference_set_title(tox, conferenceNumber, t.data(), t.size(), &err);
+    if (err != TOX_ERR_CONFERENCE_TITLE_OK) {
+        LOGE("tox_conference_set_title failed: %d", err);
+    }
+}
+
+// Получение текущего названия (заголовка) конференции
+JNIEXPORT jbyteArray JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetTitle(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_TITLE err;
+    size_t len = tox_conference_get_title_size(tox, conferenceNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_TITLE_OK || len == 0) return nullptr;
+    std::vector<uint8_t> title(len);
+    if (tox_conference_get_title(tox, conferenceNumber, title.data(), &err)) {
+        return vec2jba(env, title.data(), len);
+    }
+    return nullptr;
+}
+
+// Проверка, является ли указанный участник конференции текущим пользователем
+JNIEXPORT jboolean JNICALL
+Java_ltd_evilcorp_core_tox_NativeTox_toxConferencePeerNumberIsOurself(JNIEnv *env, jobject thiz, jlong toxPtr, jint conferenceNumber, jint peerNumber) {
+    Tox *tox = reinterpret_cast<Tox*>(toxPtr);
+    TOX_ERR_CONFERENCE_PEER_QUERY err;
+    bool res = tox_conference_peer_number_is_ours(tox, conferenceNumber, peerNumber, &err);
+    if (err != TOX_ERR_CONFERENCE_PEER_QUERY_OK) {
+        return false;
+    }
+    return res;
 }
 
 // Получение общего количества участников в конференции
@@ -651,6 +906,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxConferenceGetType(JNIEnv *env, jobject t
     return (jint)type;
 }
 
+// Инициализация JNI-библиотеки при ее загрузке в JVM (кэширование Method ID событий)
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     g_vm = vm;
     init_toxav_vm(vm);
@@ -679,6 +935,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     mid_onConferenceMessage = env->GetMethodID(cls, "onConferenceMessage", "(III[B)V");
     mid_onConferencePeerListChanged = env->GetMethodID(cls, "onConferencePeerListChanged", "(I)V");
     mid_onConferencePeerName = env->GetMethodID(cls, "onConferencePeerName", "(II[B)V");
+    mid_onConferenceTitle = env->GetMethodID(cls, "onConferenceTitle", "(II[B)V");
 
     if (!register_toxav_methods(env)) {
         LOGE("Failed to register ToxAV methods");
