@@ -60,4 +60,7 @@ interface ContactDao {
 
     @Query("UPDATE contacts SET draft_message = :draft WHERE public_key = :publicKey")
     fun setDraftMessage(publicKey: String, draft: String)
+
+    @Query("UPDATE contacts SET last_online = :lastOnline WHERE public_key = :publicKey")
+    fun setLastOnline(publicKey: String, lastOnline: Long)
 }

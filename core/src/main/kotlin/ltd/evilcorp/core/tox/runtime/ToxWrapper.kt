@@ -381,6 +381,13 @@ class ToxWrapper(
     }
 
     /**
+     * Проверяет, вводит ли в данный момент друг сообщение в чате (активный ввод).
+     */
+    fun friendGetTyping(pk: PublicKey): Boolean = synchronized(this) {
+        nativeTox.toxFriendGetTyping(toxPtr, contactByKey(pk))
+    }
+
+    /**
      * Вычисляет внутренний нативный ID друга по его публичному криптографическому ключу.
      */
     private fun contactByKey(pk: PublicKey): Int = synchronized(this) {

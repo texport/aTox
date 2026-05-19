@@ -27,4 +27,5 @@ class ContactRepository @Inject constructor(private val dao: ContactDao) {
     fun setAvatarUri(publicKey: String, uri: String) = dao.setAvatarUri(publicKey, uri)
     fun setHasUnreadMessages(publicKey: String, anyUnread: Boolean) = dao.setHasUnreadMessages(publicKey, anyUnread)
     fun setDraftMessage(publicKey: String, draft: String) = dao.setDraftMessage(publicKey, draft)
+    fun setLastOnline(publicKey: String, lastOnline: Long) = dao.setLastOnline(publicKey, lastOnline)
 }

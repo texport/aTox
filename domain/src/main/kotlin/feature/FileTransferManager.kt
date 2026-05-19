@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import ltd.evilcorp.core.repository.ContactRepository
 import ltd.evilcorp.core.repository.FileTransferRepository
@@ -345,6 +346,54 @@ class FileTransferManager @Inject constructor(
     suspend fun deleteAll(publicKey: PublicKey) {
         fileTransferRepository.get(publicKey.string()).take(1).collect { fts ->
             fts.kForEach { delete(it.id) }
+        }
+    }
+
+    suspend fun sendAvatar(pkStr: String) = withContext(Dispatchers.IO) {
+        val selfAvatarFile = File(context.filesDir, "self_avatar.png")
+        if (!selfAvatarFile.exists() || selfAvatarFile.length() == 0L) {
+            return@withContext
+        }
+        val size = selfAvatarFile.length()
+        val pk = PublicKey(pkStr)
+        
+        val existing = fileTransfers.find { it.publicKey == pkStr && it.fileKind == FileKind.Avatar.ordinal }
+        if (existing != null) {
+            fileTransfers.remove(existing)
+            outgoingFiles.remove(Pair(pkStr, existing.fileNumber))?.inputStream?.close()
+        }
+
+        val fileNo = try {
+            tox.sendFile(pk, FileKind.Avatar, size, "avatar")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initiate avatar send to ${pkStr.fingerprint()}", e)
+            -1
+        }
+        if (fileNo == -1) return@withContext
+
+        val ft = FileTransfer(
+            pkStr,
+            fileNo,
+            FileKind.Avatar.ordinal,
+            size,
+            "avatar",
+            true,
+            FT_NOT_STARTED,
+            selfAvatarFile.toUri().toString()
+        )
+        fileTransfers.add(ft)
+        
+        val inputStream = selfAvatarFile.inputStream()
+        outgoingFiles[Pair(pkStr, fileNo)] = OutgoingFile(inputStream, mutableListOf())
+    }
+
+    suspend fun broadcastAvatar() = withContext(Dispatchers.IO) {
+        for ((publicKey, _) in tox.getContacts()) {
+            val pkStr = publicKey.string()
+            val contact = contactRepository.get(pkStr).firstOrNull()
+            if (contact != null && contact.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None) {
+                sendAvatar(pkStr)
+            }
         }
     }
 

@@ -283,4 +283,7 @@
     <string name="invalid_password">Invalid password</string>
     <string name="unlock">Unlock</string>
     <string name="exit">Exit</string>
+    <string name="contact_last_seen">Last seen %1$s</string>
+    <string name="profile_avatar_change">Change Profile Picture</string>
+    <string name="avatar_too_large">Error: Avatar is too large (max 64 KB)</string>
 </resources>

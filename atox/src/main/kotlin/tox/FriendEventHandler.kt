@@ -68,6 +68,9 @@ class FriendEventHandler @Inject constructor(
         contactRepository.setConnectionStatus(publicKey, status)
         if (status != ConnectionStatus.None) {
             scope.launch {
+                fileTransferManager.sendAvatar(publicKey)
+            }
+            scope.launch {
                 val pending = messageRepository.getPending(publicKey)
                 if (pending.isNotEmpty()) {
                     chatManager.resend(pending)
@@ -75,6 +78,14 @@ class FriendEventHandler @Inject constructor(
             }
         } else {
             fileTransferManager.resetForContact(publicKey)
+            val lastOnline = try {
+                tox.friendGetLastOnline(ltd.evilcorp.core.model.PublicKey(publicKey))
+            } catch (e: Exception) {
+                0L
+            }
+            if (lastOnline > 0L) {
+                contactRepository.setLastOnline(publicKey, lastOnline * 1000)
+            }
         }
     }
 

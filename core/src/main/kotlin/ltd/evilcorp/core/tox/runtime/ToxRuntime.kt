@@ -306,6 +306,12 @@ class ToxRuntime @Inject constructor(
     fun friendGetLastOnline(pk: PublicKey): Long =
         toxWrapper.friendGetLastOnline(pk)
 
+    /**
+     * Возвращает статус активного набора текста друга.
+     */
+    fun friendGetTyping(pk: PublicKey): Boolean =
+        toxWrapper.friendGetTyping(pk)
+
     /** Начинает аудио/видеовызов. */
     fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
     /** Принимает входящий вызов. */

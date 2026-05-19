@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -73,6 +75,7 @@ fun ContactListScreen(
     onLocaleTagChanged: (String) -> Unit,
     onDisableScreenshotsChanged: (Boolean) -> Unit,
     onLogout: () -> Unit = {},
+    onAvatarChanged: () -> Unit = {},
     vmFactory: ViewModelProvider.Factory? = null
 ) {
     val haptic = LocalHapticFeedback.current
@@ -263,7 +266,8 @@ fun ContactListScreen(
                         onSetName = onSetName,
                         onSetStatusMessage = onSetStatusMessage,
                         onSetStatus = onSetStatus,
-                        onLogout = onLogout
+                        onLogout = onLogout,
+                        onAvatarChanged = onAvatarChanged
                     )
                 }
                 3 -> {
@@ -307,6 +311,19 @@ fun ContactItemCard(
         ContactBackgrounds[abs(contact.publicKey.hashCode()).rem(ContactBackgrounds.size)]
     }
 
+    val avatarBitmap = remember(contact.avatarUri) {
+        if (contact.avatarUri.isNotEmpty()) {
+            try {
+                val file = java.io.File(android.net.Uri.parse(contact.avatarUri).path!!)
+                if (file.exists()) {
+                    android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+                } else null
+            } catch (e: java.lang.Exception) {
+                null
+            }
+        } else null
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -334,12 +351,21 @@ fun ContactItemCard(
                         .background(avatarBgColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = initials.uppercase(),
-                        color = avatarContentColor(avatarBgColor),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap,
+                            contentDescription = stringResource(R.string.profile_photo_description),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = initials.uppercase(),
+                            color = avatarContentColor(avatarBgColor),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 // Online/Offline Status Indicator overlay without clip
@@ -407,6 +433,18 @@ fun ContactItemCard(
                         text = stringResource(R.string.draft_message, contact.draftMessage),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.tertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else if (contact.connectionStatus == ConnectionStatus.None && contact.lastOnline > 0L) {
+                    val lastSeenText = remember(contact.lastOnline) {
+                        val date = java.util.Date(contact.lastOnline)
+                        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(date)
+                    }
+                    Text(
+                        text = stringResource(R.string.contact_last_seen, lastSeenText),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

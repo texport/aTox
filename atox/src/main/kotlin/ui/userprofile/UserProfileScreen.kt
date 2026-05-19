@@ -20,6 +20,11 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Edit
 import io.nayuki.qrcodegen.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,11 +53,37 @@ fun UserProfileScreen(
     onSetName: (String) -> Unit,
     onSetStatusMessage: (String) -> Unit,
     onSetStatus: (UserStatus) -> Unit,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onAvatarChanged: () -> Unit = {}
 ) {
     val user = userState.value
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    var selfAvatarVersion by remember { mutableStateOf(0) }
+    val filesDir = context.filesDir
+    val selfAvatarFile = remember { java.io.File(filesDir, "self_avatar.png") }
+    val selfAvatarBitmap = remember(selfAvatarVersion) {
+        if (selfAvatarFile.exists() && selfAvatarFile.length() > 0L) {
+            try {
+                android.graphics.BitmapFactory.decodeFile(selfAvatarFile.absolutePath)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        } else null
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+        if (uri != null) {
+            val success = compressAndSaveAvatar(context, uri)
+            if (success) {
+                selfAvatarVersion++
+                onAvatarChanged()
+            } else {
+                Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     var tempName by remember(user?.name) { mutableStateOf(user?.name ?: "") }
     var tempStatus by remember(user?.statusMessage) { mutableStateOf(user?.statusMessage ?: "") }
@@ -87,6 +118,68 @@ fun UserProfileScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Beautiful Material 3 Profile Picture with Edit Button
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.CenterHorizontally),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable { launcher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selfAvatarBitmap != null) {
+                        Image(
+                            bitmap = selfAvatarBitmap,
+                            contentDescription = stringResource(R.string.profile_photo_description),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        val initials = remember(user?.name) {
+                            val name = user?.name ?: ""
+                            if (name.isEmpty()) "U" else {
+                                val parts = name.split(" ")
+                                if (parts.size == 1) name.take(1) else name.take(1) + parts[1].take(1)
+                            }
+                        }
+                        Text(
+                            text = initials.uppercase(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { launcher.launch("image/*") }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.profile_avatar_change),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
 
             // User Info Card
             Card(
@@ -474,5 +567,61 @@ fun QrCodeView(
                 }
             }
         }
+    }
+}
+
+fun compressAndSaveAvatar(context: Context, uri: android.net.Uri): Boolean {
+    val maxBytes = 64 * 1024
+    try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return false
+        val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream) ?: return false
+        inputStream.close()
+
+        val maxDim = 256
+        val width = originalBitmap.width
+        val height = originalBitmap.height
+        val scaledBitmap = if (width > maxDim || height > maxDim) {
+            val ratio = width.toFloat() / height.toFloat()
+            val newWidth = if (ratio > 1) maxDim else (maxDim * ratio).toInt()
+            val newHeight = if (ratio > 1) (maxDim / ratio).toInt() else maxDim
+            android.graphics.Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+        } else {
+            originalBitmap
+        }
+
+        val destFile = java.io.File(context.filesDir, "self_avatar.png")
+        var quality = 90
+        var success = false
+
+        while (quality > 10) {
+            val bos = java.io.ByteArrayOutputStream()
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, bos)
+            val bytes = bos.toByteArray()
+            if (bytes.size <= maxBytes) {
+                destFile.writeBytes(bytes)
+                success = true
+                break
+            }
+            quality -= 10
+        }
+
+        if (!success) {
+            val bos = java.io.ByteArrayOutputStream()
+            scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 10, bos)
+            val bytes = bos.toByteArray()
+            if (bytes.size <= maxBytes) {
+                destFile.writeBytes(bytes)
+                success = true
+            }
+        }
+
+        if (scaledBitmap != originalBitmap) {
+            scaledBitmap.recycle()
+        }
+        originalBitmap.recycle()
+        return success
+    } catch (e: Exception) {
+        android.util.Log.e("UserProfileScreen", "Failed to compress/save avatar", e)
+        return false
     }
 }

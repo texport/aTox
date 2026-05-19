@@ -88,6 +88,10 @@ class Tox @Inject constructor(
 
     fun setTyping(publicKey: PublicKey, typing: Boolean) = runtime.setTyping(publicKey, typing)
 
+    fun friendGetTyping(publicKey: PublicKey): Boolean = runtime.friendGetTyping(publicKey)
+
+    fun friendGetLastOnline(publicKey: PublicKey): Long = runtime.friendGetLastOnline(publicKey)
+
     fun getStatus() = runtime.getStatus()
     fun setStatus(status: UserStatus) {
         runtime.setStatus(status)

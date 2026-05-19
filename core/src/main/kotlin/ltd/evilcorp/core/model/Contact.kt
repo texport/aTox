@@ -49,4 +49,7 @@ data class Contact(
 
     @ColumnInfo(name = "draft_message")
     var draftMessage: String = "",
+
+    @ColumnInfo(name = "last_online")
+    var lastOnline: Long = 0,
 )

@@ -300,6 +300,7 @@ class MainActivity : AppCompatActivity() {
                             popUpTo(0) { inclusive = true }
                         }
                     },
+                    onAvatarChanged = { profileViewModel.broadcastAvatar() },
                     vmFactory = vmFactory
                 )
             }
