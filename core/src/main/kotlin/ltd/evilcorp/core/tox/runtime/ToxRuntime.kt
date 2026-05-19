@@ -20,6 +20,9 @@ import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
+import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
+import ltd.evilcorp.core.tox.enums.ToxGroupRole
+import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.save.SaveManager
 import ltd.evilcorp.core.tox.save.SaveOptions
 
@@ -267,6 +270,42 @@ class ToxRuntime @Inject constructor(
     fun sendLosslessPacket(pk: PublicKey, packet: ByteArray) =
         toxWrapper.sendLosslessPacket(pk, packet)
 
+    /**
+     * Отправляет кастомный ненадежный lossy-пакет другу.
+     */
+    fun sendLossyPacket(pk: PublicKey, data: ByteArray) =
+        toxWrapper.sendLossyPacket(pk, data)
+
+    /**
+     * Возвращает секретный (приватный) ключ нашего профиля.
+     */
+    fun selfGetSecretKey(): ByteArray =
+        toxWrapper.selfGetSecretKey()
+
+    /**
+     * Возвращает активный UDP-порт локального узла.
+     */
+    fun selfGetUdpPort(): Int =
+        toxWrapper.selfGetUdpPort()
+
+    /**
+     * Возвращает активный TCP-порт локального узла.
+     */
+    fun selfGetTcpPort(): Int =
+        toxWrapper.selfGetTcpPort()
+
+    /**
+     * Возвращает временный DHT-ключ (DHT ID) нашего инстанса.
+     */
+    fun selfGetDhtId(): ByteArray =
+        toxWrapper.selfGetDhtId()
+
+    /**
+     * Возвращает UNIX-время последнего визита контакта в сеть.
+     */
+    fun friendGetLastOnline(pk: PublicKey): Long =
+        toxWrapper.friendGetLastOnline(pk)
+
     /** Начинает аудио/видеовызов. */
     fun startCall(pk: PublicKey) = toxWrapper.startCall(pk)
     /** Принимает входящий вызов. */
@@ -277,6 +316,144 @@ class ToxRuntime @Inject constructor(
     /** Отправляет кадр звука PCM участнику вызова. */
     fun sendAudio(pk: PublicKey, pcm: ShortArray, channels: Int, samplingRate: Int) =
         toxWrapper.sendAudio(pk, pcm, channels, samplingRate)
+
+    /**
+     * Отправляет видеокадр YUV420P собеседнику во время звонка.
+     */
+    fun sendVideoFrame(pk: PublicKey, width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray): Boolean =
+        toxWrapper.sendVideoFrame(pk, width, height, y, u, v)
+
+    /**
+     * Динамически регулирует битрейт аудио потока во время звонка.
+     */
+    fun audioSetBitRate(pk: PublicKey, bitrate: Int): Boolean =
+        toxWrapper.audioSetBitRate(pk, bitrate)
+
+    /**
+     * Динамически регулирует битрейт видео потока во время звонка.
+     */
+    fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean =
+        toxWrapper.videoSetBitRate(pk, bitrate)
+
+    /**
+     * Создает новую групповую NGC-конференцию.
+     */
+    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
+        toxWrapper.groupNew(privacyState, groupName, selfName)
+
+    /**
+     * Присоединяется к групповой NGC-конференции.
+     */
+    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
+        toxWrapper.groupJoin(friendNo, inviteData, selfName, password)
+
+    /**
+     * Выходит из групповой NGC-конференции.
+     */
+    fun groupLeave(groupNumber: Int): Boolean =
+        toxWrapper.groupLeave(groupNumber)
+
+    /**
+     * Отправляет текстовое сообщение в NGC-группу.
+     */
+    fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
+        toxWrapper.groupSendMessage(groupNumber, type, message)
+
+    /**
+     * Устанавливает тему для NGC-группы.
+     */
+    fun groupSetTopic(groupNumber: Int, topic: ByteArray): Boolean =
+        toxWrapper.groupSetTopic(groupNumber, topic)
+
+    /**
+     * Получает тему NGC-группы.
+     */
+    fun groupGetTopic(groupNumber: Int): ByteArray? =
+        toxWrapper.groupGetTopic(groupNumber)
+
+    /**
+     * Получает название NGC-группы.
+     */
+    fun groupGetName(groupNumber: Int): ByteArray? =
+        toxWrapper.groupGetName(groupNumber)
+
+    /**
+     * Возвращает уникальный постоянный 32-байтовый идентификатор NGC-чата (Chat ID).
+     */
+    fun groupGetChatId(groupNumber: Int): ByteArray? =
+        toxWrapper.groupGetChatId(groupNumber)
+
+    /**
+     * Устанавливает пароль для доступа к NGC-группе.
+     */
+    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
+        toxWrapper.groupSetPassword(groupNumber, password)
+
+    /**
+     * Возвращает текущий установленный пароль группы.
+     */
+    fun groupGetPassword(groupNumber: Int): ByteArray? =
+        toxWrapper.groupGetPassword(groupNumber)
+
+    /**
+     * Получает имя участника NGC-группы по его ID.
+     */
+    fun groupPeerGetName(groupNumber: Int, peerId: Int): ByteArray? =
+        toxWrapper.groupPeerGetName(groupNumber, peerId)
+
+    /**
+     * Получает публичный ключ участника NGC-группы по его ID.
+     */
+    fun groupPeerGetPublicKey(groupNumber: Int, peerId: Int): ByteArray? =
+        toxWrapper.groupPeerGetPublicKey(groupNumber, peerId)
+
+    /**
+     * Возвращает наш собственный Peer ID в NGC-группе.
+     */
+    fun groupSelfGetPeerId(groupNumber: Int): Int =
+        toxWrapper.groupSelfGetPeerId(groupNumber)
+
+    /**
+     * Возвращает нашу текущую роль в NGC-группе.
+     */
+    fun groupSelfGetRole(groupNumber: Int): ToxGroupRole =
+        toxWrapper.groupSelfGetRole(groupNumber)
+
+    /**
+     * Создает групповую аудио-конференцию.
+     */
+    fun groupavAdd(): Int =
+        toxWrapper.groupavAdd()
+
+    /**
+     * Присоединяется к групповой аудио-конференции.
+     */
+    fun groupavJoin(groupNumber: Int): Int =
+        toxWrapper.groupavJoin(groupNumber)
+
+    /**
+     * Отправляет аудио-кадр в групповой чат.
+     */
+    fun groupavSendAudio(groupNumber: Int, pcm: ShortArray, channels: Int, samplingRate: Int): Int =
+        toxWrapper.groupavSendAudio(groupNumber, pcm, channels, samplingRate)
+
+    /**
+     * Включает аудио/видео функции для указанного группового чата.
+     */
+    fun groupavEnableAudio(groupNumber: Int): Int =
+        toxWrapper.groupavEnableAudio(groupNumber)
+
+    /**
+     * Выключает аудио/видео функции для указанного группового чата.
+     */
+    fun groupavDisableAudio(groupNumber: Int): Int =
+        toxWrapper.groupavDisableAudio(groupNumber)
+
+    /**
+     * Проверяет, активны ли аудио/видео функции в указанном групповом чате.
+     */
+    fun groupavIsEnabled(groupNumber: Int): Boolean =
+        toxWrapper.groupavIsEnabled(groupNumber)
 
     /** Фоновый цикл обработки аудио- и видеозвонков. */
     private fun iterateForeverAv() = scope.launch {
