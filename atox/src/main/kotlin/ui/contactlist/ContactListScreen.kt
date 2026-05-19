@@ -6,9 +6,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,8 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -34,11 +32,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import kotlin.math.abs
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.ui.settings.SettingsScreen
+import ltd.evilcorp.atox.ui.common.ContactAvatar
+import ltd.evilcorp.atox.ui.common.PresenceTone
+import ltd.evilcorp.atox.ui.common.formatChatTime
+import ltd.evilcorp.atox.ui.common.formatPresenceText
 import ltd.evilcorp.atox.ui.theme.*
 import ltd.evilcorp.core.model.ConnectionStatus
 import ltd.evilcorp.core.model.Contact
@@ -239,6 +239,7 @@ fun ContactListScreen(
                             items(filteredContacts) { contact ->
                                 ContactItemCard(
                                     contact = contact,
+                                    settings = settings,
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onContactClick(contact)
@@ -292,36 +293,20 @@ fun ContactListScreen(
 @Composable
 fun ContactItemCard(
     contact: Contact,
+    settings: Settings,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val defaultName = stringResource(R.string.contact_default_name)
-    // Initials calculation
-    val initials = remember(contact.name, defaultName) {
-        val name = contact.name.ifEmpty { defaultName }
-        val segments = name.split(" ")
-        if (segments.size == 1) name.take(1) else name.take(1) + segments[1].take(1)
-    }
-
-    // Hash code color picking (identical to AvatarFactory.kt logic!)
-    val avatarBgColor = remember(contact.publicKey) {
-        ContactBackgrounds[abs(contact.publicKey.hashCode()).rem(ContactBackgrounds.size)]
-    }
-
-    val avatarBitmap = remember(contact.avatarUri) {
-        if (contact.avatarUri.isNotEmpty()) {
-            try {
-                val file = java.io.File(android.net.Uri.parse(contact.avatarUri).path!!)
-                if (file.exists()) {
-                    android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
-                } else null
-            } catch (e: java.lang.Exception) {
-                null
-            }
-        } else null
+    val presence = remember(contact, settings.dateFormatPreference, settings.timeFormatPreference) {
+        formatPresenceText(
+            context = context,
+            contact = contact,
+            dateFormatPreference = settings.dateFormatPreference,
+            timeFormatPreference = settings.timeFormatPreference,
+        )
     }
 
     Box(
@@ -343,30 +328,14 @@ fun ContactItemCard(
             Box(
                 modifier = Modifier.size(48.dp)
             ) {
-                // Background circle avatar
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(avatarBgColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (avatarBitmap != null) {
-                        Image(
-                            bitmap = avatarBitmap,
-                            contentDescription = stringResource(R.string.profile_photo_description),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    } else {
-                        Text(
-                            text = initials.uppercase(),
-                            color = avatarContentColor(avatarBgColor),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+                ContactAvatar(
+                    name = contact.name,
+                    publicKey = contact.publicKey,
+                    avatarUri = contact.avatarUri,
+                    size = 48.dp,
+                    fontSize = 18.sp,
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 // Online/Offline Status Indicator overlay without clip
                 val statusColor = when (contact.connectionStatus) {
@@ -436,23 +405,17 @@ fun ContactItemCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                } else if (contact.connectionStatus == ConnectionStatus.None && contact.lastOnline > 0L) {
-                    val lastSeenText = remember(contact.lastOnline) {
-                        val date = java.util.Date(contact.lastOnline)
-                        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(date)
-                    }
-                    Text(
-                        text = stringResource(R.string.contact_last_seen, lastSeenText),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 } else {
                     Text(
-                        text = contact.statusMessage.ifEmpty { stringResource(R.string.status_message_default) },
+                        text = presence.text,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = when (presence.color) {
+                            PresenceTone.Online -> StatusAvailable
+                            PresenceTone.Away -> StatusAway
+                            PresenceTone.Busy -> StatusBusy
+                            PresenceTone.Accent -> MaterialTheme.colorScheme.primary
+                            PresenceTone.Muted -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -466,9 +429,9 @@ fun ContactItemCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
             ) {
-                val dateText = remember(contact.lastMessage) {
+                val dateText = remember(contact.lastMessage, settings.timeFormatPreference) {
                     if (contact.lastMessage != 0L) {
-                        DateFormat.getTimeInstance(DateFormat.SHORT).format(contact.lastMessage)
+                        formatChatTime(context, contact.lastMessage, settings.timeFormatPreference)
                     } else {
                         ""
                     }

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
@@ -101,14 +102,19 @@ class ChatViewModel @Inject constructor(
                 .combine(callManager.inCall) { contactOnline, callState ->
                     if (!contactOnline) return@combine CallAvailability.Unavailable
                     when (callState) {
-                        CallState.NotInCall -> CallAvailability.Available
-                        is CallState.InCall -> {
-                            if (callState.publicKey == pk) {
-                                CallAvailability.Active
-                            } else {
-                                CallAvailability.Unavailable
-                            }
-                        }
+                        CallState.Idle -> CallAvailability.Available
+                        is CallState.IncomingRinging ->
+                            if (callState.contact.publicKey == pk.string()) CallAvailability.Active else CallAvailability.Unavailable
+                        is CallState.OutgoingRequesting ->
+                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
+                        is CallState.OutgoingWaiting ->
+                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
+                        is CallState.Connecting ->
+                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
+                        is CallState.OutgoingRinging ->
+                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
+                        is CallState.Active ->
+                            if (callState.publicKey == pk) CallAvailability.Active else CallAvailability.Unavailable
                     }
                 }
         }.asLiveData()
@@ -116,6 +122,13 @@ class ChatViewModel @Inject constructor(
     var contactOnline = false
 
     fun send(message: String, type: MessageType) = chatManager.sendMessage(publicKey, message, type)
+
+    fun startCall() = scope.launch {
+        if (callManager.startOutgoingCall(publicKey)) {
+            callManager.startSendingAudio()
+            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).take(1).first() ?: Contact(publicKey.string()))
+        }
+    }
 
     fun clearHistory() = scope.launch {
         chatManager.clearHistory(publicKey)

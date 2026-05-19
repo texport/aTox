@@ -5,6 +5,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.core.repository.ContactRepository
@@ -37,6 +38,7 @@ class FriendEventHandler @Inject constructor(
     private val chatManager: ChatManager,
     private val fileTransferManager: FileTransferManager,
     private val notificationHelper: NotificationHelper,
+    private val systemSoundPlayer: SystemSoundPlayer,
     private val tox: Tox,
     @Suppress("UNUSED_PARAMETER") private val settings: Settings,
 ) {
@@ -110,11 +112,14 @@ class FriendEventHandler @Inject constructor(
         )
 
         if (chatManager.activeChat != publicKey) {
+            systemSoundPlayer.playNotificationSound(settings.notificationSoundUri, settings.notificationSoundVolume)
             scope.launch {
                 val contact = tryGetContact(publicKey, "Message") ?: Contact(publicKey)
                 notifyMessage(contact, message)
             }
             contactRepository.setHasUnreadMessages(publicKey, true)
+        } else {
+            systemSoundPlayer.playNotificationSound(settings.activeChatSoundUri, settings.activeChatSoundVolume)
         }
     }
 

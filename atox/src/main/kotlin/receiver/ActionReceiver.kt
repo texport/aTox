@@ -127,7 +127,8 @@ class ActionReceiver : BroadcastReceiver() {
             }
         }
 
-        if (callManager.inCall.value is CallState.InCall) {
+        val state = callManager.inCall.value
+        if (state != CallState.Idle && state !is CallState.IncomingRinging) {
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, context.getString(R.string.error_simultaneous_calls), Toast.LENGTH_LONG).show()
                 notificationHelper.showPendingCallNotification(UserStatus.Busy, contact)
@@ -136,7 +137,9 @@ class ActionReceiver : BroadcastReceiver() {
         }
 
         try {
-            callManager.startCall(pk)
+            if (!callManager.acceptIncomingCall(pk)) {
+                return
+            }
             notificationHelper.showOngoingCallNotification(contact)
         } catch (e: Exception) {
             Log.e(TAG, e.toString())

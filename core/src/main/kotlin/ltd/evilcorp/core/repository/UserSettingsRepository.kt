@@ -22,9 +22,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.DEFAULT_ACCENT_COLOR_SEED
 import ltd.evilcorp.core.model.DEFAULT_THEME_MODE
 import ltd.evilcorp.core.model.FtAutoAccept
+import ltd.evilcorp.core.model.AppSound
+import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.core.model.UserSettings
 import ltd.evilcorp.core.tox.save.ProxyType
 
@@ -62,6 +65,12 @@ class UserSettingsRepository @Inject constructor(
 
     fun updateLocaleTag(localeTag: String) = update(Keys.localeTag, localeTag)
 
+    fun updateDateFormatPreference(preference: DateFormatPreference) =
+        update(Keys.dateFormatPreferenceOrdinal, preference.ordinal)
+
+    fun updateTimeFormatPreference(preference: TimeFormatPreference) =
+        update(Keys.timeFormatPreferenceOrdinal, preference.ordinal)
+
     fun updateUdpEnabled(enabled: Boolean) = update(Keys.udpEnabled, enabled)
 
     fun updateRunAtStartup(enabled: Boolean) = update(Keys.runAtStartup, enabled)
@@ -86,6 +95,21 @@ class UserSettingsRepository @Inject constructor(
 
     fun updateConfirmCalling(confirm: Boolean) = update(Keys.confirmCalling, confirm)
 
+    fun updateSentMessageSoundVolume(volume: Int) = update(Keys.sentMessageSoundVolume, volume.coerceIn(0, 100))
+    fun updateSentMessageSoundUri(uri: String) = update(Keys.sentMessageSoundUri, uri)
+
+    fun updateCallSound(sound: AppSound) = update(Keys.callSoundOrdinal, sound.ordinal)
+
+    fun updateCallSoundVolume(volume: Int) = update(Keys.callSoundVolume, volume.coerceIn(0, 100))
+
+    fun updateCallRingtoneUri(uri: String) = update(Keys.callRingtoneUri, uri)
+
+    fun updateNotificationSoundVolume(volume: Int) = update(Keys.notificationSoundVolume, volume.coerceIn(0, 100))
+    fun updateNotificationSoundUri(uri: String) = update(Keys.notificationSoundUri, uri)
+
+    fun updateActiveChatSoundVolume(volume: Int) = update(Keys.activeChatSoundVolume, volume.coerceIn(0, 100))
+    fun updateActiveChatSoundUri(uri: String) = update(Keys.activeChatSoundUri, uri)
+
     fun updateHapticEnabled(enabled: Boolean) = update(Keys.hapticEnabled, enabled)
 
     fun updateAutoSaveToDownloads(enabled: Boolean) = update(Keys.autoSaveToDownloads, enabled)
@@ -109,6 +133,12 @@ class UserSettingsRepository @Inject constructor(
                 dynamicColorEnabled = preferences[Keys.dynamicColorEnabled] ?: true,
                 accentColorSeed = preferences[Keys.accentColorSeed] ?: DEFAULT_ACCENT_COLOR_SEED,
                 localeTag = preferences[Keys.localeTag] ?: "",
+                dateFormatPreference = DateFormatPreference.entries[
+                    preferences[Keys.dateFormatPreferenceOrdinal] ?: DateFormatPreference.System.ordinal
+                ],
+                timeFormatPreference = TimeFormatPreference.entries[
+                    preferences[Keys.timeFormatPreferenceOrdinal] ?: TimeFormatPreference.System.ordinal
+                ],
                 udpEnabled = preferences[Keys.udpEnabled] ?: false,
                 runAtStartup = preferences[Keys.runAtStartup] ?: false,
                 autoAwayEnabled = preferences[Keys.autoAwayEnabled] ?: false,
@@ -123,6 +153,17 @@ class UserSettingsRepository @Inject constructor(
                 disableScreenshots = preferences[Keys.disableScreenshots] ?: false,
                 confirmQuitting = preferences[Keys.confirmQuitting] ?: true,
                 confirmCalling = preferences[Keys.confirmCalling] ?: true,
+                sentMessageSoundVolume = preferences[Keys.sentMessageSoundVolume] ?: 24,
+                sentMessageSoundUri = preferences[Keys.sentMessageSoundUri] ?: "",
+                callSound = AppSound.entries[
+                    preferences[Keys.callSoundOrdinal] ?: AppSound.Pulse.ordinal
+                ],
+                callSoundVolume = preferences[Keys.callSoundVolume] ?: 72,
+                callRingtoneUri = preferences[Keys.callRingtoneUri] ?: "",
+                notificationSoundVolume = preferences[Keys.notificationSoundVolume] ?: 52,
+                notificationSoundUri = preferences[Keys.notificationSoundUri] ?: "",
+                activeChatSoundVolume = preferences[Keys.activeChatSoundVolume] ?: 28,
+                activeChatSoundUri = preferences[Keys.activeChatSoundUri] ?: "",
                 hapticEnabled = preferences[Keys.hapticEnabled] ?: true,
                 autoSaveToDownloads = preferences[Keys.autoSaveToDownloads] ?: true,
             )
@@ -133,6 +174,8 @@ class UserSettingsRepository @Inject constructor(
         val dynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
         val accentColorSeed = intPreferencesKey("accent_color_seed")
         val localeTag = stringPreferencesKey("locale_tag")
+        val dateFormatPreferenceOrdinal = intPreferencesKey("date_format_preference")
+        val timeFormatPreferenceOrdinal = intPreferencesKey("time_format_preference")
         val udpEnabled = booleanPreferencesKey("udp_enabled")
         val runAtStartup = booleanPreferencesKey("run_at_startup")
         val autoAwayEnabled = booleanPreferencesKey("auto_away_enabled")
@@ -145,6 +188,15 @@ class UserSettingsRepository @Inject constructor(
         val disableScreenshots = booleanPreferencesKey("disable_screenshots")
         val confirmQuitting = booleanPreferencesKey("confirm_quitting")
         val confirmCalling = booleanPreferencesKey("confirm_calling")
+        val sentMessageSoundVolume = intPreferencesKey("sent_message_sound_volume")
+        val sentMessageSoundUri = stringPreferencesKey("sent_message_sound_uri")
+        val callSoundOrdinal = intPreferencesKey("call_sound")
+        val callSoundVolume = intPreferencesKey("call_sound_volume")
+        val callRingtoneUri = stringPreferencesKey("call_ringtone_uri")
+        val notificationSoundVolume = intPreferencesKey("notification_sound_volume")
+        val notificationSoundUri = stringPreferencesKey("notification_sound_uri")
+        val activeChatSoundVolume = intPreferencesKey("active_chat_sound_volume")
+        val activeChatSoundUri = stringPreferencesKey("active_chat_sound_uri")
         val hapticEnabled = booleanPreferencesKey("haptic_enabled")
         val autoSaveToDownloads = booleanPreferencesKey("auto_save_to_downloads")
     }

@@ -23,8 +23,22 @@ import androidx.compose.foundation.Canvas
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Refresh
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Matrix
 import io.nayuki.qrcodegen.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -73,15 +87,11 @@ fun UserProfileScreen(
         } else null
     }
 
+    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
         if (uri != null) {
-            val success = compressAndSaveAvatar(context, uri)
-            if (success) {
-                selfAvatarVersion++
-                onAvatarChanged()
-            } else {
-                Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
-            }
+            selectedImageUri = uri
         }
     }
 
@@ -494,6 +504,272 @@ fun UserProfileScreen(
             }
         )
     }
+
+    if (selectedImageUri != null) {
+        AvatarEditDialog(
+            imageUri = selectedImageUri!!,
+            onDismiss = { selectedImageUri = null },
+            onConfirm = { croppedBitmap ->
+                val maxBytes = 64 * 1024
+                val destFile = java.io.File(context.filesDir, "self_avatar.png")
+                var quality = 90
+                var success = false
+
+                while (quality > 10) {
+                    val bos = java.io.ByteArrayOutputStream()
+                    croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, bos)
+                    val bytes = bos.toByteArray()
+                    if (bytes.size <= maxBytes) {
+                        destFile.writeBytes(bytes)
+                        success = true
+                        break
+                    }
+                    quality -= 10
+                }
+
+                if (!success) {
+                    val bos = java.io.ByteArrayOutputStream()
+                    croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 10, bos)
+                    val bytes = bos.toByteArray()
+                    if (bytes.size <= maxBytes) {
+                        destFile.writeBytes(bytes)
+                        success = true
+                    }
+                }
+
+                croppedBitmap.recycle()
+
+                if (success) {
+                    selfAvatarVersion++
+                    onAvatarChanged()
+                } else {
+                    Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
+                }
+                selectedImageUri = null
+            }
+        )
+    }
+}
+
+@Composable
+fun AvatarEditDialog(
+    imageUri: android.net.Uri,
+    onDismiss: () -> Unit,
+    onConfirm: (android.graphics.Bitmap) -> Unit
+) {
+    val context = LocalContext.current
+    val originalBitmap = remember(imageUri) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+            val bmp = android.graphics.BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            bmp
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    if (originalBitmap == null) {
+        LaunchedEffect(Unit) {
+            onDismiss()
+        }
+        return
+    }
+
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var rotation by remember { mutableStateOf(0f) }
+    var viewportWidth by remember { mutableStateOf(0f) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Header
+                Text(
+                    text = stringResource(R.string.avatar_editor_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                // Viewport area with circle crop frame
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onGloballyPositioned { coordinates ->
+                            viewportWidth = coordinates.size.width.toFloat()
+                        }
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                scale = (scale * zoom).coerceIn(1f, 5f)
+                                offset += pan
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Loaded Bitmap rendering
+                    Image(
+                        bitmap = originalBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y,
+                                rotationZ = rotation
+                            )
+                    )
+
+                    // Circular visiere overlay with semi-transparent background
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val canvasWidth = size.width
+                        val canvasHeight = size.height
+                        val circleRadius = 125.dp.toPx() // viewport width is ~250.dp, radius is 125.dp
+
+                        val androidCanvas = drawContext.canvas.nativeCanvas
+                        val layer = androidCanvas.saveLayer(0f, 0f, canvasWidth, canvasHeight, null)
+                        with(drawContext.canvas) {
+                            // 1. Draw solid dark background overlay
+                            drawRect(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                            
+                            // 2. Punch a circle hole in the middle
+                            drawCircle(
+                                color = androidx.compose.ui.graphics.Color.Transparent,
+                                radius = circleRadius,
+                                center = center,
+                                blendMode = androidx.compose.ui.graphics.BlendMode.Clear
+                            )
+                            
+                            // 3. Draw premium white border around crop frame
+                            drawCircle(
+                                color = androidx.compose.ui.graphics.Color.White,
+                                radius = circleRadius,
+                                center = center,
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                            )
+                            
+                            androidCanvas.restore()
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Zoom slider
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.avatar_editor_zoom) + ": ${String.format("%.1fx", scale)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Slider(
+                        value = scale,
+                        onValueChange = { scale = it },
+                        valueRange = 1f..5f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Controls row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = {
+                        rotation = (rotation + 90f) % 360f
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.avatar_editor_rotate))
+                    }
+
+                    TextButton(onClick = {
+                        scale = 1f
+                        offset = androidx.compose.ui.geometry.Offset.Zero
+                        rotation = 0f
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.avatar_editor_reset))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Confirmation / Dismiss buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.avatar_editor_cancel))
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Button(
+                        onClick = {
+                            val cropped = cropAvatar(originalBitmap, scale, offset, rotation, if (viewportWidth > 0f) viewportWidth else 500f)
+                            onConfirm(cropped)
+                        }
+                    ) {
+                        Text(stringResource(R.string.avatar_editor_save))
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun cropAvatar(bitmap: Bitmap, scale: Float, offset: androidx.compose.ui.geometry.Offset, rotation: Float, viewportWidth: Float): Bitmap {
+    val cropped = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(cropped)
+    val matrix = android.graphics.Matrix()
+    
+    // 1. Center the original bitmap in the origin space
+    matrix.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
+    
+    // 2. Base scale: fit the shortest dimension to the viewport
+    val fitScale = viewportWidth / Math.min(bitmap.width, bitmap.height)
+    val totalScale = fitScale * scale * (256f / viewportWidth)
+    matrix.postScale(totalScale, totalScale)
+    
+    // 3. Rotation
+    matrix.postRotate(rotation)
+    
+    // 4. Translate by user offset scaled to 256x256 target coordinates and center at (128, 128)
+    val scaleFactor = 256f / viewportWidth
+    matrix.postTranslate(128f + offset.x * scaleFactor, 128f + offset.y * scaleFactor)
+    
+    val paint = android.graphics.Paint().apply {
+        isFilterBitmap = true
+    }
+    canvas.drawBitmap(bitmap, matrix, paint)
+    return cropped
 }
 
 @Composable

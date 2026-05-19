@@ -1,5 +1,6 @@
 package ltd.evilcorp.atox.ui.chat
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,11 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallMade
+import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.PhoneMissed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,17 +25,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.DateFormat
-import kotlin.math.abs
+import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.ui.common.ContactAvatar
+import ltd.evilcorp.atox.ui.common.PresenceTone
+import ltd.evilcorp.atox.ui.common.formatChatTime
+import ltd.evilcorp.atox.ui.common.formatMessageDateHeader
+import ltd.evilcorp.atox.ui.common.formatPresenceText
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
-import ltd.evilcorp.atox.ui.theme.avatarContentColor
+import ltd.evilcorp.atox.ui.theme.StatusAway
+import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.Message
 import ltd.evilcorp.core.model.Sender
@@ -43,11 +51,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Attachment
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Close
@@ -74,19 +84,24 @@ fun ChatScreen(
     settings: Settings,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit,
+    onTypingChanged: (Boolean) -> Unit,
     onSendFile: (Uri) -> Unit,
     onCallClick: () -> Unit,
+    onCallHistoryClick: () -> Unit,
     onAcceptFt: (Int) -> Unit,
     onRejectFt: (Int) -> Unit,
     onCancelFt: (Message) -> Unit,
     onSaveFt: (Int, Uri) -> Unit,
-    onOpenFile: (FileTransfer) -> Unit
+    onOpenFile: (FileTransfer) -> Unit,
+    systemSoundPlayer: SystemSoundPlayer,
 ) {
     val contact = contactState.value
     val messages = messagesState.value ?: emptyList()
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val performHaptic = {
         if (settings.hapticEnabled) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -111,11 +126,20 @@ fun ChatScreen(
     }
 
     var textInput by remember { mutableStateOf("") }
+    val isKeyboardOpen = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
 
-    // Scroll to the bottom of the message list when new messages arrive
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(contact?.publicKey) {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+
+    // Scroll to the bottom of the message list when new messages arrive, peer is typing, or keyboard opens
+    LaunchedEffect(messages.size, contact?.typing, isKeyboardOpen) {
+        if (messages.isNotEmpty() || contact?.typing == true) {
+            val lastIndex = if (contact?.typing == true) messages.size else messages.size - 1
+            if (lastIndex >= 0) {
+                listState.animateScrollToItem(lastIndex)
+            }
         }
     }
 
@@ -128,6 +152,7 @@ fun ChatScreen(
             text = { Text(stringResource(R.string.call_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
+                    performHaptic()
                     showCallConfirmDialog = false
                     onCallClick()
                 }) {
@@ -135,7 +160,10 @@ fun ChatScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCallConfirmDialog = false }) {
+                TextButton(onClick = {
+                    performHaptic()
+                    showCallConfirmDialog = false
+                }) {
                     Text(stringResource(R.string.reject))
                 }
             }
@@ -150,32 +178,22 @@ fun ChatScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val name = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } 
                             ?: stringResource(R.string.contact_default_name)
-                        val initials = remember(name) {
-                            val segments = name.split(" ")
-                            if (segments.size == 1) name.take(1) else name.take(1) + segments[1].take(1)
-                        }
-
-                        // Hash code color picking (identical to AvatarFactory.kt logic!)
-                        val avatarColor = remember(contact?.publicKey) {
-                            val key = contact?.publicKey ?: ""
-                            ltd.evilcorp.atox.ui.theme.ContactBackgrounds[abs(key.hashCode()).rem(ltd.evilcorp.atox.ui.theme.ContactBackgrounds.size)]
-                        }
-
-                        // Circular Avatar in header
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(avatarColor),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = initials.uppercase(),
-                                color = avatarContentColor(avatarColor),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
+                        val presence = contact?.let {
+                            formatPresenceText(
+                                context = context,
+                                contact = it,
+                                dateFormatPreference = settings.dateFormatPreference,
+                                timeFormatPreference = settings.timeFormatPreference,
                             )
                         }
+
+                        ContactAvatar(
+                            name = name,
+                            publicKey = contact?.publicKey.orEmpty(),
+                            avatarUri = contact?.avatarUri.orEmpty(),
+                            size = 36.dp,
+                            fontSize = 14.sp,
+                        )
 
                         Spacer(modifier = Modifier.width(12.dp))
 
@@ -190,23 +208,34 @@ fun ChatScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            val isOnline = contact?.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None
                             Text(
-                                text = if (isOnline) stringResource(R.string.chat_status_online) else stringResource(R.string.chat_status_offline),
+                                text = presence?.text ?: stringResource(R.string.chat_status_offline),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isOnline) StatusAvailable else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = when (presence?.color) {
+                                    PresenceTone.Online -> StatusAvailable
+                                    PresenceTone.Away -> StatusAway
+                                    PresenceTone.Busy -> StatusBusy
+                                    PresenceTone.Accent -> StatusAvailable // Standout vibrant green for writing status!
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                }
                             )
                         }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        performHaptic()
+                        onBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_drawer_close), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 actions = {
                     val isOnline = contact?.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None
                     IconButton(onClick = {
+                        performHaptic()
                         if (isOnline) {
                             if (settings.confirmCalling) {
                                 showCallConfirmDialog = true
@@ -219,7 +248,7 @@ fun ChatScreen(
                     }) {
                         Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                    IconButton(onClick = { /* Меню */ }) {
+                    IconButton(onClick = { performHaptic() }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
@@ -233,19 +262,22 @@ fun ChatScreen(
                 tonalElevation = 8.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp, bottom = if (isKeyboardOpen) 16.dp else 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
                         value = textInput,
-                        onValueChange = { textInput = it },
+                        onValueChange = {
+                            textInput = it
+                            onTypingChanged(it.isNotBlank())
+                        },
                         placeholder = { Text(stringResource(R.string.chat_write_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                         modifier = Modifier
                             .weight(1f)
@@ -258,10 +290,16 @@ fun ChatScreen(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            autoCorrectEnabled = true,
+                            keyboardType = KeyboardType.Text,
+                        ),
                         maxLines = 4,
                         trailingIcon = {
                             val isOnline = contact?.connectionStatus != ltd.evilcorp.core.model.ConnectionStatus.None
                             IconButton(onClick = {
+                                performHaptic()
                                 if (isOnline) {
                                     filePickerLauncher.launch("*/*")
                                 } else {
@@ -283,6 +321,8 @@ fun ChatScreen(
                             if (textInput.trim().isNotEmpty()) {
                                 performHaptic()
                                 onSendMessage(textInput)
+                                systemSoundPlayer.playSentSound(settings.sentMessageSoundUri, settings.sentMessageSoundVolume)
+                                onTypingChanged(false)
                                 textInput = ""
                             }
                         },
@@ -313,9 +353,35 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp)
             ) {
-                items(messages) { msg ->
+                items(messages.size) { index ->
+                    val msg = messages[index]
+                    val previousMsg = messages.getOrNull(index - 1)
+                    val currentHeader = remember(msg.timestamp, settings.dateFormatPreference) {
+                        formatMessageDateHeader(
+                            context = context,
+                            timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
+                            dateFormatPreference = settings.dateFormatPreference,
+                        )
+                    }
+                    val previousHeader = previousMsg?.let {
+                        remember(it.timestamp, settings.dateFormatPreference) {
+                            formatMessageDateHeader(
+                                context = context,
+                                timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
+                                dateFormatPreference = settings.dateFormatPreference,
+                            )
+                        }
+                    }
+
+                    if (index == 0 || currentHeader != previousHeader) {
+                        DateSeparator(label = currentHeader)
+                    }
+
                     MessageBubble(
                         msg = msg,
+                        settings = settings,
+                        onHaptic = performHaptic,
+                        onCallHistoryClick = onCallHistoryClick,
                         fileTransfers = fileTransfersState.value,
                         onAcceptFt = onAcceptFt,
                         onRejectFt = onRejectFt,
@@ -327,7 +393,35 @@ fun ChatScreen(
                         onOpenFile = onOpenFile
                     )
                 }
+                if (contact?.typing == true) {
+                    item(key = "typing_bubble") {
+                        TypingBubble()
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun DateSeparator(label: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            tonalElevation = 1.dp,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
         }
     }
 }
@@ -335,6 +429,9 @@ fun ChatScreen(
 @Composable
 fun MessageBubble(
     msg: Message,
+    settings: Settings,
+    onHaptic: () -> Unit,
+    onCallHistoryClick: () -> Unit,
     fileTransfers: List<FileTransfer>,
     onAcceptFt: (Int) -> Unit,
     onRejectFt: (Int) -> Unit,
@@ -343,6 +440,25 @@ fun MessageBubble(
     onOpenFile: (FileTransfer) -> Unit
 ) {
     val isOutgoing = msg.sender == Sender.Sent
+    val context = LocalContext.current
+    val isAction = msg.type == MessageType.Action
+
+    if (isAction) {
+        val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
+            val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
+            formatChatTime(context, time, settings.timeFormatPreference)
+        }
+        CallHistoryCard(
+            title = msg.message,
+            timeString = timeString,
+            isOutgoing = isOutgoing,
+            onClick = {
+                onHaptic()
+                onCallHistoryClick()
+            },
+        )
+        return
+    }
 
     val containerColor = if (isOutgoing) {
         MaterialTheme.colorScheme.primary
@@ -380,6 +496,7 @@ fun MessageBubble(
                         FileTransferCard(
                             ft = ft,
                             msg = msg,
+                            onHaptic = onHaptic,
                             contentColor = contentColor,
                             onAcceptFt = onAcceptFt,
                             onRejectFt = onRejectFt,
@@ -406,9 +523,9 @@ fun MessageBubble(
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                val timeString = remember(msg.timestamp) {
+                val timeString = remember(msg.timestamp, settings.timeFormatPreference) {
                     val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
-                    DateFormat.getTimeInstance(DateFormat.SHORT).format(time)
+                    formatChatTime(context, time, settings.timeFormatPreference)
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -452,6 +569,108 @@ fun MessageBubble(
     }
 }
 
+@Composable
+private fun CallHistoryCard(
+    title: String,
+    timeString: String,
+    isOutgoing: Boolean,
+    onClick: () -> Unit,
+) {
+    val missed = title.contains("missed", ignoreCase = true) || title.contains("пропущ", ignoreCase = true)
+    val cancelled = title.contains("cancel", ignoreCase = true) || title.contains("отмен", ignoreCase = true)
+    val alignment = if (isOutgoing) Alignment.End else Alignment.Start
+    val containerColor = if (isOutgoing) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f)
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.78f)
+    }
+    val titleColor = if (missed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val metaColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val statusIcon = when {
+        missed -> Icons.Default.PhoneMissed
+        isOutgoing || cancelled -> Icons.Default.CallMade
+        else -> Icons.Default.CallReceived
+    }
+    val statusTint = when {
+        missed -> MaterialTheme.colorScheme.error
+        isOutgoing -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.tertiary
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = alignment,
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = if (isOutgoing) 20.dp else 8.dp,
+                bottomEnd = if (isOutgoing) 8.dp else 20.dp,
+            ),
+            color = containerColor,
+            tonalElevation = 1.dp,
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .padding(vertical = 4.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = titleColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = statusIcon,
+                            contentDescription = null,
+                            tint = statusTint,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = timeString,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = metaColor,
+                        )
+                    }
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                ) {
+                    Box(
+                        modifier = Modifier.size(34.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = null,
+                            tint = statusTint,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 private fun formatSize(context: android.content.Context, size: Long): String {
     if (size <= 0) return "0 ${context.getString(R.string.size_bytes)}"
     val units = arrayOf(
@@ -468,6 +687,7 @@ private fun formatSize(context: android.content.Context, size: Long): String {
 fun FileTransferCard(
     ft: FileTransfer,
     msg: Message,
+    onHaptic: () -> Unit,
     contentColor: Color,
     onAcceptFt: (Int) -> Unit,
     onRejectFt: (Int) -> Unit,
@@ -534,7 +754,10 @@ fun FileTransferCard(
             when {
                 isRejected -> {
                     IconButton(
-                        onClick = { onCancelFt(msg) },
+                        onClick = {
+                            onHaptic()
+                            onCancelFt(msg)
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -548,7 +771,10 @@ fun FileTransferCard(
                 !isStarted -> {
                     if (isOutgoing) {
                         IconButton(
-                            onClick = { onCancelFt(msg) },
+                            onClick = {
+                                onHaptic()
+                                onCancelFt(msg)
+                            },
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
@@ -561,7 +787,10 @@ fun FileTransferCard(
                     } else {
                         Row {
                             IconButton(
-                                onClick = { onRejectFt(ft.id) },
+                                onClick = {
+                                    onHaptic()
+                                    onRejectFt(ft.id)
+                                },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
@@ -572,7 +801,10 @@ fun FileTransferCard(
                                 )
                             }
                             IconButton(
-                                onClick = { onAcceptFt(ft.id) },
+                                onClick = {
+                                    onHaptic()
+                                    onAcceptFt(ft.id)
+                                },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
@@ -587,7 +819,10 @@ fun FileTransferCard(
                 }
                 !isComplete -> {
                     IconButton(
-                        onClick = { onRejectFt(ft.id) },
+                        onClick = {
+                            onHaptic()
+                            onRejectFt(ft.id)
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -623,6 +858,62 @@ fun FileTransferCard(
                     fontSize = 10.sp,
                     color = contentColor.copy(alpha = 0.7f)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun TypingBubble() {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+    val alpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dot1"
+    )
+    val alpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, delayMillis = 200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dot2"
+    )
+    val alpha3 by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, delayMillis = 400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dot3"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 2.dp, bottomEnd = 16.dp),
+            tonalElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = alpha1)))
+                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = alpha2)))
+                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = alpha3)))
             }
         }
     }

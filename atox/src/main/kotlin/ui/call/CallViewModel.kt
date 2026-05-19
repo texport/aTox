@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 class CallViewModel @Inject constructor(
     private val scope: CoroutineScope,
@@ -46,11 +47,25 @@ class CallViewModel @Inject constructor(
     }
 
     fun startCall() {
-        if (callManager.inCall.value !is CallState.InCall) {
-            callManager.startCall(publicKey)
+        scope.launch {
+            val state = callManager.inCall.value
+            val started = when (state) {
+                CallState.Idle -> callManager.startOutgoingCall(publicKey)
+                is CallState.OutgoingRequesting -> state.publicKey == publicKey
+                is CallState.OutgoingWaiting -> state.publicKey == publicKey
+                is CallState.OutgoingRinging -> state.publicKey == publicKey
+                is CallState.Connecting -> state.publicKey == publicKey
+                is CallState.Active -> state.publicKey == publicKey
+                is CallState.IncomingRinging -> false
+            }
+
+            if (!started) {
+                return@launch
+            }
+
+            callManager.startSendingAudio()
+            notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string()))
         }
-        callManager.startSendingAudio()
-        scope.launch { notificationHelper.showOngoingCallNotification(contactManager.get(publicKey).first() ?: Contact(publicKey.string())) }
     }
 
     fun endCall() = scope.launch {
@@ -61,12 +76,11 @@ class CallViewModel @Inject constructor(
     fun startSendingAudio() = callManager.startSendingAudio()
     fun stopSendingAudio() = callManager.stopSendingAudio()
 
-    val speakerphoneState = MutableStateFlow(callManager.speakerphoneOn)
+    val speakerphoneState = callManager.speakerphoneOnState
 
     fun toggleSpeakerphone() {
-        speakerphoneOn = !speakerphoneOn
-        speakerphoneState.value = speakerphoneOn
-        if (speakerphoneOn) {
+        callManager.toggleSpeakerphone()
+        if (speakerphoneState.value) {
             proximityScreenOff.release()
         } else {
             proximityScreenOff.acquire()
@@ -75,6 +89,5 @@ class CallViewModel @Inject constructor(
 
     val inCall = callManager.inCall
     val sendingAudio = callManager.sendingAudio
-
-    var speakerphoneOn by callManager::speakerphoneOn
+    val connectedAt = callManager.inCall.map { (it as? CallState.Active)?.connectedAt ?: -1L }
 }

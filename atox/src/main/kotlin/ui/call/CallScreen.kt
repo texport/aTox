@@ -1,13 +1,18 @@
 package ltd.evilcorp.atox.ui.call
 
+import android.os.SystemClock
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material3.*
@@ -16,33 +21,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.abs
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.ui.theme.ContactBackgrounds
-import ltd.evilcorp.atox.ui.theme.avatarContentColor
 import ltd.evilcorp.core.model.Contact
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.atox.ui.common.ContactAvatar
+import ltd.evilcorp.domain.feature.CallState
 
 @Composable
 fun CallScreen(
     contactState: State<Contact?>,
+    callState: State<CallState>,
     sendingAudioState: State<Boolean>,
     speakerphoneOnState: State<Boolean>,
+    connectedAtState: State<Long>,
     permissionManager: PermissionManager,
+    onMinimize: () -> Unit,
     onToggleMic: () -> Unit,
     onToggleSpeaker: () -> Unit,
     onEndCall: () -> Unit
 ) {
+    BackHandler(onBack = onMinimize)
+
     val contact = contactState.value
+    val currentCallState = callState.value
+    val connectedAt = connectedAtState.value
 
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -63,16 +75,17 @@ fun CallScreen(
         }
     }
 
-    val name = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) } 
+    val name = contact?.name?.ifEmpty { stringResource(R.string.contact_default_name) }
         ?: stringResource(R.string.contact_default_name)
-    val initials = remember(name) {
-        val segments = name.split(" ")
-        if (segments.size == 1) name.take(1) else name.take(1) + segments[1].take(1)
-    }
 
-    val avatarColor = remember(contact?.publicKey) {
-        val key = contact?.publicKey ?: ""
-        ContactBackgrounds[abs(key.hashCode()).rem(ContactBackgrounds.size)]
+    val statusText = when (currentCallState) {
+        is CallState.OutgoingRequesting -> stringResource(R.string.call_screen_requesting)
+        is CallState.OutgoingWaiting -> stringResource(R.string.call_screen_waiting)
+        is CallState.Connecting -> stringResource(R.string.call_screen_connecting)
+        is CallState.OutgoingRinging -> stringResource(R.string.call_screen_ringing)
+        is CallState.Active -> formatCallDuration(connectedAt)
+        is CallState.IncomingRinging -> stringResource(R.string.incoming_call)
+        CallState.Idle -> stringResource(R.string.call_screen_calling)
     }
 
     // Call ring animation (pulsing circles)
@@ -99,65 +112,103 @@ fun CallScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF1B1429), // Premium deep violet
+                        Color(0xFF0F0A1A), // Deep indigo
+                        Color(0xFF08040F)  // Pure midnight black
+                    ),
+                ),
+            ),
         contentAlignment = Alignment.Center
     ) {
+        IconButton(
+            onClick = onMinimize,
+            modifier = Modifier
+                .statusBarsPadding()
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = 16.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                contentColor = Color.White,
+            ),
+        ) {
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.return_to_chat), modifier = Modifier.size(32.dp))
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
         ) {
-            // Pulse Ring Circle
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(240.dp)
+                modifier = Modifier.size(180.dp) // Compact outer Box removes excessive margins
             ) {
-                // Pulsing outer circle
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(168.dp)
                         .graphicsLayer(
                             scaleX = scale,
                             scaleY = scale,
                             alpha = alpha
                         )
                         .clip(CircleShape)
-                        .background(avatarColor.copy(alpha = 0.4f))
+                        .background(Color.White.copy(alpha = 0.08f))
                 )
-
-                // Main circular avatar
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(avatarColor),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.16f),
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.size(144.dp),
                 ) {
-                    Text(
-                        text = initials.uppercase(),
-                        color = avatarContentColor(avatarColor),
-                        fontSize = 44.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        ContactAvatar(
+                            name = name,
+                            publicKey = contact?.publicKey.orEmpty(),
+                            avatarUri = contact?.avatarUri.orEmpty(),
+                            size = 124.dp,
+                            fontSize = 40.sp,
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer for compact, elegant spacing
 
             Text(
                 text = name,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 28.sp,
+                color = Color.White,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = stringResource(R.string.call_screen_calling),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 16.sp
-            )
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.08f),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF4CAF50)), // Vibrant glowing green for status indicator dot!
+                    )
+                    Text(
+                        text = statusText,
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+            }
         }
 
         // Control buttons row at the bottom
@@ -171,12 +222,11 @@ fun CallScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Microphone Toggle Button
                 val isMicMuted = !sendingAudioState.value
                 val micIcon = if (isMicMuted) Icons.Default.MicOff else Icons.Default.Mic
-                val micTint = if (isMicMuted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                val micBg = if (isMicMuted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
-                
+                val micTint = Color.White
+                val micBg = if (isMicMuted) Color(0xFFBA1A1A) else Color.White.copy(alpha = 0.15f)
+
                 IconButton(
                     onClick = {
                         if (permissionManager.canRecordAudio()) {
@@ -188,7 +238,8 @@ fun CallScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(micBg)
+                        .background(micBg),
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = micTint),
                 ) {
                     Icon(
                         imageVector = micIcon,
@@ -204,8 +255,8 @@ fun CallScreen(
                     modifier = Modifier
                         .size(72.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
+                        containerColor = Color(0xFFE84A5F), // Premium soft red/coral
+                        contentColor = Color.White
                     )
                 ) {
                     Icon(
@@ -218,15 +269,16 @@ fun CallScreen(
                 // Speakerphone Toggle Button
                 val isSpeakerOn = speakerphoneOnState.value
                 val speakerIcon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff
-                val speakerTint = if (isSpeakerOn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                val speakerBg = if (isSpeakerOn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                val speakerTint = Color.White
+                val speakerBg = if (isSpeakerOn) Color(0xFF2196F3) else Color.White.copy(alpha = 0.15f)
 
                 IconButton(
                     onClick = onToggleSpeaker,
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(speakerBg)
+                        .background(speakerBg),
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = speakerTint),
                 ) {
                     Icon(
                         imageVector = speakerIcon,
@@ -238,4 +290,22 @@ fun CallScreen(
             }
         }
     }
+}
+
+@Composable
+private fun formatCallDuration(connectedAt: Long): String {
+    if (connectedAt <= 0L) {
+        return "00:00"
+    }
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(connectedAt) {
+        while (true) {
+            now = SystemClock.elapsedRealtime()
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+    val totalSeconds = ((now - connectedAt) / 1_000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }

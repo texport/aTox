@@ -173,6 +173,13 @@
     <string name="contact_default_name">Unknown</string>
     <string name="incoming_call">Incoming call</string>
     <string name="incoming_call_from">Incoming call from %1$s</string>
+    <string name="call_screen_connecting">Connecting call…</string>
+    <string name="call_screen_requesting">Requesting…</string>
+    <string name="call_screen_waiting">Waiting…</string>
+    <string name="call_history_outgoing">Outgoing call</string>
+    <string name="call_history_incoming">Incoming call</string>
+    <string name="call_history_missed">Missed call</string>
+    <string name="call_history_cancelled">Cancelled call</string>
     <string name="call_mic_permission_needed">Microphone permission required to enable sending audio</string>
     <string name="password">Password</string>
     <string name="incorrect_password">Incorrect password</string>
@@ -186,6 +193,7 @@
     <string name="pref_block_screenshots">Block screenshots of aTox</string>
     <string name="pref_block_screenshots_description">This **only** blocks screenshots on **your** device, and provides no protection against your contacts taking screenshots or otherwise saving your conversations</string>
     <string name="return_to_chat">Return to chat</string>
+    <string name="return_to_call">Return to call</string>
     <string name="speakerphone_toggle">Toggle speakerphone</string>
 
     <!-- Run at boot w/ encrypted profile notification -->
@@ -221,6 +229,8 @@
     <string name="call_screen_calling">aTox Voice Call…</string>
     <string name="chat_status_online">Online</string>
     <string name="chat_status_offline">Offline</string>
+    <string name="chat_status_away">Away</string>
+    <string name="chat_status_busy">Busy</string>
     <string name="chat_write_placeholder">Write a message…</string>
     <string name="contact_list_search_placeholder">Search contacts…</string>
     <string name="contact_list_delete_contact">Delete Contact</string>
@@ -237,7 +247,31 @@
     <string name="profile_logout_cancel_button">Cancel</string>
     <string name="settings_dynamic_theme_subtitle">Color palette based on system wallpaper</string>
     <string name="settings_privacy_group">Privacy &amp; Security</string>
+    <string name="settings_sounds_group">Sounds</string>
+    <string name="settings_sounds_summary">Calls, sent message sounds, notifications, and open chat alerts</string>
+    <string name="settings_sound_group_sending">Sending</string>
+    <string name="settings_sound_group_calls">Calls</string>
+    <string name="settings_sound_group_notifications">Notifications</string>
     <string name="settings_network_group">Network &amp; Connection</string>
+    <string name="settings_sent_sound_volume_title">Sent message sound</string>
+    <string name="settings_sent_sound_volume_subtitle">Volume: %1$d%%</string>
+    <string name="settings_sent_sound_title">Sent message sound type</string>
+    <string name="settings_call_sound_title">Call sound</string>
+    <string name="settings_call_sound_default">Default ringtone</string>
+    <string name="settings_call_sound_volume_title">Call sound volume</string>
+    <string name="settings_call_sound_volume_subtitle">Volume: %1$d%%</string>
+    <string name="settings_notification_sound_title">Notification sound</string>
+    <string name="settings_notification_sound_volume_title">Notification sound volume</string>
+    <string name="settings_notification_sound_volume_subtitle">Volume: %1$d%%</string>
+    <string name="settings_active_chat_sound_title">Open chat sound</string>
+    <string name="settings_active_chat_sound_volume_title">Open chat sound volume</string>
+    <string name="settings_active_chat_sound_volume_subtitle">Volume: %1$d%%</string>
+    <string name="settings_sound_soft_pop">Soft Pop</string>
+    <string name="settings_sound_soft_tick">Soft Tick</string>
+    <string name="settings_sound_soft_beep">Soft Beep</string>
+    <string name="settings_sound_glass">Glass</string>
+    <string name="settings_sound_pulse">Pulse</string>
+    <string name="settings_sound_ripple">Ripple</string>
     <string name="settings_start_on_boot_sub">Automatically start aTox after device boot</string>
     <string name="settings_nodes_builtin">Built-in Tox nodes</string>
     <string name="settings_nodes_user">User-provided nodes</string>
@@ -252,6 +286,16 @@
     <string name="settings_auto_away_timeout">Timeout (in seconds)</string>
     <string name="settings_app_theme_dialog_title">Select Application Theme</string>
     <string name="settings_theme_title">Application Theme</string>
+    <string name="settings_date_format_title">Date format</string>
+    <string name="settings_date_format_system">System default</string>
+    <string name="settings_date_format_dmy">DD/MM/YYYY</string>
+    <string name="settings_date_format_dmy_dots">DD.MM.YYYY</string>
+    <string name="settings_date_format_mdy">MM/DD/YYYY</string>
+    <string name="settings_date_format_ymd">YYYY/MM/DD</string>
+    <string name="settings_time_format_title">Time format</string>
+    <string name="settings_time_format_system">System default</string>
+    <string name="settings_time_format_24h">24-hour</string>
+    <string name="settings_time_format_12h">12-hour</string>
     <string name="settings_lang_title">Language</string>
     <string name="settings_accent_color_desc">Choose preset color theme</string>
     <string name="settings_accent_dialog_title">Select Accent Color</string>
@@ -284,6 +328,16 @@
     <string name="unlock">Unlock</string>
     <string name="exit">Exit</string>
     <string name="contact_last_seen">Last seen %1$s</string>
+    <string name="contact_last_seen_today">at %1$s</string>
+    <string name="call_screen_ringing">Ringing…</string>
+    <string name="chat_date_today">Today</string>
+    <string name="chat_date_yesterday">Yesterday</string>
     <string name="profile_avatar_change">Change Profile Picture</string>
     <string name="avatar_too_large">Error: Avatar is too large (max 64 KB)</string>
+    <string name="avatar_editor_title">Edit Profile Picture</string>
+    <string name="avatar_editor_rotate">Rotate</string>
+    <string name="avatar_editor_reset">Reset</string>
+    <string name="avatar_editor_zoom">Zoom</string>
+    <string name="avatar_editor_save">Save</string>
+    <string name="avatar_editor_cancel">Cancel</string>
 </resources>

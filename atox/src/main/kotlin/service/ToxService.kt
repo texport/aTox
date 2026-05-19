@@ -181,8 +181,8 @@ class ToxService : LifecycleService() {
 
         lifecycleScope.launch {
             callManager.inCall.collect {
-                if (it is CallState.InCall) {
-                    if (!callManager.speakerphoneOn) {
+                if (it is CallState.Active) {
+                    if (!callManager.speakerphoneOnState.value) {
                         proximityScreenOff.acquire()
                     }
                 } else {

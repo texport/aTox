@@ -1,6 +1,11 @@
 package ltd.evilcorp.atox.ui.settings
 
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -38,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,13 +80,23 @@ import ltd.evilcorp.atox.ui.theme.accentPreviewColor
 import ltd.evilcorp.atox.ui.theme.accentPreviewContentColor
 import ltd.evilcorp.atox.ui.theme.avatarContentColor
 import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FtAutoAccept
+import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.core.tox.save.ProxyType
 
 private enum class SettingsDestination {
     Root,
     Language,
     Theme,
+    Sounds,
+}
+
+private enum class SoundPickerTarget {
+    Sent,
+    Call,
+    Notification,
+    ActiveChat,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,6 +139,16 @@ fun SettingsScreen(
     val disableScreenshots = storedSettings.disableScreenshots
     val confirmQuitting = storedSettings.confirmQuitting
     val confirmCalling = storedSettings.confirmCalling
+    val sentMessageSoundVolume = storedSettings.sentMessageSoundVolume
+    val callSoundVolume = storedSettings.callSoundVolume
+    val callRingtoneUri = storedSettings.callRingtoneUri
+    val notificationSoundVolume = storedSettings.notificationSoundVolume
+    val activeChatSoundVolume = storedSettings.activeChatSoundVolume
+    val sentMessageSoundUri = storedSettings.sentMessageSoundUri
+    val notificationSoundUri = storedSettings.notificationSoundUri
+    val activeChatSoundUri = storedSettings.activeChatSoundUri
+    val dateFormatPreference = storedSettings.dateFormatPreference
+    val timeFormatPreference = storedSettings.timeFormatPreference
     var autoAwaySecondsInput by remember { mutableStateOf(autoAwaySeconds) }
     var proxyPortInput by remember { mutableStateOf(proxyPort) }
 
@@ -130,6 +156,23 @@ fun SettingsScreen(
     var showFtAcceptDialog by remember { mutableStateOf(false) }
     var showBootstrapDialog by remember { mutableStateOf(false) }
     var showAccentColorDialog by remember { mutableStateOf(false) }
+    var showDateFormatDialog by remember { mutableStateOf(false) }
+    var showTimeFormatDialog by remember { mutableStateOf(false) }
+    var soundPickerTarget by remember { mutableStateOf(SoundPickerTarget.Call) }
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pickedUri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            when (soundPickerTarget) {
+                SoundPickerTarget.Sent -> settings.sentMessageSoundUri = pickedUri?.toString().orEmpty()
+                SoundPickerTarget.Call -> settings.callRingtoneUri = pickedUri?.toString().orEmpty()
+                SoundPickerTarget.Notification -> settings.notificationSoundUri = pickedUri?.toString().orEmpty()
+                SoundPickerTarget.ActiveChat -> settings.activeChatSoundUri = pickedUri?.toString().orEmpty()
+            }
+            performHaptic()
+        }
+    }
 
     val currentLanguageCode = remember(appearance.localeTag) {
         appearance.localeTag.substringBefore('-').substringBefore(',')
@@ -168,6 +211,7 @@ fun SettingsScreen(
         SettingsDestination.Root -> stringResource(R.string.settings)
         SettingsDestination.Language -> stringResource(R.string.select_language)
         SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
+        SettingsDestination.Sounds -> stringResource(R.string.settings_sounds_group)
     }
 
     Scaffold(
@@ -177,11 +221,17 @@ fun SettingsScreen(
                 title = { Text(title, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     if (destination != SettingsDestination.Root) {
-                        IconButton(onClick = { destination = SettingsDestination.Root }) {
+                        IconButton(onClick = {
+                            performHaptic()
+                            destination = SettingsDestination.Root
+                        }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     } else if (showBackButton) {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = {
+                            performHaptic()
+                            onBack()
+                        }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     }
@@ -205,152 +255,173 @@ fun SettingsScreen(
                 ) {
                     item {
                         SettingsGroup(title = stringResource(R.string.appearance_and_design)) {
-                    // Language selection
-                    SettingsClickableRow(
-                        title = stringResource(R.string.language),
-                        subtitle = languages.find { it.first == currentLanguageCode }?.second ?: "English"
-                    ) {
-                        performHaptic()
-                        destination = SettingsDestination.Language
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Theme selection
-                    val themeLabel = when (appThemeMode) {
-                        AppCompatDelegate.MODE_NIGHT_YES -> stringResource(R.string.pref_theme_dark)
-                        AppCompatDelegate.MODE_NIGHT_NO -> stringResource(R.string.pref_theme_light)
-                        else -> stringResource(R.string.pref_theme_follow_system)
-                    }
-                    SettingsClickableRow(
-                        title = stringResource(R.string.pref_heading_theme),
-                        subtitle = themeLabel
-                    ) {
-                        performHaptic()
-                        destination = SettingsDestination.Theme
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Dynamic Colors
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val dynamicSubtitle = stringResource(R.string.settings_dynamic_theme_subtitle)
-                        SettingsSwitchRow(
-                            title = stringResource(R.string.dynamic_theme),
-                            subtitle = dynamicSubtitle,
-                            checked = dynamicColor
-                        ) { checked ->
-                            performHaptic()
-                            onDynamicColorChanged(checked)
-                        }
-
-                        if (!dynamicColor) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
                             SettingsClickableRow(
-                                title = stringResource(R.string.accent_color),
-                                subtitle = activePreset.name
+                                title = stringResource(R.string.language),
+                                subtitle = languages.find { it.first == currentLanguageCode }?.second ?: "English"
                             ) {
                                 performHaptic()
-                                showAccentColorDialog = true
+                                destination = SettingsDestination.Language
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            val themeLabel = when (appThemeMode) {
+                                AppCompatDelegate.MODE_NIGHT_YES -> stringResource(R.string.pref_theme_dark)
+                                AppCompatDelegate.MODE_NIGHT_NO -> stringResource(R.string.pref_theme_light)
+                                else -> stringResource(R.string.pref_theme_follow_system)
+                            }
+                            SettingsClickableRow(
+                                title = stringResource(R.string.pref_heading_theme),
+                                subtitle = themeLabel
+                            ) {
+                                performHaptic()
+                                destination = SettingsDestination.Theme
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            val timeFormatLabel = when (timeFormatPreference) {
+                                TimeFormatPreference.System -> stringResource(R.string.settings_time_format_system)
+                                TimeFormatPreference.Hours24 -> stringResource(R.string.settings_time_format_24h)
+                                TimeFormatPreference.Hours12 -> stringResource(R.string.settings_time_format_12h)
+                            }
+                            val dateFormatLabel = when (dateFormatPreference) {
+                                DateFormatPreference.System -> stringResource(R.string.settings_date_format_system)
+                                DateFormatPreference.DMY -> stringResource(R.string.settings_date_format_dmy)
+                                DateFormatPreference.DMYDots -> stringResource(R.string.settings_date_format_dmy_dots)
+                                DateFormatPreference.MDY -> stringResource(R.string.settings_date_format_mdy)
+                                DateFormatPreference.YMD -> stringResource(R.string.settings_date_format_ymd)
+                            }
+                            SettingsClickableRow(
+                                title = stringResource(R.string.settings_date_format_title),
+                                subtitle = dateFormatLabel
+                            ) {
+                                performHaptic()
+                                showDateFormatDialog = true
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsClickableRow(
+                                title = stringResource(R.string.settings_time_format_title),
+                                subtitle = timeFormatLabel
+                            ) {
+                                performHaptic()
+                                showTimeFormatDialog = true
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                SettingsSwitchRow(
+                                    title = stringResource(R.string.dynamic_theme),
+                                    subtitle = stringResource(R.string.settings_dynamic_theme_subtitle),
+                                    checked = dynamicColor
+                                ) { checked ->
+                                    performHaptic()
+                                    onDynamicColorChanged(checked)
+                                }
+                                if (!dynamicColor) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                                    val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                                    SettingsClickableRow(
+                                        title = stringResource(R.string.accent_color),
+                                        subtitle = activePreset.name
+                                    ) {
+                                        performHaptic()
+                                        showAccentColorDialog = true
+                                    }
+                                }
+                            } else {
+                                val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
+                                SettingsClickableRow(
+                                    title = stringResource(R.string.accent_color),
+                                    subtitle = activePreset.name
+                                ) {
+                                    performHaptic()
+                                    showAccentColorDialog = true
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_haptic_title),
+                                subtitle = stringResource(R.string.pref_haptic_summary),
+                                checked = storedSettings.hapticEnabled
+                            ) { checked ->
+                                settings.hapticEnabled = checked
+                                performHaptic()
                             }
                         }
-                    } else {
-                        val activePreset = AccentPresets.find { it.seed.toArgb() == currentAccentSeed } ?: AccentPresets[0]
-                        SettingsClickableRow(
-                            title = stringResource(R.string.accent_color),
-                            subtitle = activePreset.name
-                        ) {
-                            performHaptic()
-                            showAccentColorDialog = true
+                    }
+
+                    item {
+                        SettingsGroup(title = stringResource(R.string.settings_sounds_group)) {
+                            SettingsClickableRow(
+                                title = stringResource(R.string.settings_sounds_group),
+                                subtitle = stringResource(R.string.settings_sounds_summary)
+                            ) {
+                                performHaptic()
+                                destination = SettingsDestination.Sounds
+                            }
                         }
                     }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_haptic_title),
-                        subtitle = stringResource(R.string.pref_haptic_summary),
-                        checked = storedSettings.hapticEnabled
-                    ) { checked ->
-                        settings.hapticEnabled = checked
-                        performHaptic()
-                    }
-                }
-            }
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_privacy_group)) {
-                    // Disable screenshots
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_block_screenshots),
-                        subtitle = stringResource(R.string.pref_block_screenshots_description),
-                        checked = disableScreenshots
-                    ) { checked ->
-                        onDisableScreenshotsChanged(checked)
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_block_screenshots),
+                                subtitle = stringResource(R.string.pref_block_screenshots_description),
+                                checked = disableScreenshots
+                            ) { checked ->
+                                performHaptic()
+                                onDisableScreenshotsChanged(checked)
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_confirm_quitting),
+                                subtitle = stringResource(R.string.quit_confirm),
+                                checked = confirmQuitting
+                            ) { checked ->
+                                performHaptic()
+                                settings.confirmQuitting = checked
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_confirm_calling),
+                                subtitle = stringResource(R.string.call_confirm),
+                                checked = confirmCalling
+                            ) { checked ->
+                                performHaptic()
+                                settings.confirmCalling = checked
+                            }
+                        }
                     }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Confirm quitting
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_confirm_quitting),
-                        subtitle = stringResource(R.string.quit_confirm),
-                        checked = confirmQuitting
-                    ) { checked ->
-                        settings.confirmQuitting = checked
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Confirm calling
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_confirm_calling),
-                        subtitle = stringResource(R.string.call_confirm),
-                        checked = confirmCalling
-                    ) { checked ->
-                        settings.confirmCalling = checked
-                    }
-                }
-            }
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_network_group)) {
-                    // UDP соединения
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_udp_enabled),
-                        subtitle = stringResource(R.string.pref_udp_enabled),
-                        checked = udpEnabled
-                    ) { checked ->
-                        viewModel.setUdpEnabled(checked)
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_udp_enabled),
+                                subtitle = stringResource(R.string.pref_udp_enabled),
+                                checked = udpEnabled
+                            ) { checked ->
+                                performHaptic()
+                                viewModel.setUdpEnabled(checked)
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_run_at_startup),
+                                subtitle = stringResource(R.string.settings_start_on_boot_sub),
+                                checked = runAtStartup
+                            ) { checked ->
+                                performHaptic()
+                                viewModel.setRunAtStartup(checked)
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            val bootstrapLabel = when (bootstrapNodeSource) {
+                                BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
+                                BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
+                            }
+                            SettingsClickableRow(
+                                title = stringResource(R.string.settings_nodes_list),
+                                subtitle = bootstrapLabel
+                            ) {
+                                performHaptic()
+                                showBootstrapDialog = true
+                            }
+                        }
                     }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Run at startup
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_run_at_startup),
-                        subtitle = stringResource(R.string.settings_start_on_boot_sub),
-                        checked = runAtStartup
-                    ) { checked ->
-                        viewModel.setRunAtStartup(checked)
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-                    // Bootstrap Node Source
-                    val bootstrapLabel = when (bootstrapNodeSource) {
-                        BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
-                        BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
-                    }
-                    SettingsClickableRow(
-                        title = stringResource(R.string.settings_nodes_list),
-                        subtitle = bootstrapLabel
-                    ) {
-                        showBootstrapDialog = true
-                    }
-                }
-            }
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_ft_group)) {
@@ -363,6 +434,7 @@ fun SettingsScreen(
                                 title = stringResource(R.string.pref_heading_ft_auto_accept),
                                 subtitle = ftLabel
                             ) {
+                                performHaptic()
                                 showFtAcceptDialog = true
                             }
 
@@ -373,6 +445,7 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_auto_save_subtitle),
                                 checked = storedSettings.autoSaveToDownloads
                             ) { checked ->
+                                performHaptic()
                                 settings.autoSaveToDownloads = checked
                             }
                         }
@@ -402,81 +475,75 @@ fun SettingsScreen(
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_proxy_group)) {
-                    val proxyLabel = when (proxyType) {
-                        ProxyType.None -> stringResource(R.string.pref_proxy_type_none)
-                        ProxyType.HTTP -> stringResource(R.string.pref_proxy_type_http)
-                        ProxyType.SOCKS5 -> stringResource(R.string.pref_proxy_type_socks5)
-                    }
-                    SettingsClickableRow(
-                        title = stringResource(R.string.settings_proxy_type),
-                        subtitle = proxyLabel
-                    ) {
-                        showProxyDialog = true
-                    }
-
-                    if (proxyType != ProxyType.None) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            OutlinedTextField(
-                                value = proxyAddress,
-                                onValueChange = {
-                                    settings.proxyAddress = it
-                                },
-                                label = { Text(stringResource(R.string.settings_proxy_address)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            OutlinedTextField(
-                                value = proxyPortInput,
-                                onValueChange = {
-                                    if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                                        proxyPortInput = it
-                                        if (it.isNotEmpty()) {
-                                            settings.proxyPort = it.toIntOrNull() ?: 0
-                                        }
-                                    }
-                                },
-                                label = { Text(stringResource(R.string.settings_proxy_port)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            val proxyLabel = when (proxyType) {
+                                ProxyType.None -> stringResource(R.string.pref_proxy_type_none)
+                                ProxyType.HTTP -> stringResource(R.string.pref_proxy_type_http)
+                                ProxyType.SOCKS5 -> stringResource(R.string.pref_proxy_type_socks5)
+                            }
+                            SettingsClickableRow(
+                                title = stringResource(R.string.settings_proxy_type),
+                                subtitle = proxyLabel
+                            ) {
+                                performHaptic()
+                                showProxyDialog = true
+                            }
+                            if (proxyType != ProxyType.None) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    OutlinedTextField(
+                                        value = proxyAddress,
+                                        onValueChange = { settings.proxyAddress = it },
+                                        label = { Text(stringResource(R.string.settings_proxy_address)) },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    OutlinedTextField(
+                                        value = proxyPortInput,
+                                        onValueChange = {
+                                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                                proxyPortInput = it
+                                                if (it.isNotEmpty()) settings.proxyPort = it.toIntOrNull() ?: 0
+                                            }
+                                        },
+                                        label = { Text(stringResource(R.string.settings_proxy_port)) },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-            }
 
                     item {
                         SettingsGroup(title = stringResource(R.string.settings_status_group)) {
-                    SettingsSwitchRow(
-                        title = stringResource(R.string.pref_auto_away),
-                        subtitle = stringResource(R.string.settings_auto_away_sub),
-                        checked = autoAwayEnabled
-                    ) { checked ->
-                        settings.autoAwayEnabled = checked
-                    }
-
-                    if (autoAwayEnabled) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            OutlinedTextField(
-                                value = autoAwaySecondsInput,
-                                onValueChange = {
-                                    if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                                        autoAwaySecondsInput = it
-                                        if (it.isNotEmpty()) {
-                                            settings.autoAwaySeconds = it.toLongOrNull() ?: 180L
-                                        }
-                                    }
-                                },
-                                label = { Text(stringResource(R.string.settings_auto_away_timeout)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            SettingsSwitchRow(
+                                title = stringResource(R.string.pref_auto_away),
+                                subtitle = stringResource(R.string.settings_auto_away_sub),
+                                checked = autoAwayEnabled
+                            ) { checked ->
+                                performHaptic()
+                                settings.autoAwayEnabled = checked
+                            }
+                            if (autoAwayEnabled) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    OutlinedTextField(
+                                        value = autoAwaySecondsInput,
+                                        onValueChange = {
+                                            if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                                                autoAwaySecondsInput = it
+                                                if (it.isNotEmpty()) settings.autoAwaySeconds = it.toLongOrNull() ?: 180L
+                                            }
+                                        },
+                                        label = { Text(stringResource(R.string.settings_auto_away_timeout)) },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
                         }
                     }
-                }
-            }
                 }
             }
             SettingsDestination.Language -> {
@@ -507,6 +574,123 @@ fun SettingsScreen(
                         onThemeChanged(themeMode)
                     }
                 )
+            }
+            SettingsDestination.Sounds -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+                ) {
+                    item {
+                        SettingsGroup(title = stringResource(R.string.settings_sound_group_sending)) {
+                            SoundUriRow(
+                                title = stringResource(R.string.settings_sent_sound_title),
+                                subtitle = soundTitle(context, sentMessageSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                                onClick = {
+                                    performHaptic()
+                                    soundPickerTarget = SoundPickerTarget.Sent
+                                    launchRingtonePicker(
+                                        launcher = ringtonePickerLauncher,
+                                        title = context.getString(R.string.settings_sent_sound_title),
+                                        type = RingtoneManager.TYPE_NOTIFICATION,
+                                        currentUri = sentMessageSoundUri,
+                                    )
+                                }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSliderRow(
+                                title = stringResource(R.string.settings_sent_sound_volume_title),
+                                subtitle = stringResource(R.string.settings_sent_sound_volume_subtitle, sentMessageSoundVolume),
+                                value = sentMessageSoundVolume.toFloat(),
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                onValueChangeFinished = performHaptic,
+                            ) { settings.sentMessageSoundVolume = it.toInt() }
+                        }
+                    }
+                    item {
+                        SettingsGroup(title = stringResource(R.string.settings_sound_group_calls)) {
+                            SoundUriRow(
+                                title = stringResource(R.string.settings_call_sound_title),
+                                subtitle = soundTitle(context, callRingtoneUri, RingtoneManager.TYPE_RINGTONE),
+                                onClick = {
+                                    performHaptic()
+                                    soundPickerTarget = SoundPickerTarget.Call
+                                    launchRingtonePicker(
+                                        launcher = ringtonePickerLauncher,
+                                        title = context.getString(R.string.settings_call_sound_title),
+                                        type = RingtoneManager.TYPE_RINGTONE,
+                                        currentUri = callRingtoneUri,
+                                    )
+                                }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSliderRow(
+                                title = stringResource(R.string.settings_call_sound_volume_title),
+                                subtitle = stringResource(R.string.settings_call_sound_volume_subtitle, callSoundVolume),
+                                value = callSoundVolume.toFloat(),
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                onValueChangeFinished = performHaptic,
+                            ) { settings.callSoundVolume = it.toInt() }
+                        }
+                    }
+                    item {
+                        SettingsGroup(title = stringResource(R.string.settings_sound_group_notifications)) {
+                            SoundUriRow(
+                                title = stringResource(R.string.settings_notification_sound_title),
+                                subtitle = soundTitle(context, notificationSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                                onClick = {
+                                    performHaptic()
+                                    soundPickerTarget = SoundPickerTarget.Notification
+                                    launchRingtonePicker(
+                                        launcher = ringtonePickerLauncher,
+                                        title = context.getString(R.string.settings_notification_sound_title),
+                                        type = RingtoneManager.TYPE_NOTIFICATION,
+                                        currentUri = notificationSoundUri,
+                                    )
+                                }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSliderRow(
+                                title = stringResource(R.string.settings_notification_sound_volume_title),
+                                subtitle = stringResource(R.string.settings_notification_sound_volume_subtitle, notificationSoundVolume),
+                                value = notificationSoundVolume.toFloat(),
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                onValueChangeFinished = performHaptic,
+                            ) { settings.notificationSoundVolume = it.toInt() }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SoundUriRow(
+                                title = stringResource(R.string.settings_active_chat_sound_title),
+                                subtitle = soundTitle(context, activeChatSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                                onClick = {
+                                    performHaptic()
+                                    soundPickerTarget = SoundPickerTarget.ActiveChat
+                                    launchRingtonePicker(
+                                        launcher = ringtonePickerLauncher,
+                                        title = context.getString(R.string.settings_active_chat_sound_title),
+                                        type = RingtoneManager.TYPE_NOTIFICATION,
+                                        currentUri = activeChatSoundUri,
+                                    )
+                                }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                            SettingsSliderRow(
+                                title = stringResource(R.string.settings_active_chat_sound_volume_title),
+                                subtitle = stringResource(R.string.settings_active_chat_sound_volume_subtitle, activeChatSoundVolume),
+                                value = activeChatSoundVolume.toFloat(),
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                onValueChangeFinished = performHaptic,
+                            ) { settings.activeChatSoundVolume = it.toInt() }
+                        }
+                    }
+                }
             }
         }
     }
@@ -749,6 +933,119 @@ fun SettingsScreen(
             }
         )
     }
+
+    if (showDateFormatDialog) {
+        val dateFormats = listOf(
+            DateFormatPreference.System to stringResource(R.string.settings_date_format_system),
+            DateFormatPreference.DMY to stringResource(R.string.settings_date_format_dmy),
+            DateFormatPreference.DMYDots to stringResource(R.string.settings_date_format_dmy_dots),
+            DateFormatPreference.MDY to stringResource(R.string.settings_date_format_mdy),
+            DateFormatPreference.YMD to stringResource(R.string.settings_date_format_ymd)
+        )
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onDismissRequest = { showDateFormatDialog = false },
+            title = { Text(stringResource(R.string.settings_date_format_title), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    dateFormats.forEach { item ->
+                        val isSelected = item.first == dateFormatPreference
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    performHaptic()
+                                    settings.dateFormatPreference = item.first
+                                    showDateFormatDialog = false
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = item.second,
+                                fontSize = 16.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDateFormatDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
+    if (showTimeFormatDialog) {
+        val timeFormats = listOf(
+            TimeFormatPreference.System to stringResource(R.string.settings_time_format_system),
+            TimeFormatPreference.Hours24 to stringResource(R.string.settings_time_format_24h),
+            TimeFormatPreference.Hours12 to stringResource(R.string.settings_time_format_12h)
+        )
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onDismissRequest = { showTimeFormatDialog = false },
+            title = { Text(stringResource(R.string.settings_time_format_title), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    timeFormats.forEach { item ->
+                        val isSelected = item.first == timeFormatPreference
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    performHaptic()
+                                    settings.timeFormatPreference = item.first
+                                    showTimeFormatDialog = false
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = item.second,
+                                fontSize = 16.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTimeFormatDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
 }
 
 @Composable
@@ -846,23 +1143,71 @@ fun SettingsClickableRow(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { isExpanded = !isExpanded }
+                .animateContentSize()
+        ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = if (isExpanded) Int.MAX_VALUE else 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = "Open",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        )
+        IconButton(onClick = onClick) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Open",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
     }
+}
+
+@Composable
+private fun SoundUriRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) = SettingsClickableRow(title, subtitle, onClick)
+
+private fun soundTitle(context: android.content.Context, uriString: String, type: Int): String {
+    val uri = uriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        ?: RingtoneManager.getDefaultUri(type)
+    return RingtoneManager.getRingtone(context, uri)?.getTitle(context)
+        ?: context.getString(R.string.settings_call_sound_default)
+}
+
+private fun launchRingtonePicker(
+    launcher: androidx.activity.result.ActivityResultLauncher<Intent>,
+    title: String,
+    type: Int,
+    currentUri: String,
+) {
+    launcher.launch(
+        Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, type)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, title)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(
+                RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                currentUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+                    ?: RingtoneManager.getDefaultUri(type)
+            )
+        }
+    )
 }
 
 @Composable
@@ -906,6 +1251,43 @@ fun SettingsSwitchRow(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+fun SettingsSliderRow(
+    title: String,
+    subtitle: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChangeFinished: () -> Unit = {},
+    onValueChange: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            steps = steps,
         )
     }
 }

@@ -42,7 +42,7 @@ class CallEventHandler @Inject constructor(
         scope.launch {
             val contact = tryGetContact(pk) ?: Contact(pk)
             notificationHelper.showPendingCallNotification(tox.getStatus(), contact)
-            callManager.addPendingCall(contact)
+            callManager.onIncomingCall(contact)
         }
     }
 
@@ -55,7 +55,8 @@ class CallEventHandler @Inject constructor(
             notificationHelper.dismissCallNotification(PublicKey(pk))
             callManager.terminate(PublicKey(pk))
         } else if (callState.contains(ToxavFriendCallState.SendingAudio) || callState.contains(ToxavFriendCallState.ReceivingAudio)) {
-            callManager.onCallConnected()
+            callManager.onRemoteAnswered(PublicKey(pk))
+            callManager.onCallConnected(PublicKey(pk))
         }
     }
 

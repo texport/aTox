@@ -48,6 +48,7 @@ import ltd.evilcorp.atox.appearance.AppearanceManager
 import ltd.evilcorp.atox.service.AutoAway
 import ltd.evilcorp.atox.di.ViewModelFactory
 import ltd.evilcorp.atox.settings.Settings
+import ltd.evilcorp.atox.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.NotificationHelper
 import ltd.evilcorp.atox.util.PermissionManager
 import ltd.evilcorp.atox.ui.addcontact.AddContactScreen
@@ -104,8 +105,12 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var permissionManager: PermissionManager
 
+    @Inject
+    lateinit var systemSoundPlayer: SystemSoundPlayer
+
     private var incomingCallDialog: android.app.AlertDialog? = null
     private val initialToxIdToLink = mutableStateOf<String?>(null)
+    private val callScreenMinimized = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         (application as App).component.inject(this)
@@ -138,8 +143,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            callManager.pendingCalls.collect { calls ->
-                if (calls.isEmpty()) {
+            callManager.inCall.collect { state ->
+                val incoming = state as? CallState.IncomingRinging
+                if (incoming == null) {
                     incomingCallDialog?.dismiss()
                     incomingCallDialog = null
                     return@collect
@@ -147,15 +153,19 @@ class MainActivity : AppCompatActivity() {
 
                 if (incomingCallDialog != null) return@collect
 
-                val contact = calls.first()
+                val contact = incoming.contact
                 incomingCallDialog = android.app.AlertDialog.Builder(this@MainActivity)
                     .setTitle(R.string.incoming_call)
                     .setMessage(getString(R.string.incoming_call_from, contact.name.ifEmpty { contact.publicKey.take(FINGERPRINT_LEN) }))
                     .setPositiveButton(R.string.accept) { _, _ ->
-                        val pk = PublicKey(contact.publicKey)
-                        callManager.startCall(pk)
-                        notificationHelper.showOngoingCallNotification(contact)
-                        notificationHelper.dismissCallNotification(pk)
+                        lifecycleScope.launch {
+                            val pk = PublicKey(contact.publicKey)
+                            if (callManager.acceptIncomingCall(pk)) {
+                                notificationHelper.showOngoingCallNotification(contact)
+                                notificationHelper.dismissCallNotification(pk)
+                                callManager.startSendingAudio()
+                            }
+                        }
                     }
                     .setNegativeButton(R.string.reject) { _, _ ->
                         callManager.endCall(PublicKey(contact.publicKey))
@@ -201,232 +211,277 @@ class MainActivity : AppCompatActivity() {
         val navController = rememberNavController()
 
         val callState by callManager.inCall.collectAsState()
-        LaunchedEffect(callState) {
-            val state = callState
-            if (state is CallState.InCall) {
-                navController.navigate("call/${state.publicKey.string()}") {
-                    launchSingleTop = true
+        Box(modifier = Modifier.fillMaxSize()) {
+            LaunchedEffect(callState, callScreenMinimized.value) {
+                val state = callState
+                val publicKey = when (state) {
+                    is CallState.OutgoingRequesting -> state.publicKey.string()
+                    is CallState.OutgoingWaiting -> state.publicKey.string()
+                    is CallState.Connecting -> state.publicKey.string()
+                    is CallState.OutgoingRinging -> state.publicKey.string()
+                    is CallState.Active -> state.publicKey.string()
+                    else -> null
                 }
-            } else {
-                if (navController.currentBackStackEntry?.destination?.route?.startsWith("call/") == true) {
-                    navController.popBackStack()
-                }
-            }
-        }
-
-        // Handle link intents
-        LaunchedEffect(initialToxIdToLink.value) {
-            initialToxIdToLink.value?.let { toxId ->
-                navController.navigate("add_contact?toxId=$toxId")
-                initialToxIdToLink.value = null
-            }
-        }
-
-        NavHost(
-            navController = navController,
-            startDestination = "launch"
-        ) {
-            composable("launch") {
-                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
-                LaunchScreen(viewModel = viewModel, navController = navController)
-            }
-
-            composable("unlock") {
-                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
-                UnlockScreen(
-                    viewModel = viewModel,
-                    onUnlockSuccess = {
-                        navController.navigate("contact_list") {
-                            popUpTo("unlock") { inclusive = true }
-                        }
-                    },
-                    onQuit = {
-                        finish()
+                if (publicKey != null && !callScreenMinimized.value) {
+                    navController.navigate("call/$publicKey") {
+                        launchSingleTop = true
                     }
-                )
+                } else {
+                    if (navController.currentBackStackEntry?.destination?.route?.startsWith("call/") == true) {
+                        navController.popBackStack()
+                    }
+                }
             }
 
-            composable("contact_list") {
-                val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
-                val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
-                val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
+            // Handle link intents
+            LaunchedEffect(initialToxIdToLink.value) {
+                initialToxIdToLink.value?.let { toxId ->
+                    navController.navigate("add_contact?toxId=$toxId")
+                    initialToxIdToLink.value = null
+                }
+            }
 
-                val userState = viewModel.user.observeAsState()
-                val contactsState = viewModel.contacts.observeAsState(emptyList())
-                val friendRequestsState = viewModel.friendRequests.observeAsState(emptyList())
+            NavHost(
+                navController = navController,
+                startDestination = "launch"
+            ) {
+                composable("launch") {
+                    val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                    LaunchScreen(viewModel = viewModel, navController = navController)
+                }
 
-                ContactListScreen(
-                    userState = userState,
-                    contactsState = contactsState,
-                    friendRequestsState = friendRequestsState,
-                    onAddContact = { toxIdStr, message -> addContactViewModel.addContact(ToxID(toxIdStr), message) },
-                    onContactClick = { contact -> navController.navigate("chat/${contact.publicKey}") },
-                    onDeleteContact = { contact -> viewModel.deleteContact(PublicKey(contact.publicKey)) },
-                    onAcceptFriendRequest = { req -> viewModel.acceptFriendRequest(req) },
-                    onRejectFriendRequest = { req -> viewModel.rejectFriendRequest(req) },
-                    onQuitTox = {
-                        if (viewModel.quittingNeedsConfirmation()) {
-                            android.app.AlertDialog.Builder(this@MainActivity)
-                                .setTitle(R.string.quit)
-                                .setMessage(R.string.quit_confirm)
-                                .setPositiveButton(R.string.confirm) { _, _ ->
-                                    viewModel.quitTox()
-                                    finish()
-                                }
-                                .setNegativeButton(R.string.reject, null)
-                                .show()
-                        } else {
-                            viewModel.quitTox()
+                composable("unlock") {
+                    val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                    UnlockScreen(
+                        viewModel = viewModel,
+                        onUnlockSuccess = {
+                            navController.navigate("contact_list") {
+                                popUpTo("unlock") { inclusive = true }
+                            }
+                        },
+                        onQuit = {
                             finish()
                         }
-                    },
-                    toxId = profileViewModel.toxId.string(),
-                    onSetName = { name -> profileViewModel.setName(name) },
-                    onSetStatusMessage = { status -> profileViewModel.setStatusMessage(status) },
-                    onSetStatus = { status -> profileViewModel.setStatus(status) },
-                    settings = settings,
-                    appearance = appearance,
-                    onThemeChanged = appearanceManager::updateThemeMode,
-                    onDynamicColorChanged = appearanceManager::updateDynamicColorEnabled,
-                    onAccentColorSeedChanged = appearanceManager::updateAccentColorSeed,
-                    onLocaleTagChanged = ::updateLocale,
-                    onDisableScreenshotsChanged = { disable ->
-                        settings.disableScreenshots = disable
-                        updateSecureWindow(disable)
-                    },
-                    onLogout = {
-                        viewModel.deleteProfileAndData()
-                        navController.navigate("launch") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
-                    onAvatarChanged = { profileViewModel.broadcastAvatar() },
-                    vmFactory = vmFactory
-                )
-            }
-
-            composable("create_profile") {
-                val viewModel: CreateProfileViewModel = viewModel(factory = vmFactory)
-                CreateProfileScreen(
-                    onCreateProfile = { name ->
-                        val status = viewModel.createProfile(name)
-                        if (status != ToxSaveStatus.Ok) {
-                            return@CreateProfileScreen status
-                        }
-                        navController.navigate("contact_list") {
-                            popUpTo("create_profile") { inclusive = true }
-                        }
-                        ToxSaveStatus.Ok
-                    }
-                )
-            }
-
-            composable(
-                route = "chat/{publicKey}",
-                arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
-                val viewModel: ChatViewModel = viewModel(factory = vmFactory)
-
-                LaunchedEffect(publicKeyStr) {
-                    viewModel.setActiveChat(PublicKey(publicKeyStr))
+                    )
                 }
 
-                val contactState = viewModel.contact.observeAsState()
-                val messagesState = viewModel.messages.observeAsState()
-                val fileTransfersState = viewModel.fileTransfers.observeAsState(emptyList())
+                composable("contact_list") {
+                    val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
+                    val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
+                    val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
 
-                ChatScreen(
-                    contactState = contactState,
-                    messagesState = messagesState,
-                    fileTransfersState = fileTransfersState,
-                    settings = settings,
-                    onBack = {
-                        viewModel.setActiveChat(PublicKey(""))
-                        navController.popBackStack()
-                    },
-                    onSendMessage = { content ->
-                        viewModel.send(content, MessageType.Normal)
-                    },
-                    onSendFile = { uri ->
-                        viewModel.createFt(uri)
-                    },
-                    onCallClick = {
-                        navController.navigate("call/$publicKeyStr")
-                    },
-                    onAcceptFt = { id ->
-                        viewModel.acceptFt(id)
-                    },
-                    onRejectFt = { id ->
-                        viewModel.rejectFt(id)
-                    },
-                    onCancelFt = { msg ->
-                        viewModel.delete(msg)
-                    },
-                    onSaveFt = { id, destUri ->
-                        viewModel.exportFt(id, destUri)
-                    },
-                    onOpenFile = { ft ->
-                        openFile(ft)
-                    }
-                )
-            }
+                    val userState = viewModel.user.observeAsState()
+                    val contactsState = viewModel.contacts.observeAsState(emptyList())
+                    val friendRequestsState = viewModel.friendRequests.observeAsState(emptyList())
 
-            composable(
-                route = "call/{publicKey}",
-                arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
-                val viewModel: CallViewModel = viewModel(factory = vmFactory)
-
-                LaunchedEffect(publicKeyStr) {
-                    viewModel.setActiveContact(PublicKey(publicKeyStr))
-                    viewModel.startCall()
+                    ContactListScreen(
+                        userState = userState,
+                        contactsState = contactsState,
+                        friendRequestsState = friendRequestsState,
+                        onAddContact = { toxIdStr, message -> addContactViewModel.addContact(ToxID(toxIdStr), message) },
+                        onContactClick = { contact -> navController.navigate("chat/${contact.publicKey}") },
+                        onDeleteContact = { contact -> viewModel.deleteContact(PublicKey(contact.publicKey)) },
+                        onAcceptFriendRequest = { req -> viewModel.acceptFriendRequest(req) },
+                        onRejectFriendRequest = { req -> viewModel.rejectFriendRequest(req) },
+                        onQuitTox = {
+                            if (viewModel.quittingNeedsConfirmation()) {
+                                android.app.AlertDialog.Builder(this@MainActivity)
+                                    .setTitle(R.string.quit)
+                                    .setMessage(R.string.quit_confirm)
+                                    .setPositiveButton(R.string.confirm) { _, _ ->
+                                        viewModel.quitTox()
+                                        finish()
+                                    }
+                                    .setNegativeButton(R.string.reject, null)
+                                    .show()
+                            } else {
+                                viewModel.quitTox()
+                                finish()
+                            }
+                        },
+                        toxId = profileViewModel.toxId.string(),
+                        onSetName = { name -> profileViewModel.setName(name) },
+                        onSetStatusMessage = { status -> profileViewModel.setStatusMessage(status) },
+                        onSetStatus = { status -> profileViewModel.setStatus(status) },
+                        settings = settings,
+                        appearance = appearance,
+                        onThemeChanged = appearanceManager::updateThemeMode,
+                        onDynamicColorChanged = appearanceManager::updateDynamicColorEnabled,
+                        onAccentColorSeedChanged = appearanceManager::updateAccentColorSeed,
+                        onLocaleTagChanged = ::updateLocale,
+                        onDisableScreenshotsChanged = { disable ->
+                            settings.disableScreenshots = disable
+                            updateSecureWindow(disable)
+                        },
+                        onLogout = {
+                            viewModel.deleteProfileAndData()
+                            navController.navigate("launch") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        onAvatarChanged = { profileViewModel.broadcastAvatar() },
+                        vmFactory = vmFactory
+                    )
                 }
 
-                val contactState = viewModel.contact.observeAsState()
-                val sendingAudioState = viewModel.sendingAudio.collectAsState()
-                val speakerphoneOnState = viewModel.speakerphoneState.collectAsState()
-
-                CallScreen(
-                    contactState = contactState,
-                    sendingAudioState = sendingAudioState,
-                    speakerphoneOnState = speakerphoneOnState,
-                    permissionManager = permissionManager,
-                    onToggleMic = {
-                        if (sendingAudioState.value) {
-                            viewModel.stopSendingAudio()
-                        } else {
-                            viewModel.startSendingAudio()
+                composable("create_profile") {
+                    val viewModel: CreateProfileViewModel = viewModel(factory = vmFactory)
+                    CreateProfileScreen(
+                        onCreateProfile = { name ->
+                            val status = viewModel.createProfile(name)
+                            if (status != ToxSaveStatus.Ok) {
+                                return@CreateProfileScreen status
+                            }
+                            navController.navigate("contact_list") {
+                                popUpTo("create_profile") { inclusive = true }
+                            }
+                            ToxSaveStatus.Ok
                         }
-                    },
-                    onToggleSpeaker = {
-                        viewModel.toggleSpeakerphone()
-                    },
-                    onEndCall = {
-                        viewModel.endCall()
-                        navController.popBackStack()
+                    )
+                }
+
+                composable(
+                    route = "chat/{publicKey}",
+                    arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
+                    val viewModel: ChatViewModel = viewModel(factory = vmFactory)
+
+                    LaunchedEffect(publicKeyStr) {
+                        viewModel.setActiveChat(PublicKey(publicKeyStr))
                     }
-                )
+
+                    val contactState = viewModel.contact.observeAsState()
+                    val messagesState = viewModel.messages.observeAsState()
+                    val fileTransfersState = viewModel.fileTransfers.observeAsState(emptyList())
+
+                    ChatScreen(
+                        contactState = contactState,
+                        messagesState = messagesState,
+                        fileTransfersState = fileTransfersState,
+                        settings = settings,
+                        onBack = {
+                            viewModel.setActiveChat(PublicKey(""))
+                            navController.popBackStack()
+                        },
+                        onSendMessage = { content ->
+                            viewModel.send(content, MessageType.Normal)
+                        },
+                        onTypingChanged = { typing ->
+                            viewModel.setTyping(typing)
+                        },
+                        onSendFile = { uri ->
+                            viewModel.createFt(uri)
+                        },
+                        onCallClick = {
+                            viewModel.startCall()
+                        },
+                        onCallHistoryClick = {
+                            viewModel.startCall()
+                        },
+                        onAcceptFt = { id ->
+                            viewModel.acceptFt(id)
+                        },
+                        onRejectFt = { id ->
+                            viewModel.rejectFt(id)
+                        },
+                        onCancelFt = { msg ->
+                            viewModel.delete(msg)
+                        },
+                        onSaveFt = { id, destUri ->
+                            viewModel.exportFt(id, destUri)
+                        },
+                        onOpenFile = { ft ->
+                            openFile(ft)
+                        },
+                        systemSoundPlayer = systemSoundPlayer
+                    )
+                }
+
+                composable(
+                    route = "call/{publicKey}",
+                    arguments = listOf(navArgument("publicKey") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val publicKeyStr = backStackEntry.arguments?.getString("publicKey") ?: ""
+                    val viewModel: CallViewModel = viewModel(factory = vmFactory)
+
+                    LaunchedEffect(publicKeyStr) {
+                        viewModel.setActiveContact(PublicKey(publicKeyStr))
+                        callScreenMinimized.value = false
+                    }
+
+                    val contactState = viewModel.contact.observeAsState()
+                    val callStateState = viewModel.inCall.collectAsState()
+                    val sendingAudioState = viewModel.sendingAudio.collectAsState()
+                    val speakerphoneOnState = viewModel.speakerphoneState.collectAsState()
+
+                    CallScreen(
+                        contactState = contactState,
+                        callState = callStateState,
+                        sendingAudioState = sendingAudioState,
+                        speakerphoneOnState = speakerphoneOnState,
+                        connectedAtState = viewModel.connectedAt.collectAsState(initial = -1L),
+                        permissionManager = permissionManager,
+                        onMinimize = {
+                            callScreenMinimized.value = true
+                            navController.popBackStack()
+                        },
+                        onToggleMic = {
+                            if (sendingAudioState.value) {
+                                viewModel.stopSendingAudio()
+                            } else {
+                                viewModel.startSendingAudio()
+                            }
+                        },
+                        onToggleSpeaker = {
+                            viewModel.toggleSpeakerphone()
+                        },
+                        onEndCall = {
+                            callScreenMinimized.value = false
+                            viewModel.endCall()
+                            navController.popBackStack()
+                        }
+                    )
+                }
+
+                composable(
+                    route = "add_contact?toxId={toxId}",
+                    arguments = listOf(navArgument("toxId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    })
+                ) { backStackEntry ->
+                    val toxIdArg = backStackEntry.arguments?.getString("toxId") ?: ""
+                    val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
+                    AddContactScreen(
+                        initialToxId = toxIdArg,
+                        onBack = { navController.popBackStack() },
+                        onAddContact = { toxIdStr, message ->
+                            viewModel.addContact(ToxID(toxIdStr), message)
+                            navController.popBackStack()
+                        }
+                    )
+                }
             }
 
-            composable(
-                route = "add_contact?toxId={toxId}",
-                arguments = listOf(navArgument("toxId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                })
-            ) { backStackEntry ->
-                val toxIdArg = backStackEntry.arguments?.getString("toxId") ?: ""
-                val viewModel: AddContactViewModel = viewModel(factory = vmFactory)
-                AddContactScreen(
-                    initialToxId = toxIdArg,
-                    onBack = { navController.popBackStack() },
-                    onAddContact = { toxIdStr, message ->
-                        viewModel.addContact(ToxID(toxIdStr), message)
-                        navController.popBackStack()
-                    }
+            val activeCallState = callState
+            val publicKey = when (activeCallState) {
+                is CallState.OutgoingRequesting -> activeCallState.publicKey.string()
+                is CallState.OutgoingWaiting -> activeCallState.publicKey.string()
+                is CallState.OutgoingRinging -> activeCallState.publicKey.string()
+                is CallState.Connecting -> activeCallState.publicKey.string()
+                is CallState.Active -> activeCallState.publicKey.string()
+                else -> null
+            }
+            if (callScreenMinimized.value && publicKey != null) {
+                ReturnToCallBanner(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp, start = 16.dp, end = 16.dp),
+                    onClick = {
+                        callScreenMinimized.value = false
+                    },
                 )
             }
         }
@@ -536,6 +591,39 @@ class MainActivity : AppCompatActivity() {
         }
 
         return uri
+    }
+
+    @Composable
+    private fun ReturnToCallBanner(
+        modifier: Modifier = Modifier,
+        onClick: () -> Unit,
+    ) {
+        Surface(
+            onClick = onClick,
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            tonalElevation = 3.dp,
+            shadowElevation = 0.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = getString(R.string.return_to_call).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
+        }
     }
 }
 

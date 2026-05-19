@@ -6,7 +6,10 @@ import android.content.pm.PackageManager
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.core.model.BootstrapNodeSource
+import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FtAutoAccept
+import ltd.evilcorp.core.model.AppSound
+import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.atox.receiver.BootReceiver
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.model.UserSettings
@@ -63,6 +66,14 @@ class Settings @Inject constructor(
         get() = repository.settings.value.proxyAddress
         set(address) = repository.updateProxyAddress(address)
 
+    var dateFormatPreference: DateFormatPreference
+        get() = repository.settings.value.dateFormatPreference
+        set(preference) = repository.updateDateFormatPreference(preference)
+
+    var timeFormatPreference: TimeFormatPreference
+        get() = repository.settings.value.timeFormatPreference
+        set(preference) = repository.updateTimeFormatPreference(preference)
+
     var proxyPort: Int
         get() = repository.settings.value.proxyPort
         set(port) = repository.updateProxyPort(port)
@@ -86,6 +97,42 @@ class Settings @Inject constructor(
     var confirmCalling: Boolean
         get() = repository.settings.value.confirmCalling
         set(confirm) = repository.updateConfirmCalling(confirm)
+
+    var sentMessageSoundVolume: Int
+        get() = repository.settings.value.sentMessageSoundVolume
+        set(volume) = repository.updateSentMessageSoundVolume(volume)
+
+    var sentMessageSoundUri: String
+        get() = repository.settings.value.sentMessageSoundUri
+        set(uri) = repository.updateSentMessageSoundUri(uri)
+
+    var callSound: AppSound
+        get() = repository.settings.value.callSound
+        set(sound) = repository.updateCallSound(sound)
+
+    var callSoundVolume: Int
+        get() = repository.settings.value.callSoundVolume
+        set(volume) = repository.updateCallSoundVolume(volume)
+
+    var callRingtoneUri: String
+        get() = repository.settings.value.callRingtoneUri
+        set(uri) = repository.updateCallRingtoneUri(uri)
+
+    var notificationSoundVolume: Int
+        get() = repository.settings.value.notificationSoundVolume
+        set(volume) = repository.updateNotificationSoundVolume(volume)
+
+    var notificationSoundUri: String
+        get() = repository.settings.value.notificationSoundUri
+        set(uri) = repository.updateNotificationSoundUri(uri)
+
+    var activeChatSoundVolume: Int
+        get() = repository.settings.value.activeChatSoundVolume
+        set(volume) = repository.updateActiveChatSoundVolume(volume)
+
+    var activeChatSoundUri: String
+        get() = repository.settings.value.activeChatSoundUri
+        set(uri) = repository.updateActiveChatSoundUri(uri)
 
     var hapticEnabled: Boolean
         get() = repository.settings.value.hapticEnabled

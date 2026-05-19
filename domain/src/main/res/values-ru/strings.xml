@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="call_history_outgoing">Исходящий звонок</string>
+    <string name="call_history_incoming">Входящий звонок</string>
+    <string name="call_history_missed">Пропущенный звонок</string>
+    <string name="call_history_cancelled">Отменённый звонок</string>
+</resources>
