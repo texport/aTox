@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
@@ -59,6 +61,11 @@ import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
 import ltd.evilcorp.atox.ui.contactlist.ContactListScreen
 import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
+import ltd.evilcorp.atox.ui.groupchat.CreateGroupScreen
+import ltd.evilcorp.atox.ui.groupchat.GroupChatScreen
+import ltd.evilcorp.atox.ui.groupchat.GroupChatViewModel
+import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
+import ltd.evilcorp.atox.ui.groupchat.JoinGroupScreen
 import ltd.evilcorp.atox.ui.createprofile.CreateProfileScreen
 import ltd.evilcorp.atox.ui.createprofile.CreateProfileViewModel
 import ltd.evilcorp.atox.ui.settings.SettingsScreen
@@ -68,6 +75,8 @@ import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
 import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.FileTransfer
 import ltd.evilcorp.core.model.FINGERPRINT_LEN
+import ltd.evilcorp.core.model.Group
+import ltd.evilcorp.core.model.GroupPrivacyState
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
 import ltd.evilcorp.core.model.UserStatus
@@ -158,7 +167,7 @@ class MainActivity : AppCompatActivity() {
                     .setTitle(R.string.incoming_call)
                     .setMessage(getString(R.string.incoming_call_from, contact.name.ifEmpty { contact.publicKey.take(FINGERPRINT_LEN) }))
                     .setPositiveButton(R.string.accept) { _, _ ->
-                        lifecycleScope.launch {
+                        lifecycleScope.launch @androidx.annotation.RequiresPermission(android.Manifest.permission.POST_NOTIFICATIONS) {
                             val pk = PublicKey(contact.publicKey)
                             if (callManager.acceptIncomingCall(pk)) {
                                 notificationHelper.showOngoingCallNotification(contact)
@@ -209,6 +218,7 @@ class MainActivity : AppCompatActivity() {
     @Composable
     private fun AppNavigation(appearance: ltd.evilcorp.atox.appearance.AppAppearance) {
         val navController = rememberNavController()
+        val coroutineScope = rememberCoroutineScope()
 
         val callState by callManager.inCall.collectAsState()
         Box(modifier = Modifier.fillMaxSize()) {
@@ -269,20 +279,31 @@ class MainActivity : AppCompatActivity() {
                     val viewModel: ContactListViewModel = viewModel(factory = vmFactory)
                     val profileViewModel: UserProfileViewModel = viewModel(factory = vmFactory)
                     val addContactViewModel: AddContactViewModel = viewModel(factory = vmFactory)
+                    val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
 
                     val userState = viewModel.user.observeAsState()
                     val contactsState = viewModel.contacts.observeAsState(emptyList())
                     val friendRequestsState = viewModel.friendRequests.observeAsState(emptyList())
+                    val groupsState = viewModel.groups.observeAsState(emptyList())
 
                     ContactListScreen(
                         userState = userState,
                         contactsState = contactsState,
                         friendRequestsState = friendRequestsState,
+                        groupsState = groupsState,
                         onAddContact = { toxIdStr, message -> addContactViewModel.addContact(ToxID(toxIdStr), message) },
                         onContactClick = { contact -> navController.navigate("chat/${contact.publicKey}") },
                         onDeleteContact = { contact -> viewModel.deleteContact(PublicKey(contact.publicKey)) },
                         onAcceptFriendRequest = { req -> viewModel.acceptFriendRequest(req) },
                         onRejectFriendRequest = { req -> viewModel.rejectFriendRequest(req) },
+                        onGroupClick = { group -> navController.navigate("group_chat/${group.chatId}") },
+                        onCreateGroupClick = { navController.navigate("create_group") },
+                        onJoinGroupClick = { navController.navigate("join_group") },
+                        onLeaveGroup = { group ->
+                            coroutineScope.launch {
+                                groupListViewModel.leaveGroup(group)
+                            }
+                        },
                         onQuitTox = {
                             if (viewModel.quittingNeedsConfirmation()) {
                                 android.app.AlertDialog.Builder(this@MainActivity)
@@ -336,6 +357,101 @@ class MainActivity : AppCompatActivity() {
                                 popUpTo("create_profile") { inclusive = true }
                             }
                             ToxSaveStatus.Ok
+                        }
+                    )
+                }
+
+                composable("create_group") {
+                    val groupViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                    // 1. Создаем CoroutineScope, привязанный к жизненному циклу этого экрана
+                    val coroutineScope = rememberCoroutineScope()
+
+                    CreateGroupScreen(
+                        onBack = { navController.popBackStack() },
+                        onCreateGroup = { name, nickname, privacyState ->
+                            // 2. Запускаем suspend-функцию внутри созданной корутины
+                            coroutineScope.launch {
+                                val groupNumber = groupViewModel.createGroup(name, nickname, privacyState)
+                                if (groupNumber >= 0) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                    )
+                }
+
+
+                composable(
+                    route = "group_chat/{chatId}",
+                    arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+                    val viewModel: GroupChatViewModel = viewModel(factory = vmFactory)
+
+                    LaunchedEffect(chatId) {
+                        viewModel.setActiveGroup(chatId)
+                    }
+
+                    val groupState = viewModel.group.observeAsState()
+                    val messagesState = viewModel.messages.observeAsState()
+                    val peersState = viewModel.peers.observeAsState()
+                    val contactsState = viewModel.contacts.observeAsState(emptyList())
+                    val clipboardManager = androidx.core.content.ContextCompat.getSystemService(
+                        this@MainActivity,
+                        android.content.ClipboardManager::class.java
+                    )
+
+                    GroupChatScreen(
+                        groupState = groupState,
+                        messagesState = messagesState,
+                        peersState = peersState,
+                        contactsState = contactsState,
+                        settings = settings,
+                        onBack = {
+                            viewModel.setActiveGroup("")
+                            navController.popBackStack()
+                        },
+                        onSendMessage = { content ->
+                            viewModel.sendMessage(content)
+                        },
+                        onLeaveGroup = {
+                            viewModel.leaveGroup()
+                        },
+                        onCopyInvite = {
+                            val chatId = viewModel.getChatId()
+                            if (chatId != null && clipboardManager != null) {
+                                val clip = android.content.ClipData.newPlainText("Group Chat ID", chatId)
+                                clipboardManager.setPrimaryClip(clip)
+                            }
+                        },
+                        onInviteFriend = { friendPublicKey ->
+                            viewModel.inviteFriend(friendPublicKey)
+                        },
+                        systemSoundPlayer = systemSoundPlayer
+                    )
+                }
+
+                composable("join_group") {
+                    val groupViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                    val coroutineScope = rememberCoroutineScope()
+                    val context = LocalContext.current
+
+                    JoinGroupScreen(
+                        onBack = { navController.popBackStack() },
+                        onJoinGroup = { chatIdHex, selfName, password ->
+                            coroutineScope.launch {
+                                val groupNumber = groupViewModel.joinByChatId(chatIdHex, selfName, password)
+                                when {
+                                    groupNumber >= 0 -> navController.navigate("contact_list") {
+                                        popUpTo("join_group") { inclusive = true }
+                                    }
+                                    groupNumber == -2 -> Toast.makeText(
+                                        context,
+                                        R.string.group_already_member,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
                         }
                     )
                 }

@@ -597,6 +597,25 @@ class NativeTox {
      */
     external fun toxGroupSelfGetRole(tox: Long, groupNumber: Int): Int
 
+    /**
+     * Отправляет приглашение в NGC-группу конкретному другу.
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param groupNumber Номер группы.
+     * @param friendNumber Номер друга, которому отправляем приглашение.
+     * @return true в случае успеха, false в случае ошибки.
+     */
+    external fun toxGroupInviteSend(tox: Long, groupNumber: Int, friendNumber: Int): Boolean
+
+    /**
+     * Присоединяется к NGC-группе напрямую по Chat ID (без инвайта от друга).
+     * @param tox Указатель на нативный инстанс Tox.
+     * @param chatId 32-байтовый Chat ID группы.
+     * @param selfName Имя пользователя при входе в группу.
+     * @param password Пароль группы (если есть, иначе null или пустой массив).
+     * @return Номер присоединённой группы, либо -1 в случае ошибки.
+     */
+    external fun toxGroupJoinDirect(tox: Long, chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int
+
     // Раздел шифрования профилей Tox (Tox Encrypt / Decrypt API)
 
     /**
