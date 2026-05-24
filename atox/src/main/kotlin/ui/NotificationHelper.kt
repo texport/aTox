@@ -283,6 +283,39 @@ class NotificationHelper @Inject constructor(
         notifier.notify("$groupName$senderName".hashCode(), notificationBuilder.build())
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    fun showGroupInviteNotification(
+        friendPk: String,
+        groupName: String,
+        silent: Boolean = false
+    ) {
+        if (!permissionManager.canPostNotifications()) {
+            Log.w(TAG, "Received group invite, notifications disallowed")
+            return
+        }
+
+        val mainIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            friendPk.hashCode(),
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notificationBuilder = NotificationCompat.Builder(context, GROUP_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setContentTitle(context.getString(R.string.group_invite))
+            .setContentText(context.getString(R.string.group_invite_confirm, groupName))
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSilent(silent)
+
+        notifier.notify(friendPk.hashCode(), notificationBuilder.build())
+    }
+
     fun dismissCallNotification(pk: PublicKey) = notifier.cancel(pk.string().hashCode() + CALL.hashCode())
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)

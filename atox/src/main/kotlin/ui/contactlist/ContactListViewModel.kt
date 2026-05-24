@@ -29,6 +29,7 @@ import ltd.evilcorp.domain.feature.ContactManager
 import ltd.evilcorp.domain.feature.FileTransferManager
 import ltd.evilcorp.domain.feature.FriendRequestManager
 import ltd.evilcorp.domain.feature.GroupManager
+import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.core.tox.save.SaveOptions
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
 
 class ContactListViewModel @Inject constructor(
     private val callManager: CallManager,
@@ -78,6 +80,33 @@ class ContactListViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val groupInvite: StateFlow<GroupInvite?> = groupManager.pendingInvite
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val groupInviteFriendName: StateFlow<String> = groupManager.pendingInvite
+        .map { invite ->
+            if (invite == null) return@map ""
+            val pk = tox.getFriendPublicKey(invite.friendNo) ?: return@map "Friend #${invite.friendNo}"
+            contactManager.get(pk).firstOrNull()?.name ?: pk.string().take(8)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ""
+        )
+
+    fun acceptGroupInvite() {
+        groupManager.acceptInvite()
+    }
+
+    fun declineGroupInvite() {
+        groupManager.declineInvite()
+    }
 
     init {
         if (tox.started) {

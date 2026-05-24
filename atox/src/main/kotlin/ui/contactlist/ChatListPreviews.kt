@@ -31,6 +31,8 @@ private fun ChatListTabPreview() {
         ChatListTab(
             contacts = previewContacts,
             friendRequests = previewFriendRequests,
+            groupInvite = null,
+            groupInviteFriendName = "",
             listState = rememberLazyListState(),
             searchQuery = "",
             dateFormatPreference = DateFormatPreference.System,
@@ -39,6 +41,8 @@ private fun ChatListTabPreview() {
             onDeleteContact = {},
             onAcceptFriendRequest = {},
             onRejectFriendRequest = {},
+            onAcceptGroupInvite = {},
+            onRejectGroupInvite = {},
             onAddContactClick = {},
             onContactInteraction = {},
         )

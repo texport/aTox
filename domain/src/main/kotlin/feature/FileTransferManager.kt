@@ -167,7 +167,11 @@ class FileTransferManager @Inject constructor(
                     file.parentFile!!.mkdirs()
                     file
                 }
-                FileKind.Avatar.ordinal -> wipAvatar(ft.fileName)
+                FileKind.Avatar.ordinal -> {
+                    val file = wipAvatar(ft.fileName)
+                    file.parentFile?.mkdirs()
+                    file
+                }
                 else -> {
                     Log.e(TAG, "Got unknown file kind when accepting ft: $ft")
                     return@launch
@@ -253,7 +257,8 @@ class FileTransferManager @Inject constructor(
             if (ft.fileKind == FileKind.Avatar.ordinal) {
                 wipAvatar(ft.fileName).copyTo(avatar(ft.fileName), overwrite = true)
                 wipAvatar(ft.fileName).delete()
-                contactRepository.setAvatarUri(ft.publicKey, Uri.fromFile(avatar(ft.fileName)).toString())
+                val avatarUriWithTimestamp = "${Uri.fromFile(avatar(ft.fileName))}?t=${System.currentTimeMillis()}"
+                contactRepository.setAvatarUri(ft.publicKey, avatarUriWithTimestamp)
             } else if (ft.fileKind == FileKind.Data.ordinal) {
                 autoSaveFileToPublicDownloads(ft)
             }

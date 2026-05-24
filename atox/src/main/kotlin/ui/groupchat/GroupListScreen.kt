@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusOffline
-import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,12 +28,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.core.model.Group
-import ltd.evilcorp.core.model.GroupPeer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +59,7 @@ fun GroupListScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -68,33 +67,47 @@ fun GroupListScreen(
                     imageVector = Icons.Default.GroupAdd,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(72.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.no_groups),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.no_groups_desc),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onCreateGroupClick()
-                }) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onCreateGroupClick()
+                    },
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(48.dp),
+                    shape = CircleShape
+                ) {
                     Text(stringResource(R.string.create_group))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onJoinGroupClick()
-                }) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onJoinGroupClick()
+                    },
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(48.dp),
+                    shape = CircleShape
+                ) {
                     Text(stringResource(R.string.join_group))
                 }
             }
@@ -112,7 +125,7 @@ fun GroupListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         top = 4.dp,
-                        bottom = 80.dp + LocalTabPadding.current.calculateBottomPadding()
+                        bottom = 96.dp
                     )
                 ) {
                     items(groups) { group ->
@@ -130,11 +143,11 @@ fun GroupListScreen(
                     }
                 }
 
-                // Modern M3 FAB Stack
+                // Modern M3 FAB Stack - Double padding bottom issue fixed!
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(bottom = 16.dp + LocalTabPadding.current.calculateBottomPadding(), end = 16.dp),
+                        .padding(bottom = 16.dp, end = 16.dp),
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -219,51 +232,51 @@ fun GroupItemCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier.size(48.dp)
+            ) {
+                val isOnline = connectionStatus == GroupConnectionStatus.Connected
                 Box(
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            if (isOnline) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val isOnline = connectionStatus == GroupConnectionStatus.Connected
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = null,
+                        tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(2.dp)
+                ) {
+                    val dotColor = when (connectionStatus) {
+                        GroupConnectionStatus.Connected -> StatusAvailable
+                        GroupConnectionStatus.Connecting,
+                        GroupConnectionStatus.Reconnecting -> StatusAway
+                        GroupConnectionStatus.Disconnected -> StatusOffline
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
-                            .background(
-                                if (isOnline) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Group,
-                            contentDescription = null,
-                            tint = if (isOnline) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.background)
-                            .padding(2.dp)
-                    ) {
-                        val dotColor = when (connectionStatus) {
-                            GroupConnectionStatus.Connected -> StatusAvailable
-                            GroupConnectionStatus.Connecting,
-                            GroupConnectionStatus.Reconnecting -> StatusAway
-                            GroupConnectionStatus.Disconnected -> StatusOffline
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(dotColor)
-                        )
-                    }
+                            .background(dotColor)
+                    )
                 }
+            }
 
             Spacer(modifier = Modifier.width(16.dp))
 

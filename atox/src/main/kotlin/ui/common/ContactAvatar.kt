@@ -68,7 +68,15 @@ fun ContactAvatar(
         } ?: 0L
     }
 
-    val avatarBitmap by produceState<ImageBitmap?>(initialValue = null, avatarUri, lastModified) {
+    val initialBitmap = remember(avatarUri, lastModified) {
+        if (avatarUri.isEmpty()) null
+        else {
+            val cacheKey = "$avatarUri:$lastModified"
+            avatarBitmapCache.get(cacheKey)
+        }
+    }
+
+    val avatarBitmap by produceState<ImageBitmap?>(initialValue = initialBitmap, avatarUri, lastModified) {
         value = if (avatarUri.isEmpty()) {
             null
         } else {

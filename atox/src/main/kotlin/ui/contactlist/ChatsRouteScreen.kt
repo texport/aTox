@@ -39,6 +39,7 @@ import ltd.evilcorp.core.model.Contact
 import ltd.evilcorp.core.model.DateFormatPreference
 import ltd.evilcorp.core.model.FriendRequest
 import ltd.evilcorp.core.model.TimeFormatPreference
+import ltd.evilcorp.domain.feature.GroupInvite
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.TextField
@@ -72,6 +73,8 @@ import androidx.compose.runtime.remember
 fun ChatsRouteScreen(
     contacts: List<Contact>,
     friendRequests: List<FriendRequest>,
+    groupInvite: GroupInvite?,
+    groupInviteFriendName: String,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     dateFormatPreference: DateFormatPreference,
@@ -80,6 +83,8 @@ fun ChatsRouteScreen(
     onDeleteContact: (Contact) -> Unit,
     onAcceptFriendRequest: (FriendRequest) -> Unit,
     onRejectFriendRequest: (FriendRequest) -> Unit,
+    onAcceptGroupInvite: () -> Unit,
+    onRejectGroupInvite: () -> Unit,
     onAddContactClick: () -> Unit,
     onContactInteraction: () -> Unit,
     isSearching: Boolean = false,
@@ -216,6 +221,8 @@ fun ChatsRouteScreen(
             ChatListTab(
                 contacts = contacts,
                 friendRequests = friendRequests,
+                groupInvite = groupInvite,
+                groupInviteFriendName = groupInviteFriendName,
                 listState = listState,
                 searchQuery = searchQuery,
                 dateFormatPreference = dateFormatPreference,
@@ -224,6 +231,8 @@ fun ChatsRouteScreen(
                 onDeleteContact = { contactToDelete = it },
                 onAcceptFriendRequest = onAcceptFriendRequest,
                 onRejectFriendRequest = onRejectFriendRequest,
+                onAcceptGroupInvite = onAcceptGroupInvite,
+                onRejectGroupInvite = onRejectGroupInvite,
                 onAddContactClick = onAddContactClick,
                 onContactInteraction = onContactInteraction,
             )

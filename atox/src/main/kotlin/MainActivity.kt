@@ -140,31 +140,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                groupManager.pendingInvite.collect { invite ->
-                    if (invite == null) {
-                        groupInviteDialog?.dismiss()
-                        groupInviteDialog = null
-                        return@collect
-                    }
 
-                    if (groupInviteDialog != null) return@collect
-
-                    groupInviteDialog = android.app.AlertDialog.Builder(this@MainActivity)
-                        .setTitle(R.string.group_invite)
-                        .setMessage(getString(R.string.group_invite_confirm, invite.groupName))
-                        .setPositiveButton(R.string.confirm) { _, _ ->
-                            groupManager.acceptInvite()
-                        }
-                        .setNegativeButton(android.R.string.cancel) { _, _ ->
-                            groupManager.declineInvite()
-                        }
-                        .setCancelable(false)
-                        .show()
-                }
-            }
-        }
 
         if (savedInstanceState == null) {
             handleIntent(intent)

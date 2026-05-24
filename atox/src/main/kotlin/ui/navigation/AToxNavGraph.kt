@@ -1,6 +1,8 @@
 package ltd.evilcorp.atox.ui.navigation
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -75,6 +77,7 @@ import ltd.evilcorp.atox.ui.userprofile.UserProfileScreen
 import ltd.evilcorp.atox.ui.userprofile.UserProfileViewModel
 import ltd.evilcorp.atox.ui.userprofile.AvatarCropUiState
 import ltd.evilcorp.atox.util.PermissionManager
+import ltd.evilcorp.domain.feature.GroupInvite
 import ltd.evilcorp.core.model.FileTransfer
 import ltd.evilcorp.core.model.MessageType
 import ltd.evilcorp.core.model.PublicKey
@@ -100,6 +103,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
@@ -154,7 +159,7 @@ import androidx.compose.ui.unit.sp
 import ltd.evilcorp.atox.ui.navigation.components.ReturnToCallBanner
 
 @Composable
-@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@kotlin.OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 fun AToxNavGraph(
     appearance: AppAppearance,
     settings: Settings,
@@ -286,6 +291,8 @@ fun AToxNavGraph(
                 val contactsState = contactListViewModel.visibleContacts.collectAsStateWithLifecycle(emptyList())
                 val friendRequestsState = friendRequestsViewModel.friendRequests.collectAsStateWithLifecycle(emptyList())
                 val searchQuery by contactListViewModel.searchQuery.collectAsStateWithLifecycle()
+                val groupInviteState = contactListViewModel.groupInvite.collectAsStateWithLifecycle(null)
+                val groupInviteFriendNameState = contactListViewModel.groupInviteFriendName.collectAsStateWithLifecycle("")
 
                 // Lifted isSearching state
                 var isSearching by rememberSaveable { mutableStateOf(false) }
@@ -323,6 +330,8 @@ fun AToxNavGraph(
                                            mainRoute == AppRoutes.AddContactTab || 
                                            mainRoute == AppRoutes.Profile || 
                                            mainRoute == AppRoutes.Settings ||
+                                           mainRoute == AppRoutes.CreateGroup ||
+                                           mainRoute == AppRoutes.JoinGroup ||
                                            isChatRoute ||
                                            isGroupChatRoute
                     if (isSupportedRoute) {
@@ -339,6 +348,10 @@ fun AToxNavGraph(
                                     "group_chat"
                                 } else if (mainRoute == AppRoutes.Settings) {
                                     if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
+                                } else if (mainRoute == AppRoutes.CreateGroup) {
+                                    "create_group"
+                                } else if (mainRoute == AppRoutes.JoinGroup) {
+                                    "join_group"
                                 } else {
                                     when (mainRoute) {
                                         AppRoutes.Chats -> "tab-0"
@@ -424,6 +437,10 @@ fun AToxNavGraph(
                                     "group_chat"
                                 } else if (mainRoute == AppRoutes.Settings) {
                                     if (settingsOnBackAction == null) "tab-4" else "sub-4-$settingsTitle"
+                                } else if (mainRoute == AppRoutes.CreateGroup) {
+                                    "create_group"
+                                } else if (mainRoute == AppRoutes.JoinGroup) {
+                                    "join_group"
                                 } else {
                                     when (mainRoute) {
                                         AppRoutes.Chats -> "tab-0"
@@ -509,9 +526,31 @@ fun AToxNavGraph(
                                             }
                                         }
                                     } else if (isGroupChatRoute) {
+                                        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                                        val context = androidx.compose.ui.platform.LocalContext.current
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .combinedClickable(
+                                                    onClick = {},
+                                                    onLongClick = {
+                                                        if (settings.hapticEnabled) {
+                                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                                        }
+                                                        val activeGroupChatId = mainBackStackEntry?.arguments?.getString(AppRoutes.ChatIdArg).orEmpty()
+                                                        if (activeGroupChatId.isNotEmpty()) {
+                                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                            val clip = android.content.ClipData.newPlainText("group ID", activeGroupChatId)
+                                                            clipboard.setPrimaryClip(clip)
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.group_invite_copied),
+                                                                android.widget.Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    }
+                                                )
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -575,6 +614,8 @@ fun AToxNavGraph(
                                             key.startsWith("tab-3") -> stringResource(R.string.profile)
                                             key.startsWith("tab-4") -> stringResource(R.string.settings)
                                             key.startsWith("sub-4") -> settingsTitle
+                                            key == "create_group" -> stringResource(R.string.create_group)
+                                            key == "join_group" -> stringResource(R.string.join_group)
                                             else -> stringResource(R.string.app_name)
                                         }
                                         Text(
@@ -597,26 +638,48 @@ fun AToxNavGraph(
                                     label = "TopAppBarActions"
                                 ) { target ->
                                     if (target == "group_actions") {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            IconButton(onClick = { groupOnInviteClick?.invoke() }) {
+                                        var groupMenuExpanded by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { groupMenuExpanded = true }) {
                                                 Icon(
-                                                    imageVector = Icons.Default.PersonAdd,
-                                                    contentDescription = "Invite friend",
+                                                    imageVector = Icons.Default.MoreVert,
+                                                    contentDescription = "More options",
                                                     tint = MaterialTheme.colorScheme.primary
                                                 )
                                             }
-                                            IconButton(onClick = { groupOnPeersClick?.invoke() }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Person,
-                                                    contentDescription = "Group peers",
-                                                    tint = MaterialTheme.colorScheme.primary
+                                            DropdownMenu(
+                                                expanded = groupMenuExpanded,
+                                                onDismissRequest = { groupMenuExpanded = false }
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Пригласить друга") },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Default.PersonAdd, contentDescription = null)
+                                                    },
+                                                    onClick = {
+                                                        groupMenuExpanded = false
+                                                        groupOnInviteClick?.invoke()
+                                                    }
                                                 )
-                                            }
-                                            IconButton(onClick = { groupOnLeaveClick?.invoke() }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = "Leave group",
-                                                    tint = MaterialTheme.colorScheme.primary
+                                                DropdownMenuItem(
+                                                    text = { Text("Список участников") },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Default.Person, contentDescription = null)
+                                                    },
+                                                    onClick = {
+                                                        groupMenuExpanded = false
+                                                        groupOnPeersClick?.invoke()
+                                                    }
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text("Выйти из группы", color = MaterialTheme.colorScheme.error) },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                                    },
+                                                    onClick = {
+                                                        groupMenuExpanded = false
+                                                        groupOnLeaveClick?.invoke()
+                                                    }
                                                 )
                                             }
                                         }
@@ -711,6 +774,8 @@ fun AToxNavGraph(
                                 ChatsRouteScreen(
                                     contacts = contactsState.value,
                                     friendRequests = friendRequestsState.value,
+                                    groupInvite = groupInviteState.value,
+                                    groupInviteFriendName = groupInviteFriendNameState.value,
                                     searchQuery = searchQuery,
                                     onSearchQueryChanged = contactListViewModel::setSearchQuery,
                                     dateFormatPreference = settings.dateFormatPreference,
@@ -722,6 +787,8 @@ fun AToxNavGraph(
                                     onDeleteContact = { contact -> contactListViewModel.deleteContact(PublicKey(contact.publicKey)) },
                                     onAcceptFriendRequest = { req -> friendRequestsViewModel.acceptFriendRequest(req) },
                                     onRejectFriendRequest = { req -> friendRequestsViewModel.rejectFriendRequest(req) },
+                                    onAcceptGroupInvite = contactListViewModel::acceptGroupInvite,
+                                    onRejectGroupInvite = contactListViewModel::declineGroupInvite,
                                     onAddContactClick = {
                                         mainNavController.navigate(AppRoutes.AddContactTab) {
                                             launchSingleTop = true
@@ -736,8 +803,8 @@ fun AToxNavGraph(
 
                         composable(AppRoutes.Groups) {
                             val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val groupsState = groupListViewModel.groups.observeAsState(emptyList())
-                            val connectionStatusesState = groupListViewModel.connectionStatuses.observeAsState(emptyMap())
+                            val groupsState = groupListViewModel.groups.collectAsStateWithLifecycle()
+                            val connectionStatusesState = groupListViewModel.connectionStatuses.collectAsStateWithLifecycle()
                             val scope = rememberCoroutineScope()
                             Box(
                                 modifier = Modifier
@@ -767,15 +834,15 @@ fun AToxNavGraph(
 
                         composable(AppRoutes.CreateGroup) {
                             val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val scope = rememberCoroutineScope()
                             CreateGroupScreen(
                                 onBack = { mainNavController.popBackStack() },
-                                onCreateGroup = { name, nickname, privacyState, password ->
-                                    scope.launch {
-                                        val num = groupListViewModel.createGroup(name, nickname, privacyState, password)
-                                        if (num >= 0) {
-                                            mainNavController.popBackStack()
-                                        }
+                                onCreateGroup = { name, privacyState, password ->
+                                    val num = groupListViewModel.createGroup(name, privacyState, password)
+                                    if (num >= 0) {
+                                        mainNavController.popBackStack()
+                                        true
+                                    } else {
+                                        false
                                     }
                                 }
                             )
@@ -783,15 +850,15 @@ fun AToxNavGraph(
 
                         composable(AppRoutes.JoinGroup) {
                             val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
-                            val scope = rememberCoroutineScope()
                             JoinGroupScreen(
                                 onBack = { mainNavController.popBackStack() },
-                                onJoinGroup = { chatIdHex, selfName, password ->
-                                    scope.launch {
-                                        val num = groupListViewModel.joinByChatId(chatIdHex, selfName, password)
-                                        if (num >= 0) {
-                                            mainNavController.popBackStack()
-                                        }
+                                onJoinGroup = { chatIdHex, password ->
+                                    val num = groupListViewModel.joinByChatId(chatIdHex, password)
+                                    if (num >= 0) {
+                                        mainNavController.popBackStack()
+                                        true
+                                    } else {
+                                        false
                                     }
                                 }
                             )
@@ -809,10 +876,11 @@ fun AToxNavGraph(
                                 viewModel.setActiveGroup(chatIdStr)
                             }
                             
-                            val groupState = viewModel.group.observeAsState(null)
-                            val messagesState = viewModel.messages.observeAsState(emptyList())
-                            val peersState = viewModel.peers.observeAsState(emptyList())
-                            val connectionStatusState = viewModel.connectionStatus.observeAsState(GroupConnectionStatus.Disconnected)
+                            val groupState = viewModel.group.collectAsStateWithLifecycle()
+                            val messagesState = viewModel.messages.collectAsStateWithLifecycle()
+                            val peersState = viewModel.peers.collectAsStateWithLifecycle()
+                            val connectionStatusState = viewModel.connectionStatus.collectAsStateWithLifecycle()
+                            val fileTransfersState = viewModel.fileTransfers.collectAsStateWithLifecycle()
                             
                             GroupChatScreen(
                                 groupState = groupState,
@@ -820,9 +888,17 @@ fun AToxNavGraph(
                                 peersState = peersState,
                                 contactsState = contactsState,
                                 connectionStatusState = connectionStatusState,
+                                fileTransfersState = fileTransfersState,
                                 settings = settings,
                                 onBack = { mainNavController.popBackStack() },
                                 onSendMessage = { msg -> viewModel.sendMessage(msg) },
+                                onSendFile = { uri -> viewModel.sendFile(uri) },
+                                onSendVoice = { uri -> viewModel.sendVoice(uri) },
+                                onAcceptFt = { ftId -> viewModel.acceptFt(ftId) },
+                                onRejectFt = { ftId -> viewModel.rejectFt(ftId) },
+                                onCancelFt = { msg -> viewModel.cancelFt(msg) },
+                                onSaveAsClick = { ftId, dest -> viewModel.saveFt(ftId, android.net.Uri.parse(dest)) },
+                                onOpenFile = onOpenFile,
                                 onLeaveGroup = { viewModel.leaveGroup() },
                                 onCopyInvite = {
                                     val id = viewModel.getChatId() ?: ""
@@ -963,6 +1039,8 @@ fun AToxNavGraph(
                             val messages by viewModel.messages.collectAsStateWithLifecycle()
                             val fileTransfers by viewModel.fileTransfers.collectAsStateWithLifecycle(emptyList())
                             val replyingToMessage by viewModel.replyingToMessage.collectAsStateWithLifecycle()
+                            val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
+                            val groupsState by groupListViewModel.groups.collectAsStateWithLifecycle()
 
                             ChatScreen(
                                 contact = contact ?: contactSnapshot,
@@ -993,7 +1071,47 @@ fun AToxNavGraph(
                                 onForwardClick = { msg ->
                                     navController.navigate(AppRoutes.forwardSelection(msg.message))
                                 },
-                                onSendVoice = viewModel::createFt
+                                onSendVoice = viewModel::createFt,
+                                isJoinedGroup = { chatId ->
+                                    groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }
+                                },
+                                onJoinGroupClick = { chatIdOrBytes, groupName ->
+                                    coroutineScope.launch {
+                                        val alreadyJoined = groupsState.any { it.chatId.equals(chatIdOrBytes, ignoreCase = true) }
+                                        if (alreadyJoined) {
+                                            mainNavController.navigate(AppRoutes.groupChat(chatIdOrBytes)) {
+                                                popUpTo(AppRoutes.chat(publicKeyStr)) { inclusive = true }
+                                            }
+                                            return@launch
+                                        }
+
+                                        val groupNumber = if (chatIdOrBytes.length == 64) {
+                                            val pending = groupListViewModel.getPendingInvite()
+                                            if (pending != null && pending.groupName.equals(groupName, ignoreCase = true)) {
+                                                groupListViewModel.joinWithPendingInvite(publicKeyStr, pending)
+                                            } else {
+                                                groupListViewModel.joinByChatId(chatIdOrBytes, null)
+                                            }
+                                        } else {
+                                            groupListViewModel.joinGroupWithBytes(publicKeyStr, chatIdOrBytes, null)
+                                        }
+                                        
+                                        if (groupNumber >= 0) {
+                                            val chatId = if (chatIdOrBytes.length == 64) {
+                                                chatIdOrBytes
+                                            } else {
+                                                groupListViewModel.getChatIdByGroupNumber(groupNumber) ?: ""
+                                            }
+                                            if (chatId.isNotEmpty()) {
+                                                mainNavController.navigate(AppRoutes.groupChat(chatId)) {
+                                                    popUpTo(AppRoutes.chat(publicKeyStr)) { inclusive = true }
+                                                }
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Не удалось вступить в группу", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
                             )
                         }
                     }

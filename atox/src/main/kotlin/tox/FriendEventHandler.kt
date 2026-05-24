@@ -71,6 +71,7 @@ class FriendEventHandler @Inject constructor(
     fun onFriendConnectionStatus(publicKey: String, status: ConnectionStatus) {
         contactRepository.setConnectionStatus(publicKey, status)
         if (status != ConnectionStatus.None) {
+            groupManager.reconnectAll()
             scope.launch {
                 fileTransferManager.sendAvatar(publicKey)
             }

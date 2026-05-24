@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -63,7 +64,9 @@ fun MessageBubble(
     onCopyMessage: (Message) -> Unit,
     onReplyMessage: (Message) -> Unit,
     onForwardMessage: (Message) -> Unit,
-    onParentMessageClick: (Message) -> Unit
+    onParentMessageClick: (Message) -> Unit,
+    onJoinGroupClick: ((chatId: String, groupName: String) -> Unit)? = null,
+    isJoinedGroup: ((chatId: String) -> Boolean)? = null
 ) {
     val isOutgoing = msg.sender == Sender.Sent
     val context = LocalContext.current
@@ -267,12 +270,114 @@ fun MessageBubble(
                             }
                         }
                     } else {
-                        val textToDisplay = if (replyContent.first) replyContent.third else msg.message
-                        Text(
-                            text = textToDisplay,
-                            fontSize = 15.sp,
-                            color = contentColor
-                        )
+                        val isGroupInvite = remember(msg.message) {
+                            msg.message.startsWith("[GROUP_INVITE:") && msg.message.contains("|") && msg.message.endsWith("]")
+                        }
+                        if (isGroupInvite) {
+                            val payload = remember(msg.message) {
+                                msg.message.removePrefix("[GROUP_INVITE:").removeSuffix("]")
+                            }
+                            val parts = remember(payload) {
+                                payload.split("|")
+                            }
+                            val groupName = parts.getOrNull(0).orEmpty()
+                            val chatIdOrBytes = parts.getOrNull(1).orEmpty()
+                            Column(
+                                modifier = Modifier
+                                    .width(240.dp)
+                                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(999.dp),
+                                        color = contentColor.copy(alpha = 0.12f),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Group,
+                                                contentDescription = null,
+                                                tint = contentColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = groupName,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = contentColor,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.group_invite),
+                                            fontSize = 11.sp,
+                                            color = contentColor.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                                
+                                Text(
+                                    text = "Вас пригласили присоединиться к групповому чату.",
+                                    fontSize = 13.sp,
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+
+                                if (!isOutgoing) {
+                                    val joined = remember(chatIdOrBytes, isJoinedGroup) {
+                                        isJoinedGroup?.invoke(chatIdOrBytes) ?: false
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                onHaptic()
+                                                onCancelFt(msg)
+                                            },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = contentColor.copy(alpha = 0.6f))
+                                        ) {
+                                            Text(stringResource(android.R.string.cancel))
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Button(
+                                            onClick = {
+                                                onHaptic()
+                                                onJoinGroupClick?.invoke(chatIdOrBytes, groupName)
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (joined) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                                                contentColor = if (joined) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Text(
+                                                text = if (joined) "Перейти" else "Вступить",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            val textToDisplay = if (replyContent.first) replyContent.third else msg.message
+                            Text(
+                                text = textToDisplay,
+                                fontSize = 15.sp,
+                                color = contentColor
+                            )
+                        }
                     }
 
                     if (!isVoice) {
@@ -391,13 +496,15 @@ fun VoiceMessageCard(
             val exists = try {
                 when (uri.scheme) {
                     "content" -> {
-                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length > 0 } ?: false
                     }
                     "file" -> {
-                        java.io.File(uri.path ?: audioPath).exists()
+                        val file = java.io.File(uri.path ?: audioPath)
+                        file.exists() && file.length() > 0
                     }
                     else -> {
-                        java.io.File(audioPath).exists()
+                        val file = java.io.File(audioPath)
+                        file.exists() && file.length() > 0
                     }
                 }
             } catch (e: Exception) {
@@ -452,13 +559,15 @@ fun VoiceMessageCard(
             val exists = try {
                 when (uri.scheme) {
                     "content" -> {
-                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length > 0 } ?: false
                     }
                     "file" -> {
-                        java.io.File(uri.path ?: audioPath).exists()
+                        val file = java.io.File(uri.path ?: audioPath)
+                        file.exists() && file.length() > 0
                     }
                     else -> {
-                        java.io.File(audioPath).exists()
+                        val file = java.io.File(audioPath)
+                        file.exists() && file.length() > 0
                     }
                 }
             } catch (e: Exception) {
@@ -466,27 +575,39 @@ fun VoiceMessageCard(
             }
             if (exists) {
                 if (mediaPlayer == null) {
-                    mediaPlayer = android.media.MediaPlayer().apply {
-                        if (uri.scheme == "content" || uri.scheme == "file") {
-                            setDataSource(context, uri)
-                        } else {
-                            val file = java.io.File(audioPath)
-                            setDataSource(context, android.net.Uri.fromFile(file))
+                    try {
+                        val mp = android.media.MediaPlayer().apply {
+                            if (uri.scheme == "content" || uri.scheme == "file") {
+                                setDataSource(context, uri)
+                            } else {
+                                val file = java.io.File(audioPath)
+                                setDataSource(context, android.net.Uri.fromFile(file))
+                            }
+                            prepare()
                         }
-                        prepare()
-                        duration = this.duration
-                        setOnCompletionListener {
+                        duration = mp.duration
+                        mp.setOnCompletionListener {
                             isPlaying = false
                             playbackProgress = 0f
                             currentPosition = 0
-                            seekTo(0)
+                            mp.seekTo(0)
                         }
+                        mediaPlayer = mp
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Toast.makeText(context, "Не удалось воспроизвести аудиофайл", Toast.LENGTH_SHORT).show()
+                        mediaPlayer?.release()
+                        mediaPlayer = null
+                        isPlaying = false
                     }
                 }
-                mediaPlayer?.start()
-                isPlaying = true
+                
+                if (mediaPlayer != null) {
+                    mediaPlayer?.start()
+                    isPlaying = true
+                }
             } else {
-                Toast.makeText(context, "Audio file not available yet", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Аудиофайл еще загружается или не доступен", Toast.LENGTH_SHORT).show()
             }
         }
     }

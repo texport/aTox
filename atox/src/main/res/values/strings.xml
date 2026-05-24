@@ -236,6 +236,8 @@
     <string name="contact_list_search_placeholder">Search contacts…</string>
     <string name="contact_list_delete_contact">Delete Contact</string>
     <string name="contact_list_friend_request">Friend Request</string>
+    <string name="contact_list_group_invite">Group Invite</string>
+    <string name="group_invite_from">From: %1$s</string>
     <string name="profile_edit_data">Edit Info</string>
     <string name="profile_select_status">Select network status</string>
     <string name="profile_your_tox_id">Your Tox ID</string>

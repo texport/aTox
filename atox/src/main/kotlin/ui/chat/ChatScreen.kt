@@ -112,6 +112,8 @@ fun ChatScreen(
     onCopyClick: (Message) -> Unit = {},
     onForwardClick: (Message) -> Unit = {},
     onSendVoice: (Uri) -> Unit = {},
+    onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
+    isJoinedGroup: (String) -> Boolean = { false },
 ) {
     val messages = messages ?: emptyList()
     var showConversationContent by remember(contact?.publicKey) { mutableStateOf(true) }
@@ -308,7 +310,9 @@ fun ChatScreen(
                                             listState.animateScrollToItem(scrollIndex)
                                         }
                                     }
-                                }
+                                },
+                                onJoinGroupClick = onJoinGroupClick,
+                                isJoinedGroup = isJoinedGroup
                             )
                         }
                     }
