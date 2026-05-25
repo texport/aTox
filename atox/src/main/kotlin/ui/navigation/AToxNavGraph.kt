@@ -562,6 +562,8 @@ fun AToxNavGraph(
                             val groupListViewModel: GroupListViewModel = viewModel(factory = vmFactory)
                             JoinGroupScreen(
                                 onBack = { mainNavController.popBackStack() },
+                                isJoiningState = groupListViewModel.isJoining,
+                                onValidateChatId = { groupListViewModel.validateChatId(it) },
                                 onJoinGroup = { chatIdHex, password ->
                                     val num = groupListViewModel.joinByChatId(chatIdHex, password)
                                     if (num >= 0) {

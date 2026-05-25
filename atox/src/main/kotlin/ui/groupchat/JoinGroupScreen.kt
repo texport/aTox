@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
 package ltd.evilcorp.atox.ui.groupchat
 
 import androidx.compose.foundation.background
@@ -25,19 +29,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JoinGroupScreen(
     onBack: () -> Unit,
+    isJoiningState: StateFlow<Boolean>,
+    onValidateChatId: (String) -> String?,
     onJoinGroup: suspend (chatIdHex: String, password: String?) -> Boolean,
 ) {
     var chatIdHex by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var isJoining by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val isJoining by isJoiningState.collectAsState()
 
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -87,8 +96,10 @@ fun JoinGroupScreen(
 
                     OutlinedTextField(
                         value = chatIdHex,
-                        onValueChange = {
-                            chatIdHex = it.filter { c -> c in "0123456789abcdefABCDEF" }
+                        onValueChange = { input ->
+                            // Auto-strip clipboard inputs of whitespaces and newline characters during paste operations!
+                            val cleanInput = input.replace("\\s".toRegex(), "")
+                            chatIdHex = cleanInput.filter { c -> c in "0123456789abcdefABCDEF" }
                             errorMessage = null
                         },
                         label = { Text(stringResource(R.string.group_chat_id)) },
@@ -135,45 +146,26 @@ fun JoinGroupScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
+                    AtoxLoadingButton(
                         onClick = {
-                            if (chatIdHex.isBlank() || isJoining) {
-                                errorMessage = "Chat ID is required"
-                                return@Button
+                            val validationError = onValidateChatId(chatIdHex)
+                            if (validationError != null) {
+                                errorMessage = validationError
+                                return@AtoxLoadingButton
                             }
-                            if (chatIdHex.length != 64) {
-                                errorMessage = "Chat ID must be 64 hex characters (32 bytes)"
-                                return@Button
-                            }
-                            isJoining = true
                             performHaptic()
                             scope.launch {
-                                val success = onJoinGroup(chatIdHex.trim(), password.takeIf { it.isNotBlank() })
-                                if (!success) {
-                                    isJoining = false
-                                }
+                                onJoinGroup(chatIdHex, password.takeIf { it.isNotBlank() })
                             }
                         },
+                        text = stringResource(R.string.join_group),
+                        isLoading = isJoining,
+                        enabled = chatIdHex.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        enabled = chatIdHex.isNotBlank() && !isJoining
-                    ) {
-                        if (isJoining) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.join_group),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                        shape = MaterialTheme.shapes.medium
+                    )
                 }
             }
         }

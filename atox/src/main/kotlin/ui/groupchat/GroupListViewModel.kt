@@ -45,11 +45,36 @@ class GroupListViewModel @Inject constructor(
         groupManager.leaveGroup(group.chatId)
     }
 
-    suspend fun joinByChatId(chatIdHex: String, password: String?): Int =
-        withContext(Dispatchers.IO) {
-            val selfName = groupManager.getDefaultSelfName()
-            groupManager.joinByChatId(chatIdHex, selfName, password)
+    private val _isJoining = MutableStateFlow(false)
+    val isJoining: StateFlow<Boolean> = _isJoining.asStateFlow()
+
+    fun validateChatId(chatIdHex: String): String? {
+        val cleanId = chatIdHex.trim().replace("\\s".toRegex(), "")
+        if (cleanId.isEmpty()) {
+            return "Chat ID is required"
         }
+        if (cleanId.length != 64) {
+            return "Chat ID must be 64 hex characters (32 bytes)"
+        }
+        val isHex = cleanId.all { it in "0123456789abcdefABCDEF" }
+        if (!isHex) {
+            return "Chat ID must contain only hexadecimal characters"
+        }
+        return null
+    }
+
+    suspend fun joinByChatId(chatIdHex: String, password: String?): Int {
+        _isJoining.value = true
+        return try {
+            val cleanId = chatIdHex.trim().replace("\\s".toRegex(), "")
+            withContext(Dispatchers.IO) {
+                val selfName = groupManager.getDefaultSelfName()
+                groupManager.joinByChatId(cleanId, selfName, password)
+            }
+        } finally {
+            _isJoining.value = false
+        }
+    }
 
     fun getChatId(groupChatId: String): String? = groupManager.getChatId(groupChatId)
 
