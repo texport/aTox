@@ -16,7 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.FlowPreview
 import ltd.evilcorp.domain.model.toDb
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -53,8 +57,29 @@ class UserProfileViewModel @Inject constructor(
     private val _avatar = MutableStateFlow<Bitmap?>(null)
     val avatar: StateFlow<Bitmap?> = _avatar.asStateFlow()
 
+    private val nameUpdates = MutableSharedFlow<String>()
+    private val statusUpdates = MutableSharedFlow<String>()
+
     init {
         loadAvatar()
+
+        @OptIn(FlowPreview::class)
+        viewModelScope.launch {
+            nameUpdates.debounce(800).collectLatest { name ->
+                withContext(Dispatchers.IO) {
+                    userManager.setName(name)
+                }
+            }
+        }
+
+        @OptIn(FlowPreview::class)
+        viewModelScope.launch {
+            statusUpdates.debounce(800).collectLatest { status ->
+                withContext(Dispatchers.IO) {
+                    userManager.setStatusMessage(status)
+                }
+            }
+        }
     }
 
     fun loadAvatar() {
@@ -73,8 +98,18 @@ class UserProfileViewModel @Inject constructor(
         }
     }
 
-    fun setName(name: String) = userManager.setName(name)
-    fun setStatusMessage(statusMessage: String) = userManager.setStatusMessage(statusMessage)
+    fun setName(name: String) {
+        viewModelScope.launch {
+            nameUpdates.emit(name)
+        }
+    }
+
+    fun setStatusMessage(statusMessage: String) {
+        viewModelScope.launch {
+            statusUpdates.emit(statusMessage)
+        }
+    }
+
     fun setStatus(status: UserStatus) = userManager.setStatus(status)
 
     fun broadcastAvatar() {

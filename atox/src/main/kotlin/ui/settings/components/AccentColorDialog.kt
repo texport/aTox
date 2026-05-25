@@ -3,7 +3,6 @@ package ltd.evilcorp.atox.ui.settings.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -39,54 +39,57 @@ fun AccentColorDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.accent_preset), fontWeight = FontWeight.Bold) },
         text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(280.dp)
+                    .padding(vertical = 8.dp)
             ) {
-                items(AccentPresets.size) { index ->
-                    val preset = AccentPresets[index]
-                    val isSelected = preset.seed.toArgb() == currentAccentSeed
-                    val previewColor = remember(preset.seed, isDarkTheme) {
-                        accentPreviewColor(preset.seed.toArgb(), isDarkTheme)
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
+                // Row 1: first 3 presets
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    for (i in 0..2) {
+                        val preset = AccentPresets[i]
+                        val isSelected = preset.seed.toArgb() == currentAccentSeed
+                        val previewColor = remember(preset.seed, isDarkTheme) {
+                            accentPreviewColor(preset.seed.toArgb(), isDarkTheme)
+                        }
+                        ColorSwatch(
+                            name = preset.name,
+                            previewColor = previewColor,
+                            isSelected = isSelected,
+                            onClick = {
                                 onAccentColorSeedChanged(preset.seed.toArgb())
                                 onDismiss()
                             }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(previewColor)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = preset.name,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                        )
                     }
+                }
+                // Row 2: next 2 presets
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    for (i in 3..4) {
+                        val preset = AccentPresets[i]
+                        val isSelected = preset.seed.toArgb() == currentAccentSeed
+                        val previewColor = remember(preset.seed, isDarkTheme) {
+                            accentPreviewColor(preset.seed.toArgb(), isDarkTheme)
+                        }
+                        ColorSwatch(
+                            name = preset.name,
+                            previewColor = previewColor,
+                            isSelected = isSelected,
+                            onClick = {
+                                onAccentColorSeedChanged(preset.seed.toArgb())
+                                onDismiss()
+                            }
+                        )
+                    }
+                    // Placeholder box to balance the Row layout
+                    Box(modifier = Modifier.width(72.dp))
                 }
             }
         },
@@ -96,4 +99,47 @@ fun AccentColorDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ColorSwatch(
+    name: String,
+    previewColor: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(72.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(previewColor)
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = name,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            lineHeight = 12.sp
+        )
+    }
 }

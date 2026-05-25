@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -117,41 +118,49 @@ fun SettingsConnectionScreen(
                     performHaptic()
                     onProxyTypeClick()
                 }
-                if (proxyType != ProxyType.None) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        OutlinedTextField(
-                            value = proxyAddress,
-                            onValueChange = onProxyAddressChanged,
-                            label = { Text(stringResource(R.string.settings_proxy_address)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.None,
-                                autoCorrectEnabled = false,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = proxyPortInput,
-                            onValueChange = onProxyPortInputChanged,
-                            label = { Text(stringResource(R.string.settings_proxy_port)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                autoCorrectEnabled = false,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = { focusManager.clearFocus() }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                val isProxyEnabled = proxyType != ProxyType.None
+                val fieldsAlpha = if (isProxyEnabled) 1.0f else 0.38f
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .alpha(fieldsAlpha)
+                ) {
+                    OutlinedTextField(
+                        value = proxyAddress,
+                        onValueChange = onProxyAddressChanged,
+                        enabled = isProxyEnabled,
+                        label = { Text(stringResource(R.string.settings_proxy_address)) },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = proxyPortInput,
+                        onValueChange = onProxyPortInputChanged,
+                        enabled = isProxyEnabled,
+                        label = { Text(stringResource(R.string.settings_proxy_port)) },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

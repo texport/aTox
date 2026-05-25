@@ -7,7 +7,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import ltd.evilcorp.atox.ui.common.FormErrorText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -118,6 +120,8 @@ fun AddContactContent(
                         color = MaterialTheme.colorScheme.primary
                     )
 
+                    val isToxIdValid = remember(toxIdInput) { isValidToxId(toxIdInput) }
+
                     OutlinedTextField(
                         value = toxIdInput,
                         onValueChange = {
@@ -128,11 +132,24 @@ fun AddContactContent(
                         placeholder = { Text(stringResource(R.string.add_contact_friend_id_placeholder)) },
                         isError = errorText.isNotEmpty(),
                         supportingText = if (errorText.isNotEmpty()) {
-                            { Text(errorText) }
+                            { FormErrorText(errorText) }
                         } else null,
                         singleLine = true,
                         enabled = !isLoading,
                         shape = MaterialTheme.shapes.medium,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (isToxIdValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = if (isToxIdValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        ),
+                        trailingIcon = if (isToxIdValid) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Valid Tox ID",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else null,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None,
                             autoCorrectEnabled = false,
@@ -232,5 +249,20 @@ fun AddContactLoadingPreview() {
             showBackButton = true,
             isLoading = true
         )
+    }
+}
+
+private fun isValidToxId(toxId: String): Boolean {
+    val clean = toxId.trim()
+    if (clean.length != 76) return false
+    if (!clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) return false
+    return try {
+        val bytes = clean.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        if (bytes.size != 38) return false
+        val message = bytes.copyOfRange(0, 36)
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(message)
+        bytes[36] == digest[0] && bytes[37] == digest[1]
+    } catch (e: Exception) {
+        false
     }
 }

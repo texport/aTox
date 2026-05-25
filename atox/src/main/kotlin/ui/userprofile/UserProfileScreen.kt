@@ -51,6 +51,9 @@ import ltd.evilcorp.atox.ui.theme.StatusAvailable
 import ltd.evilcorp.atox.ui.theme.StatusAway
 import ltd.evilcorp.atox.ui.theme.StatusBusy
 import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
+import ltd.evilcorp.atox.ui.userprofile.components.LogoutConfirmDialog
+import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
 import ltd.evilcorp.core.model.User
 import ltd.evilcorp.core.model.UserStatus
 
@@ -468,91 +471,21 @@ fun UserProfileScreen(
     }
 
     if (showLogoutConfirmDialog) {
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showLogoutConfirmDialog = false },
-            title = { Text(stringResource(R.string.profile_logout_confirm_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.profile_logout_confirm)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutConfirmDialog = false
-                        onLogout()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(stringResource(R.string.profile_logout_confirm_button), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutConfirmDialog = false }) {
-                    Text(stringResource(R.string.profile_logout_cancel_button))
-                }
-            }
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutConfirmDialog = false },
+            onConfirm = onLogout
         )
     }
 
     if (showQrDialog) {
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showQrDialog = false },
-            title = { Text(stringResource(R.string.read_qr), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(R.string.profile_share_tox_id_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Surface(
-                        color = Color.White,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .size(200.dp)
-                            .padding(8.dp)
-                    ) {
-                        QrCodeView(
-                            text = "tox:$toxId",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(8.dp),
-                            contentColor = Color.Black
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { showQrDialog = false }
-                ) {
-                    Text(stringResource(android.R.string.ok), fontWeight = FontWeight.Bold)
-                }
-            }
+        QrCodeDialog(
+            toxId = toxId,
+            onDismiss = { showQrDialog = false }
         )
     }
 
     if (cropState is AvatarCropUiState.Processing) {
-        AlertDialog(
-            onDismissRequest = {},
-            confirmButton = {},
-            title = { Text(stringResource(R.string.settings_cache_calculating)) },
-            text = {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-        )
+        AvatarProcessingDialog()
     }
 
     if (selectedImageUri != null && cropState !is AvatarCropUiState.Processing) {

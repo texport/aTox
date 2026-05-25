@@ -4,6 +4,7 @@
 
 package ltd.evilcorp.atox.ui.settings.components
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,7 @@ fun SettingsGroup(
 fun SettingsClickableRow(
     title: String,
     subtitle: String,
+    marqueeSubtitle: Boolean = false,
     onClick: () -> Unit
 ) {
     Row(
@@ -68,8 +70,9 @@ fun SettingsClickableRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = if (marqueeSubtitle) 1 else 2,
+                    overflow = if (marqueeSubtitle) TextOverflow.Clip else TextOverflow.Ellipsis,
+                    modifier = if (marqueeSubtitle) Modifier.basicMarquee() else Modifier
                 )
             }
         }
@@ -159,5 +162,55 @@ fun SettingsSliderRow(
             valueRange = valueRange,
             steps = steps,
         )
+    }
+}
+
+@Composable
+fun SettingsErrorClickableRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                if (subtitle.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Open",
+                tint = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }

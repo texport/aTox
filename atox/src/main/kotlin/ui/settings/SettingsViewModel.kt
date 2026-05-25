@@ -67,6 +67,27 @@ class SettingsViewModel @Inject constructor(
     private val _committed = MutableStateFlow(false)
     val committed: StateFlow<Boolean> get() = _committed
 
+    private val _showProxyDialog = MutableStateFlow(false)
+    val showProxyDialog: StateFlow<Boolean> get() = _showProxyDialog
+
+    private val _showFtAcceptDialog = MutableStateFlow(false)
+    val showFtAcceptDialog: StateFlow<Boolean> get() = _showFtAcceptDialog
+
+    private val _showBootstrapDialog = MutableStateFlow(false)
+    val showBootstrapDialog: StateFlow<Boolean> get() = _showBootstrapDialog
+
+    fun setShowProxyDialog(show: Boolean) {
+        _showProxyDialog.value = show
+    }
+
+    fun setShowFtAcceptDialog(show: Boolean) {
+        _showFtAcceptDialog.value = show
+    }
+
+    fun setShowBootstrapDialog(show: Boolean) {
+        _showBootstrapDialog.value = show
+    }
+
     fun isToxStarted(): Boolean = tox.started
 
     private val _uiEvents = MutableSharedFlow<SettingsUiEvent>()
@@ -191,6 +212,21 @@ class SettingsViewModel @Inject constructor(
             }
             checkProxy()
         }
+    }
+
+    fun setProxyPortString(portStr: String): Boolean {
+        if (portStr.isEmpty()) {
+            setProxyPort(0)
+            return true
+        }
+        if (portStr.all { it.isDigit() }) {
+            val portInt = portStr.toIntOrNull()
+            if (portInt != null && portInt in 0..65535) {
+                setProxyPort(portInt)
+                return true
+            }
+        }
+        return false
     }
 
     fun isCurrentPassword(maybeCurrentPassword: String) = tox.password == maybeCurrentPassword.ifEmpty { null }

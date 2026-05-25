@@ -12,14 +12,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.settings.components.SettingsClickableRow
 import ltd.evilcorp.atox.ui.settings.components.SettingsGroup
 import ltd.evilcorp.atox.ui.settings.components.SettingsSwitchRow
+import ltd.evilcorp.atox.ui.settings.components.SettingsErrorClickableRow
 import ltd.evilcorp.core.model.FtAutoAccept
 
 @Composable
@@ -38,6 +47,8 @@ fun SettingsChatScreen(
     onEnableRepliesChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -94,14 +105,40 @@ fun SettingsChatScreen(
 
         item {
             SettingsGroup(title = stringResource(R.string.settings_storage_group)) {
-                SettingsClickableRow(
+                SettingsErrorClickableRow(
                     title = stringResource(R.string.settings_clear_cache_title),
                     subtitle = stringResource(R.string.settings_clear_cache_subtitle, cacheSizeText)
                 ) {
                     performHaptic()
-                    onClearCacheClick()
+                    showConfirmDialog = true
                 }
             }
         }
+    }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text(stringResource(R.string.settings_clear_cache_title), fontWeight = FontWeight.Bold) },
+            text = { Text("Вы уверены, что хотите удалить кэш файлов? Все скачанные медиафайлы останутся на устройстве, но будут удалены из кэша приложения.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        onClearCacheClick()
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text(stringResource(R.string.reject))
+                }
+            }
+        )
     }
 }

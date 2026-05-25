@@ -56,7 +56,8 @@ fun SoundSettingsScreen(
             SettingsGroup(title = stringResource(R.string.settings_sound_group_sending)) {
                 SettingsClickableRow(
                     title = stringResource(R.string.settings_sent_sound_title),
-                    subtitle = soundTitle(context, sentMessageSoundUri, RingtoneManager.TYPE_NOTIFICATION)
+                    subtitle = soundTitle(context, sentMessageSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                    marqueeSubtitle = true
                 ) {
                     performHaptic()
                     onSoundPickerClick(
@@ -80,7 +81,8 @@ fun SoundSettingsScreen(
             SettingsGroup(title = stringResource(R.string.settings_sound_group_calls)) {
                 SettingsClickableRow(
                     title = stringResource(R.string.settings_call_sound_title),
-                    subtitle = soundTitle(context, callRingtoneUri, RingtoneManager.TYPE_RINGTONE)
+                    subtitle = soundTitle(context, callRingtoneUri, RingtoneManager.TYPE_RINGTONE),
+                    marqueeSubtitle = true
                 ) {
                     performHaptic()
                     onSoundPickerClick(
@@ -104,7 +106,8 @@ fun SoundSettingsScreen(
             SettingsGroup(title = stringResource(R.string.settings_sound_group_notifications)) {
                 SettingsClickableRow(
                     title = stringResource(R.string.settings_notification_sound_title),
-                    subtitle = soundTitle(context, notificationSoundUri, RingtoneManager.TYPE_NOTIFICATION)
+                    subtitle = soundTitle(context, notificationSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                    marqueeSubtitle = true
                 ) {
                     performHaptic()
                     onSoundPickerClick(
@@ -125,7 +128,8 @@ fun SoundSettingsScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                 SettingsClickableRow(
                     title = stringResource(R.string.settings_active_chat_sound_title),
-                    subtitle = soundTitle(context, activeChatSoundUri, RingtoneManager.TYPE_NOTIFICATION)
+                    subtitle = soundTitle(context, activeChatSoundUri, RingtoneManager.TYPE_NOTIFICATION),
+                    marqueeSubtitle = true
                 ) {
                     performHaptic()
                     onSoundPickerClick(

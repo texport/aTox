@@ -110,6 +110,11 @@ import ltd.evilcorp.core.model.FtAutoAccept
 import ltd.evilcorp.core.model.TimeFormatPreference
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.atox.ui.settings.components.SettingsRootContent
+import ltd.evilcorp.atox.ui.settings.components.SoundSettingsScreen
+import ltd.evilcorp.atox.ui.settings.components.SoundPickerTarget
+import ltd.evilcorp.atox.ui.settings.components.BackupSettingsScreen
+import ltd.evilcorp.atox.ui.settings.components.RestoreBackupConfirmDialog
+import ltd.evilcorp.atox.ui.settings.components.AccentColorDialog
 import ltd.evilcorp.atox.ui.settings.screens.SettingsAppearanceScreen
 import ltd.evilcorp.atox.ui.settings.screens.SettingsChatScreen
 import ltd.evilcorp.atox.ui.settings.screens.SettingsConnectionScreen
@@ -123,13 +128,6 @@ private enum class SettingsDestination {
     Backup,
     Language,
     Theme,
-}
-
-private enum class SoundPickerTarget {
-    Sent,
-    Call,
-    Notification,
-    ActiveChat,
 }
 
 private data class SearchableSetting(
@@ -201,9 +199,17 @@ fun SettingsScreen(
     var autoAwaySecondsInput by remember { mutableStateOf(autoAwaySeconds) }
     var proxyPortInput by remember { mutableStateOf(proxyPort) }
 
-    var showProxyDialog by remember { mutableStateOf(false) }
-    var showFtAcceptDialog by remember { mutableStateOf(false) }
-    var showBootstrapDialog by remember { mutableStateOf(false) }
+    val showProxyDialog by viewModel.showProxyDialog.collectAsState()
+    val showFtAcceptDialog by viewModel.showFtAcceptDialog.collectAsState()
+    val showBootstrapDialog by viewModel.showBootstrapDialog.collectAsState()
+    var pendingRestoreUri by remember { mutableStateOf<String?>(null) }
+    var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+    var showGoogleAccountDialog by remember { mutableStateOf(false) }
+    var googleAccountInput by remember { mutableStateOf("") }
+
+    LaunchedEffect(storedSettings.backupGoogleAccount) {
+        googleAccountInput = storedSettings.backupGoogleAccount
+    }
     var showAccentColorDialog by remember { mutableStateOf(false) }
     var showDateFormatDialog by remember { mutableStateOf(false) }
     var showTimeFormatDialog by remember { mutableStateOf(false) }
@@ -224,6 +230,14 @@ fun SettingsScreen(
                 selectedIds = selectedBackupIds + mandatoryBackupId,
                 password = backupPassword.takeIf { backupPasswordEnabled },
             )
+        }
+    }
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            pendingRestoreUri = uri.toString()
+            showRestoreConfirmDialog = true
         }
     }
     val ringtonePickerLauncher = rememberLauncherForActivityResult(
@@ -358,7 +372,7 @@ fun SettingsScreen(
                 subtitle = context.getString(R.string.settings_proxy_type),
                 destination = SettingsDestination.Root,
                 category = context.getString(R.string.settings_proxy_group),
-                onTrigger = { showProxyDialog = true }
+                onTrigger = { viewModel.setShowProxyDialog(true) }
             )
         )
     }
@@ -543,7 +557,7 @@ fun SettingsScreen(
                     performHaptic = performHaptic,
                     onFtAutoAcceptClick = {
                         performHaptic()
-                        showFtAcceptDialog = true
+                        viewModel.setShowFtAcceptDialog(true)
                     },
                     onAutoSaveToDownloadsChanged = { checked ->
                         performHaptic()
@@ -585,7 +599,7 @@ fun SettingsScreen(
                         viewModel.setRunAtStartup(checked)
                     },
                     onBootstrapNodesClick = {
-                        showBootstrapDialog = true
+                        viewModel.setShowBootstrapDialog(true)
                     },
                     onDisableScreenshotsChanged = { checked ->
                         onDisableScreenshotsChanged(checked)
@@ -597,7 +611,7 @@ fun SettingsScreen(
                         settings.confirmCalling = checked
                     },
                     onProxyTypeClick = {
-                        showProxyDialog = true
+                        viewModel.setShowProxyDialog(true)
                     },
                     onProxyAddressChanged = {
                         settings.proxyAddress = it
@@ -605,7 +619,7 @@ fun SettingsScreen(
                     onProxyPortInputChanged = {
                         if (it.isEmpty() || it.all { char -> char.isDigit() }) {
                             proxyPortInput = it
-                            if (it.isNotEmpty()) settings.proxyPort = it.toIntOrNull() ?: 0
+                            viewModel.setProxyPortString(it)
                         }
                     }
                 )
@@ -640,207 +654,83 @@ fun SettingsScreen(
                 )
             }
             SettingsDestination.Sounds -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(paddingValues)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
-                ) {
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_sound_group_sending)) {
-                            SoundUriRow(
-                                title = stringResource(R.string.settings_sent_sound_title),
-                                subtitle = soundTitle(context, sentMessageSoundUri, RingtoneManager.TYPE_NOTIFICATION),
-                                onClick = {
-                                    performHaptic()
-                                    soundPickerTarget = SoundPickerTarget.Sent
-                                    launchRingtonePicker(
-                                        launcher = ringtonePickerLauncher,
-                                        title = context.getString(R.string.settings_sent_sound_title),
-                                        type = RingtoneManager.TYPE_NOTIFICATION,
-                                        currentUri = sentMessageSoundUri,
-                                    )
-                                }
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSliderRow(
-                                title = stringResource(R.string.settings_sent_sound_volume_title),
-                                subtitle = stringResource(R.string.settings_sent_sound_volume_subtitle, sentMessageSoundVolume),
-                                value = sentMessageSoundVolume.toFloat(),
-                                valueRange = 0f..100f,
-                                steps = 19,
-                                onValueChangeFinished = performHaptic,
-                            ) { settings.sentMessageSoundVolume = it.toInt() }
+                SoundSettingsScreen(
+                    paddingValues = paddingValues,
+                    sentMessageSoundVolume = sentMessageSoundVolume,
+                    callSoundVolume = callSoundVolume,
+                    notificationSoundVolume = notificationSoundVolume,
+                    activeChatSoundVolume = activeChatSoundVolume,
+                    sentMessageSoundUri = sentMessageSoundUri,
+                    callRingtoneUri = callRingtoneUri,
+                    notificationSoundUri = notificationSoundUri,
+                    activeChatSoundUri = activeChatSoundUri,
+                    onVolumeChanged = { target, volume ->
+                        when (target) {
+                            SoundPickerTarget.Sent -> settings.sentMessageSoundVolume = volume
+                            SoundPickerTarget.Call -> settings.callSoundVolume = volume
+                            SoundPickerTarget.Notification -> settings.notificationSoundVolume = volume
+                            SoundPickerTarget.ActiveChat -> settings.activeChatSoundVolume = volume
                         }
-                    }
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_sound_group_calls)) {
-                            SoundUriRow(
-                                title = stringResource(R.string.settings_call_sound_title),
-                                subtitle = soundTitle(context, callRingtoneUri, RingtoneManager.TYPE_RINGTONE),
-                                onClick = {
-                                    performHaptic()
-                                    soundPickerTarget = SoundPickerTarget.Call
-                                    launchRingtonePicker(
-                                        launcher = ringtonePickerLauncher,
-                                        title = context.getString(R.string.settings_call_sound_title),
-                                        type = RingtoneManager.TYPE_RINGTONE,
-                                        currentUri = callRingtoneUri,
-                                    )
-                                }
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSliderRow(
-                                title = stringResource(R.string.settings_call_sound_volume_title),
-                                subtitle = stringResource(R.string.settings_call_sound_volume_subtitle, callSoundVolume),
-                                value = callSoundVolume.toFloat(),
-                                valueRange = 0f..100f,
-                                steps = 19,
-                                onValueChangeFinished = performHaptic,
-                            ) { settings.callSoundVolume = it.toInt() }
-                        }
-                    }
-                    item {
-                        SettingsGroup(title = stringResource(R.string.settings_sound_group_notifications)) {
-                            SoundUriRow(
-                                title = stringResource(R.string.settings_notification_sound_title),
-                                subtitle = soundTitle(context, notificationSoundUri, RingtoneManager.TYPE_NOTIFICATION),
-                                onClick = {
-                                    performHaptic()
-                                    soundPickerTarget = SoundPickerTarget.Notification
-                                    launchRingtonePicker(
-                                        launcher = ringtonePickerLauncher,
-                                        title = context.getString(R.string.settings_notification_sound_title),
-                                        type = RingtoneManager.TYPE_NOTIFICATION,
-                                        currentUri = notificationSoundUri,
-                                    )
-                                }
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSliderRow(
-                                title = stringResource(R.string.settings_notification_sound_volume_title),
-                                subtitle = stringResource(R.string.settings_notification_sound_volume_subtitle, notificationSoundVolume),
-                                value = notificationSoundVolume.toFloat(),
-                                valueRange = 0f..100f,
-                                steps = 19,
-                                onValueChangeFinished = performHaptic,
-                            ) { settings.notificationSoundVolume = it.toInt() }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SoundUriRow(
-                                title = stringResource(R.string.settings_active_chat_sound_title),
-                                subtitle = soundTitle(context, activeChatSoundUri, RingtoneManager.TYPE_NOTIFICATION),
-                                onClick = {
-                                    performHaptic()
-                                    soundPickerTarget = SoundPickerTarget.ActiveChat
-                                    launchRingtonePicker(
-                                        launcher = ringtonePickerLauncher,
-                                        title = context.getString(R.string.settings_active_chat_sound_title),
-                                        type = RingtoneManager.TYPE_NOTIFICATION,
-                                        currentUri = activeChatSoundUri,
-                                    )
-                                }
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-                            SettingsSliderRow(
-                                title = stringResource(R.string.settings_active_chat_sound_volume_title),
-                                subtitle = stringResource(R.string.settings_active_chat_sound_volume_subtitle, activeChatSoundVolume),
-                                value = activeChatSoundVolume.toFloat(),
-                                valueRange = 0f..100f,
-                                steps = 19,
-                                onValueChangeFinished = performHaptic,
-                            ) { settings.activeChatSoundVolume = it.toInt() }
-                        }
-                    }
-                }
+                    },
+                    onSoundPickerClick = { target, currentUri, type ->
+                        soundPickerTarget = target
+                        launchRingtonePicker(
+                            launcher = ringtonePickerLauncher,
+                            title = when (target) {
+                                SoundPickerTarget.Sent -> context.getString(R.string.settings_sent_sound_title)
+                                SoundPickerTarget.Call -> context.getString(R.string.settings_call_sound_title)
+                                SoundPickerTarget.Notification -> context.getString(R.string.settings_notification_sound_title)
+                                SoundPickerTarget.ActiveChat -> context.getString(R.string.settings_active_chat_sound_title)
+                            },
+                            type = type,
+                            currentUri = currentUri
+                        )
+                    },
+                    performHaptic = performHaptic
+                )
             }
             SettingsDestination.Backup -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(paddingValues)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
-                ) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.backup_modules_group),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                        )
-                    }
-                    backupViewModel.backupProviders.forEach { provider ->
-                        item(key = provider.id) {
-                            val mandatory = provider.id == mandatoryBackupId
-                            BackupModuleCard(
-                                title = stringResource(provider.displayNameRes),
-                                description = stringResource(provider.descriptionRes),
-                                checked = mandatory || provider.id in selectedBackupIds,
-                                enabled = !mandatory,
-                                onCheckedChange = { checked ->
-                                    selectedBackupIds = if (checked) {
-                                        selectedBackupIds + provider.id
-                                    } else {
-                                        selectedBackupIds - provider.id
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    item {
-                        ElevatedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateContentSize(),
-                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        ) {
-                            SettingsSwitchRow(
-                                title = stringResource(R.string.backup_password_protect),
-                                subtitle = stringResource(R.string.backup_password_description),
-                                checked = backupPasswordEnabled
-                            ) { checked ->
-                                backupPasswordEnabled = checked
-                                if (!checked) backupPassword = ""
-                            }
-                            AnimatedVisibility(backupPasswordEnabled) {
-                                OutlinedTextField(
-                                    value = backupPassword,
-                                    onValueChange = { backupPassword = it },
-                                    label = { Text(stringResource(R.string.password)) },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                                )
-                            }
-                        }
-                    }
-                    item {
-                        Button(
-                            onClick = {
-                                performHaptic()
-                                backupLauncher.launch("atox-backup.zip")
-                            },
-                            enabled = !backupExporting && (!backupPasswordEnabled || backupPassword.isNotBlank()),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = if (backupExporting) {
-                                    stringResource(R.string.backup_creating)
-                                } else {
-                                    stringResource(R.string.backup_create)
-                                }
-                            )
-                        }
-                    }
-                }
+                val backupFrequency = storedSettings.backupFrequency
+                val backupUseCellular = storedSettings.backupUseCellular
+                val backupDestinations = settings.backupDestinations
+                val backupEndToEndEncryptionEnabled = storedSettings.backupEndToEndEncryptionEnabled
+                val backupGoogleAccount = storedSettings.backupGoogleAccount
+                val backupImporting by backupViewModel.backupImporting.collectAsState()
+
+                BackupSettingsScreen(
+                    paddingValues = paddingValues,
+                    backupProviders = backupViewModel.backupProviders,
+                    backupExporting = backupExporting,
+                    backupImporting = backupImporting,
+                    backupPasswordEnabled = backupPasswordEnabled,
+                    backupPassword = backupPassword,
+                    backupPasswordVisible = false,
+                    automaticBackupEnabled = storedSettings.automaticBackupEnabled,
+                    backupFrequency = backupFrequency,
+                    backupUseCellular = backupUseCellular,
+                    backupDestinations = backupDestinations,
+                    backupEndToEndEncryptionEnabled = backupEndToEndEncryptionEnabled,
+                    backupGoogleAccount = backupGoogleAccount,
+                    selectedBackupIds = selectedBackupIds,
+                    mandatoryBackupId = mandatoryBackupId,
+                    onBackupPasswordEnabledChanged = { backupPasswordEnabled = it },
+                    onBackupPasswordChanged = { backupPassword = it },
+                    onBackupPasswordVisibleChanged = { /* unused */ },
+                    onAutomaticBackupEnabledChanged = { settings.automaticBackupEnabled = it },
+                    onBackupFrequencyChanged = { viewModel.setBackupFrequency(it) },
+                    onBackupUseCellularChanged = { settings.backupUseCellular = it },
+                    onBackupDestinationsChanged = { viewModel.setBackupDestinations(it) },
+                    onBackupEndToEndEncryptionEnabledChanged = { settings.backupEndToEndEncryptionEnabled = it },
+                    onGoogleAccountClick = { showGoogleAccountDialog = true },
+                    onSelectedBackupIdsChanged = { selectedBackupIds = it },
+                    onCreateBackupClick = {
+                        backupLauncher.launch("atox-backup.zip")
+                    },
+                    onRestoreBackupClick = {
+                        restoreBackupLauncher.launch(arrayOf("application/zip"))
+                    },
+                    performHaptic = performHaptic
+                )
             }
         }
     }
@@ -995,7 +885,7 @@ fun SettingsScreen(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showProxyDialog = false },
+            onDismissRequest = { viewModel.setShowProxyDialog(false) },
             title = { Text(stringResource(R.string.settings_proxy_type), fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1007,7 +897,7 @@ fun SettingsScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     settings.proxyType = item.first
-                                    showProxyDialog = false
+                                    viewModel.setShowProxyDialog(false)
                                 }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1032,7 +922,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showProxyDialog = false }) {
+                TextButton(onClick = { viewModel.setShowProxyDialog(false) }) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -1050,7 +940,7 @@ fun SettingsScreen(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showFtAcceptDialog = false },
+            onDismissRequest = { viewModel.setShowFtAcceptDialog(false) },
             title = { Text(stringResource(R.string.pref_heading_ft_auto_accept), fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1062,7 +952,7 @@ fun SettingsScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     settings.ftAutoAccept = item.first
-                                    showFtAcceptDialog = false
+                                    viewModel.setShowFtAcceptDialog(false)
                                 }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1087,7 +977,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showFtAcceptDialog = false }) {
+                TextButton(onClick = { viewModel.setShowFtAcceptDialog(false) }) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -1104,7 +994,7 @@ fun SettingsScreen(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showBootstrapDialog = false },
+            onDismissRequest = { viewModel.setShowBootstrapDialog(false) },
             title = { Text(stringResource(R.string.settings_nodes_list), fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1116,7 +1006,7 @@ fun SettingsScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     settings.bootstrapNodeSource = item.first
-                                    showBootstrapDialog = false
+                                    viewModel.setShowBootstrapDialog(false)
                                 }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1141,7 +1031,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showBootstrapDialog = false }) {
+                TextButton(onClick = { viewModel.setShowBootstrapDialog(false) }) {
                     Text(stringResource(R.string.close))
                 }
             }
@@ -1150,76 +1040,13 @@ fun SettingsScreen(
 
     // Dialog 6: Accent color selection
     if (showAccentColorDialog) {
-        val isDarkTheme = LocalAToxThemeIsDark.current
-        AlertDialog(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            onDismissRequest = { showAccentColorDialog = false },
-            title = { Text(stringResource(R.string.accent_preset), fontWeight = FontWeight.Bold) },
-            text = {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().height(280.dp)
-                ) {
-                    items(AccentPresets.size) { index ->
-                        val preset = AccentPresets[index]
-                        val isSelected = preset.seed.toArgb() == currentAccentSeed
-                        val previewColor = remember(preset.seed, isDarkTheme) {
-                            accentPreviewColor(preset.seed.toArgb(), isDarkTheme)
-                        }
-                        val previewContentColor = remember(preset.seed, isDarkTheme) {
-                            accentPreviewContentColor(preset.seed.toArgb(), isDarkTheme)
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    performHaptic()
-                                    val seed = preset.seed.toArgb()
-                                    onAccentColorSeedChanged(seed)
-                                    showAccentColorDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(previewColor)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = preset.name,
-                                    fontSize = 16.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+        AccentColorDialog(
+            currentAccentSeed = currentAccentSeed,
+            onAccentColorSeedChanged = { seed ->
+                onAccentColorSeedChanged(seed)
+                showAccentColorDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showAccentColorDialog = false
-                }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
+            onDismiss = { showAccentColorDialog = false }
         )
     }
 
@@ -1330,6 +1157,54 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showTimeFormatDialog = false }) {
                     Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
+    if (showRestoreConfirmDialog && pendingRestoreUri != null) {
+        RestoreBackupConfirmDialog(
+            isToxStarted = backupViewModel.isToxStarted(),
+            onConfirm = { password ->
+                backupViewModel.restoreBackup(pendingRestoreUri!!, password)
+                showRestoreConfirmDialog = false
+                pendingRestoreUri = null
+            },
+            onDismiss = {
+                showRestoreConfirmDialog = false
+                pendingRestoreUri = null
+            },
+            focusManager = focusManager
+        )
+    }
+
+    if (showGoogleAccountDialog) {
+        AlertDialog(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            onDismissRequest = { showGoogleAccountDialog = false },
+            title = { Text(stringResource(R.string.backup_google_account)) },
+            text = {
+                OutlinedTextField(
+                    value = googleAccountInput,
+                    onValueChange = { googleAccountInput = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    settings.backupGoogleAccount = googleAccountInput
+                    showGoogleAccountDialog = false
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGoogleAccountDialog = false }) {
+                    Text(stringResource(R.string.reject))
                 }
             }
         )
