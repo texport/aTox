@@ -49,7 +49,17 @@ fun CreateProfileScreen(
             }
             is CreateProfileUiState.Error -> {
                 keyboardController?.hide()
-                errorText = context.getString((state as CreateProfileUiState.Error).errorResId)
+                val error = (state as CreateProfileUiState.Error).error
+                val errorResId = when (error) {
+                    CreateProfileError.RestorePasswordRequired -> R.string.backup_import_password_required
+                    CreateProfileError.RestoreFailed -> R.string.backup_import_failure
+                    CreateProfileError.BadProxyHost -> R.string.bad_host
+                    CreateProfileError.BadProxyPort -> R.string.bad_port
+                    CreateProfileError.BadProxyType -> R.string.bad_type
+                    CreateProfileError.ProxyNotFound -> R.string.proxy_not_found
+                    CreateProfileError.Unknown -> R.string.create_profile_error_failed
+                }
+                errorText = context.getString(errorResId)
             }
             else -> {}
         }

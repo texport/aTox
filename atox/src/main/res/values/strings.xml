@@ -471,4 +471,7 @@
     <string name="settings_enable_replies_title">Enable reply threads</string>
     <string name="settings_enable_replies_subtitle">Prefix messages with thread tags for structured reply visuals</string>
     <string name="search_no_results">No settings found</string>
+    <string name="launch_timeout_title">Connection Timeout</string>
+    <string name="launch_timeout_desc">Could not connect to the Tox core. The initialization is taking too long or the system resources are busy.</string>
+    <string name="retry">Retry</string>
 </resources>

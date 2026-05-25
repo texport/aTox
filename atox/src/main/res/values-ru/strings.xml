@@ -434,4 +434,7 @@
     <string name="settings_enable_replies_title">Включить ветки ответов</string>
     <string name="settings_enable_replies_subtitle">Добавлять теги к тексту сообщений для отображения цепочек ответов</string>
     <string name="search_no_results">Настройки не найдены</string>
+    <string name="launch_timeout_title">Таймаут подключения</string>
+    <string name="launch_timeout_desc">Не удалось подключиться к ядру Tox. Инициализация занимает слишком много времени или системные ресурсы перегружены.</string>
+    <string name="retry">Повторить</string>
 </resources>

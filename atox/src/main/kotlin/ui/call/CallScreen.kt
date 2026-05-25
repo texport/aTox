@@ -142,7 +142,7 @@ fun CallScreenContent(
                 onMinimize()
             },
             modifier = Modifier
-                .statusBarsPadding()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .align(Alignment.TopStart)
                 .padding(start = 16.dp, top = 16.dp),
             colors = IconButtonDefaults.iconButtonColors(

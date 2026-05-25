@@ -23,11 +23,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ltd.evilcorp.atox.R
 
+sealed interface CreateProfileError {
+    object RestorePasswordRequired : CreateProfileError
+    object RestoreFailed : CreateProfileError
+    object BadProxyHost : CreateProfileError
+    object BadProxyPort : CreateProfileError
+    object BadProxyType : CreateProfileError
+    object ProxyNotFound : CreateProfileError
+    object Unknown : CreateProfileError
+}
+
 sealed interface CreateProfileUiState {
     object Idle : CreateProfileUiState
     object Loading : CreateProfileUiState
     object Success : CreateProfileUiState
-    data class Error(val errorResId: Int) : CreateProfileUiState
+    data class Error(val error: CreateProfileError) : CreateProfileUiState
 }
 
 class CreateProfileViewModel @Inject constructor(
@@ -67,12 +77,12 @@ class CreateProfileViewModel @Inject constructor(
             if (status == ToxSaveStatus.Ok) {
                 _uiState.value = CreateProfileUiState.Success
             } else {
-                val errorResId = when (status) {
-                    ToxSaveStatus.Encrypted -> R.string.backup_import_password_required
-                    ToxSaveStatus.BadFormat -> R.string.backup_import_failure
-                    else -> R.string.backup_import_failure
+                val error = when (status) {
+                    ToxSaveStatus.Encrypted -> CreateProfileError.RestorePasswordRequired
+                    ToxSaveStatus.BadFormat -> CreateProfileError.RestoreFailed
+                    else -> CreateProfileError.RestoreFailed
                 }
-                _uiState.value = CreateProfileUiState.Error(errorResId)
+                _uiState.value = CreateProfileUiState.Error(error)
             }
         }
     }
@@ -91,14 +101,14 @@ class CreateProfileViewModel @Inject constructor(
             if (status == ToxSaveStatus.Ok) {
                 _uiState.value = CreateProfileUiState.Success
             } else {
-                val errorResId = when (status) {
-                    ToxSaveStatus.BadProxyHost -> R.string.bad_host
-                    ToxSaveStatus.BadProxyPort -> R.string.bad_port
-                    ToxSaveStatus.BadProxyType -> R.string.bad_type
-                    ToxSaveStatus.ProxyNotFound -> R.string.proxy_not_found
-                    else -> R.string.create_profile_error_failed
+                val error = when (status) {
+                    ToxSaveStatus.BadProxyHost -> CreateProfileError.BadProxyHost
+                    ToxSaveStatus.BadProxyPort -> CreateProfileError.BadProxyPort
+                    ToxSaveStatus.BadProxyType -> CreateProfileError.BadProxyType
+                    ToxSaveStatus.ProxyNotFound -> CreateProfileError.ProxyNotFound
+                    else -> CreateProfileError.Unknown
                 }
-                _uiState.value = CreateProfileUiState.Error(errorResId)
+                _uiState.value = CreateProfileUiState.Error(error)
             }
         }
     }

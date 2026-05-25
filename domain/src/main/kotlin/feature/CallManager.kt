@@ -71,12 +71,64 @@ class CallManager @Inject constructor(
     val speakerphoneOnState: StateFlow<Boolean> get() = _speakerphoneOn
 
     private val audioManager = ContextCompat.getSystemService(context, AudioManager::class.java)
-    private var ringtonePlayer: MediaPlayer? = null
+    private var ringtone: android.media.Ringtone? = null
     private var toneGenerator: ToneGenerator? = null
     private var ringbackJob: Job? = null
     private var transitionJob: Job? = null
     private var audioCaptureJob: Job? = null
     private var microphoneDesired = true
+    private var focusRequest: android.media.AudioFocusRequest? = null
+
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                _sendingAudio.value = false
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                val target = currentTarget()
+                if (target != null && _inCall.value is CallState.Active && microphoneDesired) {
+                    startAudioCapture(target)
+                }
+            }
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        if (audioManager == null) return false
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val playbackAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            val request = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(playbackAttributes)
+                .setAcceptsDelayedFocusGain(false)
+                .setOnAudioFocusChangeListener(audioFocusListener)
+                .build()
+            focusRequest = request
+            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusListener,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (audioManager == null) return
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            focusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusListener)
+        }
+    }
 
     suspend fun startOutgoingCall(publicKey: PublicKey): Boolean {
         if (_inCall.value != CallState.Idle) return false
@@ -88,6 +140,7 @@ class CallManager @Inject constructor(
 
         return try {
             microphoneDesired = true
+            requestAudioFocus()
             tox.startCall(publicKey)
             audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
             setState(CallState.OutgoingRequesting(publicKey, SystemClock.elapsedRealtime()))
@@ -134,6 +187,7 @@ class CallManager @Inject constructor(
         if (incoming.contact.publicKey != publicKey.string()) return false
         return try {
             stopSignals()
+            requestAudioFocus()
             tox.answerCall(publicKey)
             audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
             setState(CallState.Connecting(publicKey, incoming.startedAt, outgoing = false))
@@ -265,6 +319,7 @@ class CallManager @Inject constructor(
         audioCaptureJob?.cancel()
         audioCaptureJob = null
         stopSignals()
+        abandonAudioFocus()
         _speakerphoneOn.value = false
         audioManager?.isSpeakerphoneOn = false
         audioManager?.mode = AudioManager.MODE_NORMAL
@@ -276,19 +331,42 @@ class CallManager @Inject constructor(
             stopSignals()
             try {
                 val settings = userSettingsRepository.settings.value
-                val uri = settings.callRingtoneUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+                var uri = settings.callRingtoneUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                val volume = settings.callSoundVolume.coerceIn(0, 100) / 100f
-                ringtonePlayer = MediaPlayer().apply {
-                    setDataSource(context, uri)
-                    isLooping = true
-                    setAudioStreamType(AudioManager.STREAM_RING)
-                    setVolume(volume, volume)
-                    prepare()
-                    start()
+                var rt = RingtoneManager.getRingtone(context, uri)
+                if (rt == null) {
+                    uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    rt = RingtoneManager.getRingtone(context, uri)
+                }
+                rt?.let {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        it.isLooping = true
+                        val volume = settings.callSoundVolume.coerceIn(0, 100) / 100f
+                        it.volume = volume
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        it.audioAttributes = android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    }
+                    it.play()
+                    ringtone = it
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error playing ringtone", e)
+                Log.e(TAG, "Error playing ringtone via RingtoneManager, falling back to default", e)
+                try {
+                    val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    RingtoneManager.getRingtone(context, defaultUri)?.let { fallbackRt ->
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            fallbackRt.isLooping = true
+                        }
+                        fallbackRt.play()
+                        ringtone = fallbackRt
+                    }
+                } catch (ex: Exception) {
+                    Log.e(TAG, "Error playing fallback ringtone", ex)
+                }
             }
         }
     }
@@ -319,9 +397,8 @@ class CallManager @Inject constructor(
         runCatching { toneGenerator?.stopTone() }
         toneGenerator?.release()
         toneGenerator = null
-        runCatching { ringtonePlayer?.stop() }
-        runCatching { ringtonePlayer?.release() }
-        ringtonePlayer = null
+        runCatching { ringtone?.stop() }
+        ringtone = null
     }
 
     private fun currentTarget(): PublicKey? = when (val current = _inCall.value) {
