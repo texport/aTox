@@ -59,6 +59,7 @@ data class GroupInvite(
 }
 
 @Singleton
+@Suppress("LargeClass")
 class GroupManager @Inject constructor(
     private val scope: CoroutineScope,
     private val groupRepository: IGroupRepository,

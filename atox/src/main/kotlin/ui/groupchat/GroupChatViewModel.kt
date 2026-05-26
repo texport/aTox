@@ -34,7 +34,7 @@ import ltd.evilcorp.core.repository.GroupRepository
 import ltd.evilcorp.core.repository.FileTransferRepository
 import ltd.evilcorp.domain.feature.GroupConnectionStatus
 import ltd.evilcorp.domain.feature.GroupManager
-import ltd.evilcorp.domain.feature.IGroupFileTransferEmulator
+import ltd.evilcorp.domain.feature.FileTransferManager
 import java.io.File
 import java.util.Date
 
@@ -42,11 +42,10 @@ class GroupChatViewModel @Inject constructor(
     private val groupManager: GroupManager,
     private val contactRepository: ContactRepository,
     private val context: Context,
-    private val settings: Settings,
     private val systemSoundPlayer: SystemSoundPlayer,
     private val groupRepository: GroupRepository,
     private val fileTransferRepository: FileTransferRepository,
-    private val fileTransferEmulator: IGroupFileTransferEmulator,
+    private val fileTransferManager: FileTransferManager,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
     private var metadataSyncJob: kotlinx.coroutines.Job? = null
@@ -217,100 +216,20 @@ class GroupChatViewModel @Inject constructor(
     }
 
     fun acceptFt(id: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            fileTransferRepository.get(id).take(1).collect { ft ->
-                val bytes = fileTransferEmulator.emulateDownload(
-                    id = id,
-                    fileName = ft.fileName,
-                    fileSize = ft.fileSize,
-                    onProgress = { currentProgress ->
-                        fileTransferRepository.updateProgress(id, currentProgress)
-                    }
-                )
-                
-                val cacheFile = File(context.cacheDir, ft.fileName)
-                if (!cacheFile.exists() && bytes != null) {
-                    try {
-                        cacheFile.outputStream().use { out ->
-                            out.write(bytes)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("GroupChatViewModel", "Failed to write emulated file to cache", e)
-                    }
-                }
-                
-                if (!cacheFile.exists() || cacheFile.length() == 0L) {
-                    cacheFile.writeText("Mock received file content")
-                }
-                
-                val cachedUri = Uri.fromFile(cacheFile)
-                fileTransferRepository.setDestination(id, cachedUri.toString())
-                
-                autoSaveGroupFileToDownloads(id, ft.copy(destination = cachedUri.toString()))
-            }
+        viewModelScope.launch {
+            fileTransferManager.accept(id)
         }
-    }
-
-    private fun autoSaveGroupFileToDownloads(id: Int, ft: FileTransfer) {
-        if (ft.outgoing || !settings.autoSaveToDownloads) return
-        try {
-            val sourceFile = File(Uri.parse(ft.destination).path ?: return)
-            if (!sourceFile.exists()) return
-
-            val configuredDirectory = settings.autoSaveDirectoryUri
-            if (configuredDirectory.isNotBlank()) {
-                autoSaveGroupFileToDirectory(id, ft, sourceFile, Uri.parse(configuredDirectory))
-                return
-            }
-
-            val resolver = context.contentResolver
-            val contentValues = android.content.ContentValues().apply {
-                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, ft.fileName)
-                val ext = sourceFile.extension.lowercase()
-                val mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
-                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/aTox")
-            }
-
-            val publicUri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            if (publicUri != null) {
-                resolver.openOutputStream(publicUri).use { out ->
-                    java.io.FileInputStream(sourceFile).use { ins ->
-                        ins.copyTo(out ?: return@use)
-                    }
-                }
-                Log.i("GroupChatViewModel", "Successfully auto-saved ${ft.fileName} to public Downloads/aTox at $publicUri")
-                fileTransferRepository.setDestination(id, publicUri.toString())
-            }
-        } catch (e: Exception) {
-            Log.e("GroupChatViewModel", "Error auto-saving file ${ft.fileName} to public Downloads", e)
-        }
-    }
-
-    private fun autoSaveGroupFileToDirectory(id: Int, ft: FileTransfer, sourceFile: File, directoryUri: Uri) {
-        val mimeType = android.webkit.MimeTypeMap.getSingleton()
-            .getMimeTypeFromExtension(sourceFile.extension.lowercase())
-            ?: "application/octet-stream"
-        val targetUri = android.provider.DocumentsContract.createDocument(context.contentResolver, directoryUri, mimeType, ft.fileName)
-            ?: throw IllegalStateException("Failed to create ${ft.fileName} in $directoryUri")
-        context.contentResolver.openOutputStream(targetUri)?.use { out ->
-            sourceFile.inputStream().use { input ->
-                input.copyTo(out)
-            }
-        } ?: throw IllegalStateException("Failed to open $targetUri for writing")
-        Log.i("GroupChatViewModel", "Successfully auto-saved ${ft.fileName} to configured directory at $targetUri")
-        fileTransferRepository.setDestination(id, targetUri.toString())
     }
 
     fun rejectFt(id: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            fileTransferRepository.updateProgress(id, -2L) // FT_REJECTED
+        viewModelScope.launch {
+            fileTransferManager.reject(id)
         }
     }
 
     fun cancelFt(msg: GroupMessage) {
-        viewModelScope.launch(Dispatchers.IO) {
-            fileTransferRepository.updateProgress(msg.correlationId, -2L) // FT_REJECTED
+        viewModelScope.launch {
+            fileTransferManager.delete(msg.correlationId)
         }
     }
 

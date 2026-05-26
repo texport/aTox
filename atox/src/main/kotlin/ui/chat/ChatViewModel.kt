@@ -251,7 +251,7 @@ class ChatViewModel @Inject constructor(
     fun createFt(file: Uri) = viewModelScope.launch {
         // Make sure there's no stale cached image in Picasso via NotificationHelper
         notificationHelper.invalidateAvatar(file)
-        fileTransferManager.create(publicKey, file)
+        fileTransferManager.create(publicKey, file.toString())
     }
 
     fun delete(msg: Message) = viewModelScope.launch {

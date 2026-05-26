@@ -185,7 +185,7 @@ class ContactListViewModel @Inject constructor(
 
     fun onShareFile(uri: android.net.Uri, to: Contact) {
         viewModelScope.launch {
-            fileTransferManager.create(PublicKey(to.publicKey), uri)
+            fileTransferManager.create(PublicKey(to.publicKey), uri.toString())
         }
     }
 }

@@ -92,6 +92,7 @@ import androidx.compose.animation.animateContentSize
 private const val CHAT_ENTER_CONTENT_DELAY_MS = 320L
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongMethod", "FunctionNaming")
 @Composable
 fun ChatScreen(
     contact: Contact?,

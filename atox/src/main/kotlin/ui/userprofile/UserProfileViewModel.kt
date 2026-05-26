@@ -46,6 +46,13 @@ class UserProfileViewModel @Inject constructor(
     private val fileTransferManager: FileTransferManager,
     private val saveAvatarUseCase: SaveAvatarUseCase,
 ) : ViewModel() {
+    companion object {
+        private const val INITIAL_QUALITY = 90
+        private const val MIN_QUALITY = 10
+        private const val QUALITY_STEP = 10
+        private const val MAX_AVATAR_BYTES = 64 * 1024
+    }
+
     val publicKey by lazy { tox.publicKey }
     val toxId by lazy { tox.toxId }
     val user: StateFlow<User?> = userManager.get(publicKey)
@@ -142,12 +149,12 @@ class UserProfileViewModel @Inject constructor(
                     val cropped = AvatarCropUtils.cropAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
                     
                     // Compress bitmap to bytes to pass to use case
-                    var quality = 90
+                    var quality = INITIAL_QUALITY
                     var bytes: ByteArray? = null
-                    val maxBytes = 64 * 1024
+                    val maxBytes = MAX_AVATAR_BYTES
                     
                     try {
-                        while (quality > 10) {
+                        while (quality > MIN_QUALITY) {
                             java.io.ByteArrayOutputStream().use { bos ->
                                 cropped.compress(Bitmap.CompressFormat.JPEG, quality, bos)
                                 val currentBytes = bos.toByteArray()
@@ -156,11 +163,11 @@ class UserProfileViewModel @Inject constructor(
                                     break
                                 }
                             }
-                            quality -= 10
+                            quality -= QUALITY_STEP
                         }
                         if (bytes == null) {
                             java.io.ByteArrayOutputStream().use { bos ->
-                                cropped.compress(Bitmap.CompressFormat.JPEG, 10, bos)
+                                cropped.compress(Bitmap.CompressFormat.JPEG, MIN_QUALITY, bos)
                                 val currentBytes = bos.toByteArray()
                                 if (currentBytes.size <= maxBytes) {
                                     bytes = currentBytes

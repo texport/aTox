@@ -45,7 +45,6 @@ private const val TAG = "CallManager"
 class CallManager @Inject constructor(
     private val tox: ITox,
     private val scope: CoroutineScope,
-    private val context: Context,
     private val contactRepository: IContactRepository,
     private val messageRepository: IMessageRepository,
     private val signalPlayer: CallSignalPlayer,

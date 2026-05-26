@@ -75,8 +75,8 @@ class AppModule {
     fun provideTox(impl: ltd.evilcorp.core.tox.Tox): ltd.evilcorp.domain.tox.ITox = impl
 
     @Provides
-    fun provideGroupFileTransferEmulator(impl: ltd.evilcorp.core.emulator.GroupFileTransferEmulatorImpl): ltd.evilcorp.domain.feature.IGroupFileTransferEmulator = impl
+    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
 
     @Provides
-    fun provideAudioRoutingManager(manager: ltd.evilcorp.atox.media.AudioRoutingManager): ltd.evilcorp.domain.feature.IAudioRoutingManager = manager
+    fun provideFileTransferPlatformHelper(impl: ltd.evilcorp.core.repository.FileTransferPlatformHelperImpl): ltd.evilcorp.domain.feature.IFileTransferPlatformHelper = impl
 }

@@ -35,6 +35,7 @@ import ltd.evilcorp.domain.tox.ITox
 
 private const val TAG = "GroupEventHandler"
 
+@Suppress("LargeClass")
 class GroupEventHandler @Inject constructor(
     private val context: Context,
     private val scope: CoroutineScope,
