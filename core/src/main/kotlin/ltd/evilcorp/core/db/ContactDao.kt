@@ -7,9 +7,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.Contact
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.domain.model.UserStatus
 
 @Dao
 interface ContactDao {

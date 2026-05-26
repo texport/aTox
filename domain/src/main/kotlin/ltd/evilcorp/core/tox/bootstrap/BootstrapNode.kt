@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox.bootstrap
 
-import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.PublicKey
 
 /**
  * Данные публичного узла DHT (Bootstrap Node).

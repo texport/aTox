@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox.enums
 
-import ltd.evilcorp.core.model.ConnectionStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
 
 /**
  * Перечисление типов сетевого соединения Tox DHT.

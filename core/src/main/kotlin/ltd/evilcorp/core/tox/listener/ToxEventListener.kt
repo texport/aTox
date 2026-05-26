@@ -12,9 +12,9 @@ import ltd.evilcorp.core.tox.enums.ToxGroupExitType
 import ltd.evilcorp.core.tox.enums.ToxGroupJoinFail
 import ltd.evilcorp.core.tox.enums.ToxGroupModEvent
 import javax.inject.Inject
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.bytesToHex
 
 // Вызывается при получении кастомного lossless-пакета от друга

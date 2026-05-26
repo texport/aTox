@@ -1,0 +1,516 @@
+// SPDX-FileCopyrightText: 2026 aTox contributors
+//
+// SPDX-License-Identifier: GPL-3.0-only
+
+package ltd.evilcorp.atox.ui.userprofile
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import ltd.evilcorp.atox.R
+import ltd.evilcorp.atox.ui.common.QrCodeView
+import ltd.evilcorp.atox.ui.theme.StatusAvailable
+import ltd.evilcorp.atox.ui.theme.StatusAway
+import ltd.evilcorp.atox.ui.theme.StatusBusy
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarEditDialog
+import ltd.evilcorp.atox.ui.userprofile.components.LogoutConfirmDialog
+import ltd.evilcorp.atox.ui.userprofile.components.QrCodeDialog
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarProcessingDialog
+import ltd.evilcorp.atox.ui.userprofile.components.AvatarSourceDialog
+import ltd.evilcorp.atox.ui.userprofile.components.ToxIdShareCard
+import ltd.evilcorp.domain.model.User
+import ltd.evilcorp.domain.model.UserStatus
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserProfileScreen(
+    user: User?,
+    toxId: String,
+    avatar: android.graphics.Bitmap?,
+    cropState: AvatarCropUiState = AvatarCropUiState.Idle,
+    onBack: () -> Unit = {},
+    showBackButton: Boolean = true,
+    onSetName: (String) -> Unit,
+    onSetStatusMessage: (String) -> Unit,
+    onSetStatus: (UserStatus) -> Unit,
+    onLogout: () -> Unit = {},
+    onAvatarChanged: () -> Unit = {},
+    onResetCropState: () -> Unit = {},
+    onCropAndSaveAvatar: (android.graphics.Bitmap, Float, Float, Float, Float, Float) -> Unit,
+    performHaptic: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    val selfAvatarBitmap = remember(avatar) {
+        avatar?.asImageBitmap()
+    }
+
+    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    LaunchedEffect(cropState) {
+        when (cropState) {
+            is AvatarCropUiState.Success -> {
+                onAvatarChanged()
+                onResetCropState()
+                selectedImageUri = null
+            }
+            is AvatarCropUiState.Failure -> {
+                Toast.makeText(context, context.getString(R.string.avatar_too_large), Toast.LENGTH_LONG).show()
+                onResetCropState()
+                selectedImageUri = null
+            }
+            else -> {}
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+        if (uri != null) {
+            selectedImageUri = uri
+        }
+    }
+
+    val tempFile = remember { java.io.File(context.cacheDir, "avatar_capture.jpg") }
+    val tempFileUri = remember(tempFile) {
+        androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            tempFile
+        )
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        if (success) {
+            selectedImageUri = tempFileUri
+        }
+    }
+
+    var showSourceDialog by remember { mutableStateOf(false) }
+
+    var tempName by remember { mutableStateOf("") }
+    var tempStatus by remember { mutableStateOf("") }
+    var nameHasFocus by remember { mutableStateOf(false) }
+    var statusHasFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(user) {
+        user?.let {
+            if (!nameHasFocus) {
+                tempName = it.name
+            }
+            if (!statusHasFocus) {
+                tempStatus = it.statusMessage
+            }
+        }
+    }
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
+
+    val profileContent = @Composable { paddingValues: PaddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Beautiful Material 3 Profile Picture with Edit Button
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.CenterHorizontally),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable { showSourceDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.animation.Crossfade(
+                        targetState = selfAvatarBitmap,
+                        label = "AvatarCrossfade"
+                    ) { bitmap ->
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = stringResource(R.string.profile_photo_description),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            val initials = remember(user?.name) {
+                                val name = user?.name ?: ""
+                                if (name.isEmpty()) "U" else {
+                                    val parts = name.split(" ")
+                                    if (parts.size == 1) name.take(1) else name.take(1) + parts[1].take(1)
+                                }
+                            }
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = initials.uppercase(),
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    tonalElevation = 6.dp,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .minimumInteractiveComponentSize()
+                        .clickable { showSourceDialog = true }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.profile_avatar_change),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            // User Info Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.profile_edit_data),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = tempName,
+                        onValueChange = {
+                            tempName = it
+                            onSetName(it)
+                        },
+                        label = { Text(stringResource(R.string.name)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { nameHasFocus = it.isFocused }
+                    )
+
+                    OutlinedTextField(
+                        value = tempStatus,
+                        onValueChange = {
+                            tempStatus = it
+                            onSetStatusMessage(it)
+                        },
+                        label = { Text(stringResource(R.string.status_message)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { statusHasFocus = it.isFocused }
+                    )
+                }
+            }
+
+            // Tox Status Selection Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.profile_select_status),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    val activeStatus = user?.status ?: UserStatus.None
+
+                    // Status rows
+                    StatusRow(
+                        title = stringResource(R.string.status_available),
+                        color = StatusAvailable,
+                        isSelected = activeStatus == UserStatus.None,
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.None)
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
+                    StatusRow(
+                        title = stringResource(R.string.status_away),
+                        color = StatusAway,
+                        isSelected = activeStatus == UserStatus.Away,
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.Away)
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
+                    StatusRow(
+                        title = stringResource(R.string.status_busy),
+                        color = StatusBusy,
+                        isSelected = activeStatus == UserStatus.Busy,
+                        onClick = {
+                            performHaptic()
+                            onSetStatus(UserStatus.Busy)
+                        }
+                    )
+                }
+            }
+
+            // Tox ID Card
+            ToxIdShareCard(
+                toxId = toxId,
+                onCopyClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Tox ID", toxId)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, context.getString(R.string.profile_copied), Toast.LENGTH_SHORT).show()
+                },
+                onShareClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, "tox:$toxId")
+                    }
+                    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.tox_id_share)))
+                },
+                onQrClick = { showQrDialog = true }
+            )
+
+            // Logout Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_logout),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.profile_logout_confirm),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { showLogoutConfirmDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.profile_logout), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showBackButton) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.profile), fontWeight = FontWeight.SemiBold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                )
+            }
+        ) { paddingValues ->
+            profileContent(paddingValues)
+        }
+    } else {
+        profileContent(PaddingValues(0.dp))
+    }
+
+    if (showLogoutConfirmDialog) {
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutConfirmDialog = false },
+            onConfirm = onLogout
+        )
+    }
+
+    if (showQrDialog) {
+        QrCodeDialog(
+            toxId = toxId,
+            onDismiss = { showQrDialog = false }
+        )
+    }
+
+    if (cropState is AvatarCropUiState.Processing) {
+        AvatarProcessingDialog()
+    }
+
+    if (selectedImageUri != null && cropState !is AvatarCropUiState.Processing) {
+        AvatarEditDialog(
+            imageUri = selectedImageUri!!,
+            onDismiss = { selectedImageUri = null },
+            onConfirm = { originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth ->
+                onCropAndSaveAvatar(originalBitmap, scale, offsetX, offsetY, rotation, viewportWidth)
+            }
+        )
+    }
+
+    if (showSourceDialog) {
+        AvatarSourceDialog(
+            onDismissRequest = { showSourceDialog = false },
+            onCameraClick = {
+                showSourceDialog = false
+                try {
+                    cameraLauncher.launch(tempFileUri)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    Toast.makeText(context, "Camera application not found", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            },
+            onGalleryClick = {
+                showSourceDialog = false
+                galleryLauncher.launch("image/*")
+            }
+        )
+    }
+}
+
+@Composable
+fun StatusRow(
+    title: String,
+    color: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            )
+        }
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+}

@@ -7,8 +7,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.core.model.GroupPeer
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.model.UserStatus
 
 @Dao
 interface GroupPeerDao {

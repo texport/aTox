@@ -3,7 +3,7 @@ package ltd.evilcorp.core.tox.listener
 import ltd.evilcorp.core.tox.enums.ToxavFriendCallState
 import java.util.EnumSet
 import javax.inject.Inject
-import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.PublicKey
 
 typealias CallHandler = (pk: String, audioEnabled: Boolean, videoEnabled: Boolean) -> Unit
 typealias CallStateHandler = (pk: String, callState: EnumSet<ToxavFriendCallState>) -> Unit

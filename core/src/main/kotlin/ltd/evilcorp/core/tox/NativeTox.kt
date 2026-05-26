@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox
 
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.enums.ToxFileControl
 import ltd.evilcorp.core.tox.enums.ToxFileKind

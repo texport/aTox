@@ -12,10 +12,10 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.FileKind
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.hexToBytes
 import ltd.evilcorp.core.tox.bytesToHex
 import ltd.evilcorp.core.tox.toToxType

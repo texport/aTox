@@ -5,7 +5,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.MessageDao
-import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.domain.model.Message
 import ltd.evilcorp.domain.repository.IMessageRepository
 
 @Singleton

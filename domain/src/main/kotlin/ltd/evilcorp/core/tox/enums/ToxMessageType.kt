@@ -10,11 +10,11 @@ enum class ToxMessageType {
     ACTION;
  
     /**
-     * Конвертирует внутренний тип сообщения Tox во внешнюю доменную модель [ltd.evilcorp.core.model.MessageType].
+     * Конвертирует внутренний тип сообщения Tox во внешнюю доменную модель [ltd.evilcorp.domain.model.MessageType].
      */
-    fun toMessageType(): ltd.evilcorp.core.model.MessageType = when (this) {
-        NORMAL -> ltd.evilcorp.core.model.MessageType.Normal
-        ACTION -> ltd.evilcorp.core.model.MessageType.Action
+    fun toMessageType(): ltd.evilcorp.domain.model.MessageType = when (this) {
+        NORMAL -> ltd.evilcorp.domain.model.MessageType.Normal
+        ACTION -> ltd.evilcorp.domain.model.MessageType.Action
     }
 
     companion object {

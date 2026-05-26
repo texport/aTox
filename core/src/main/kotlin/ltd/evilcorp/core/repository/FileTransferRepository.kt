@@ -4,7 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.FileTransferDao
-import ltd.evilcorp.core.model.FileTransfer
+import ltd.evilcorp.domain.model.FileTransfer
 import ltd.evilcorp.domain.repository.IFileTransferRepository
 
 @Singleton

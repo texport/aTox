@@ -22,16 +22,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import ltd.evilcorp.core.model.BootstrapNodeSource
-import ltd.evilcorp.core.model.BackupDestination
-import ltd.evilcorp.core.model.BackupFrequency
-import ltd.evilcorp.core.model.DateFormatPreference
-import ltd.evilcorp.core.model.DEFAULT_ACCENT_COLOR_SEED
-import ltd.evilcorp.core.model.DEFAULT_THEME_MODE
-import ltd.evilcorp.core.model.FtAutoAccept
-import ltd.evilcorp.core.model.AppSound
-import ltd.evilcorp.core.model.TimeFormatPreference
-import ltd.evilcorp.core.model.UserSettings
+import ltd.evilcorp.domain.model.BootstrapNodeSource
+import ltd.evilcorp.domain.model.BackupDestination
+import ltd.evilcorp.domain.model.BackupFrequency
+import ltd.evilcorp.domain.model.DateFormatPreference
+import ltd.evilcorp.domain.model.DEFAULT_ACCENT_COLOR_SEED
+import ltd.evilcorp.domain.model.DEFAULT_THEME_MODE
+import ltd.evilcorp.domain.model.FtAutoAccept
+import ltd.evilcorp.domain.model.AppSound
+import ltd.evilcorp.domain.model.TimeFormatPreference
+import ltd.evilcorp.domain.model.UserSettings
 import ltd.evilcorp.core.tox.save.ProxyType
 import ltd.evilcorp.domain.repository.IUserSettingsRepository
 

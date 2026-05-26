@@ -6,10 +6,10 @@ package ltd.evilcorp.core.db
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.Sender
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.model.UserStatus
 
 class ConvertersTest {
     @Test

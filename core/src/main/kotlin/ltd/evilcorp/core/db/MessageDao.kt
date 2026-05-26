@@ -5,7 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.core.model.Message
+import ltd.evilcorp.domain.model.Message
 
 @Dao
 interface MessageDao {

@@ -10,10 +10,10 @@ import ltd.evilcorp.core.tox.save.SaveOptions
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxRuntime
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.FileKind
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.enums.ToxGroupPrivacyState
 import ltd.evilcorp.core.tox.enums.ToxGroupRole
 import ltd.evilcorp.core.tox.enums.ToxMessageType

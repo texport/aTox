@@ -2,7 +2,7 @@ package ltd.evilcorp.core.tox.bootstrap
 
 import android.util.Log
 import javax.inject.Inject
-import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.PublicKey
 import org.json.JSONObject
 
 private const val TAG = "BootstrapNodeJsonParser"

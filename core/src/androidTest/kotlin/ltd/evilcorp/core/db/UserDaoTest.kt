@@ -16,9 +16,9 @@ import kotlin.test.fail
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.User
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.User
+import ltd.evilcorp.domain.model.UserStatus
 import org.junit.Test
 import org.junit.runner.RunWith
 

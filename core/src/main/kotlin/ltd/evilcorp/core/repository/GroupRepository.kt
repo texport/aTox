@@ -7,13 +7,13 @@ import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.GroupDao
 import ltd.evilcorp.core.db.GroupMessageDao
 import ltd.evilcorp.core.db.GroupPeerDao
-import ltd.evilcorp.core.model.Group
-import ltd.evilcorp.core.model.GroupMessage
-import ltd.evilcorp.core.model.GroupPeer
-import ltd.evilcorp.core.model.GroupPrivacyState
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.Sender
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.domain.model.GroupMessage
+import ltd.evilcorp.domain.model.GroupPeer
+import ltd.evilcorp.domain.model.GroupPrivacyState
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.Sender
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.domain.repository.IGroupRepository
 
 @Singleton

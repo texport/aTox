@@ -4,9 +4,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.ContactDao
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.Contact
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.Contact
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.domain.repository.IContactRepository
 
 @Singleton

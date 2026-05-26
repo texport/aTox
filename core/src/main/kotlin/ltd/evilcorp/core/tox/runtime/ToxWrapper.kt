@@ -2,10 +2,10 @@ package ltd.evilcorp.core.tox.runtime
 
 import android.util.Log
 import kotlin.random.Random
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.FileKind
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
 import ltd.evilcorp.core.tox.NativeToxAv
 import ltd.evilcorp.core.tox.ToxID

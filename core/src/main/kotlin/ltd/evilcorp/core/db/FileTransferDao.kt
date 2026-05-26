@@ -5,8 +5,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.core.model.FT_REJECTED
-import ltd.evilcorp.core.model.FileTransfer
+import ltd.evilcorp.domain.model.FT_REJECTED
+import ltd.evilcorp.domain.model.FileTransfer
 
 @Dao
 interface FileTransferDao {

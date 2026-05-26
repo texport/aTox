@@ -4,7 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import ltd.evilcorp.core.db.FriendRequestDao
-import ltd.evilcorp.core.model.FriendRequest
+import ltd.evilcorp.domain.model.FriendRequest
 import ltd.evilcorp.domain.repository.IFriendRequestRepository
 
 @Singleton

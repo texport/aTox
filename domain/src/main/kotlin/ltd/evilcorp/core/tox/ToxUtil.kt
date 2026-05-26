@@ -4,10 +4,10 @@ import ltd.evilcorp.core.tox.enums.ToxConnection
 import ltd.evilcorp.core.tox.enums.ToxFileKind
 import ltd.evilcorp.core.tox.enums.ToxMessageType
 import ltd.evilcorp.core.tox.enums.ToxUserStatus
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.ConnectionStatus
+import ltd.evilcorp.domain.model.FileKind
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.UserStatus
 
 /**
  * Преобразует строковое HEX-представление в массив байтов.

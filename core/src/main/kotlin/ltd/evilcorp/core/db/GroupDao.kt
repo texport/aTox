@@ -7,8 +7,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import ltd.evilcorp.core.model.Group
-import ltd.evilcorp.core.model.GroupPrivacyState
+import ltd.evilcorp.domain.model.Group
+import ltd.evilcorp.domain.model.GroupPrivacyState
 
 @Dao
 interface GroupDao {

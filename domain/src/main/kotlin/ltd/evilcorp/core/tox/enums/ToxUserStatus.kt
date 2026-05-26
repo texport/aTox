@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox.enums
 
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.UserStatus
 
 /**
  * Перечисление статусов присутствия пользователя Tox (User Status).

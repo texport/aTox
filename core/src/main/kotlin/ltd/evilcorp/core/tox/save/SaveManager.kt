@@ -5,7 +5,7 @@ import android.util.AtomicFile
 import android.util.Log
 import java.io.File
 import javax.inject.Inject
-import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.PublicKey
 
 private const val TAG = "AndroidSaveManager"
 

@@ -1,6 +1,6 @@
 package ltd.evilcorp.core.tox
 
-import ltd.evilcorp.core.model.PublicKey
+import ltd.evilcorp.domain.model.PublicKey
 
 private const val ID_METADATA_LEN = 12
 

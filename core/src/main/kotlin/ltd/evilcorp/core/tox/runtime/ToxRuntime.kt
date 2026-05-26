@@ -11,10 +11,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.PublicKey
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.model.FileKind
+import ltd.evilcorp.domain.model.MessageType
+import ltd.evilcorp.domain.model.PublicKey
+import ltd.evilcorp.domain.model.UserStatus
 import ltd.evilcorp.core.tox.NativeTox
 import ltd.evilcorp.core.tox.ToxID
 import ltd.evilcorp.core.tox.bootstrap.BootstrapNodeRegistry
