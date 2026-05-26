@@ -20,7 +20,7 @@ import ltd.evilcorp.atox.tox.ToxStarter
 import ltd.evilcorp.core.db.Database
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
 import ltd.evilcorp.domain.backup.BackupDataProvider
-import ltd.evilcorp.domain.backup.BackupUseCase
+import ltd.evilcorp.domain.usecase.BackupUseCase
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.ITox
 

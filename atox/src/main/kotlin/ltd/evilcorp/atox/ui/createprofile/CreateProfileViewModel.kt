@@ -15,7 +15,7 @@ import ltd.evilcorp.domain.model.User
 import ltd.evilcorp.domain.feature.UserManager
 import ltd.evilcorp.domain.tox.ITox
 import ltd.evilcorp.core.tox.save.ToxSaveStatus
-import ltd.evilcorp.domain.backup.BackupUseCase
+import ltd.evilcorp.domain.usecase.BackupUseCase
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow

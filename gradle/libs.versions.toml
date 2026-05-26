@@ -1,6 +1,8 @@
 [versions]
 detekt = "1.23.8"
 archunit = "1.3.0"
+konsist = "0.14.0"
+detekt-compose = "0.3.13"
 
 sdk-min = "23"
 sdk-target = "35"
@@ -36,6 +38,8 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
 
 [libraries]
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+konsist-junit5 = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
+detekt-compose = { module = "io.nlopez.compose.rules:detekt", version.ref = "detekt-compose" }
 androidx-activity = "androidx.activity:activity:1.10.1" # >=1.11.0 needs compileSdk 36.
 androidx-activity-compose = "androidx.activity:activity-compose:1.10.1"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"

@@ -39,6 +39,8 @@ style:
         reason: 'Domain layer must not depend on Room Database implementation.'
       - value: 'ltd.evilcorp.core.repository.*'
         reason: 'Domain layer must not depend on concrete Repositories. Use interfaces instead.'
+      - value: 'ltd.evilcorp.atox.*'
+        reason: 'Domain layer must not depend on presentation layer (atox).'
 
 performance:
   SpreadOperator:
@@ -48,14 +50,19 @@ complexity:
   LargeClass:
     active: true
     threshold: 400
+  LongMethod:
+    active: true
+    threshold: 60
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
+  ComplexInterface:
+    active: true
+    threshold: 10
   TooManyFunctions:
     active: false
   LongParameterList:
     active: false
   CyclomaticComplexMethod:
     threshold: 40
-  LongMethod:
-    threshold: 200
   NestedBlockDepth:
     active: false
 

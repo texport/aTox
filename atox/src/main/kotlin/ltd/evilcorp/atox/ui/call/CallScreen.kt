@@ -337,7 +337,12 @@ fun CallScreenActivePreview() {
             publicKey = "456",
             contact = Contact(name = "Bob", publicKey = "456"),
             name = "Bob",
-            currentCallState = CallState.Active(ltd.evilcorp.domain.model.PublicKey("456"), System.currentTimeMillis() - 10000, System.currentTimeMillis() - 5000, true),
+            currentCallState = CallState.Active(
+                ltd.evilcorp.domain.model.PublicKey("456"),
+                System.currentTimeMillis() - 10000,
+                System.currentTimeMillis() - 5000,
+                true
+            ),
             sendingAudio = true,
             speakerphoneOn = true,
             statusText = "03:45",

@@ -1,5 +1,6 @@
-package ltd.evilcorp.domain.backup
+package ltd.evilcorp.domain.usecase
 
+import ltd.evilcorp.domain.backup.BackupDataProvider
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.SecureRandom

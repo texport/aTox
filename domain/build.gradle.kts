@@ -34,6 +34,7 @@ dependencies {
 
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.archunit.junit5)
+    testImplementation(libs.konsist.junit5)
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.junit.ext)
