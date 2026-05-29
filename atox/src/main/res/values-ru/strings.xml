@@ -209,6 +209,9 @@
     <string name="contact_list_group_invite">Приглашение в группу</string>
     <string name="group_invite_from">От: %1$s</string>
     <string name="profile_edit_data">Редактировать данные</string>
+    <string name="avatar_source_title">Выберите источник фото</string>
+    <string name="avatar_source_camera">Камера</string>
+    <string name="avatar_source_gallery">Галерея</string>
     <string name="profile_select_status">Выберите статус сети</string>
     <string name="profile_your_tox_id">Ваш Tox ID</string>
     <string name="profile_share_tox_id_desc">Поделитесь этим ID с друзьями, чтобы они могли добавить вас.</string>
@@ -352,6 +355,7 @@
     <string name="group_role_user">Участник</string>
     <string name="group_role_observer">Наблюдатель</string>
     <string name="group_already_member">Вы уже участник этой группы</string>
+    <string name="group_already_in_group">Уже в группе</string>
     <string name="group_invalid_chat_id">Неверный формат Chat ID</string>
     <string name="group_join_failed">Не удалось присоединиться к группе</string>
     <string name="message_copied">Сообщение скопировано</string>
@@ -440,4 +444,19 @@
     <string name="settings_enable_replies_title">Включить ветки ответов</string>
     <string name="settings_enable_replies_subtitle">Добавлять теги к тексту сообщений для отображения цепочек ответов</string>
     <string name="search_no_results">Настройки не найдены</string>
+    <string name="launch_timeout_title">Таймаут подключения</string>
+    <string name="launch_timeout_desc">Не удалось подключиться к ядру Tox. Инициализация занимает слишком много времени или системные ресурсы перегружены.</string>
+    <string name="retry">Повторить</string>
+    <string name="navigation_back">Назад</string>
+    <string name="navigation_add">Добавить</string>
+    <string name="backup_warning_title">Внимание!</string>
+    <string name="backup_warning_description">Обязательно сохраните пароль резервной копии. В случае его утери восстановить ваш Tox-профиль будет невозможно.</string>
+    <!-- Extracted UI Strings for Localization Compliance -->
+    <string name="select_chat_to_start">Выберите чат для начала общения</string>
+    <string name="group_invite_card_body">Вас пригласили присоединиться к групповому чату.</string>
+    <string name="group_invite_join">Вступить</string>
+    <string name="group_invite_view">Перейти</string>
+    <string name="voice_message_play_error">Не удалось воспроизвести аудиофайл</string>
+    <string name="voice_message_not_ready">Аудиофайл еще загружается или не доступен</string>
+    <string name="group_invite_label">Группа: %1$s</string>
 </resources>

@@ -1,5 +1,6 @@
 plugins {
-    alias(libs.plugins.androidLibrary)
+    kotlin("jvm")
+    kotlin("plugin.serialization")
 }
 
 kotlin {
@@ -10,36 +11,14 @@ kotlin {
     }
 }
 
-android {
-    namespace = "ltd.evilcorp.domain"
-    compileSdk = libs.versions.sdk.target.get().toInt()
-    defaultConfig {
-        minSdk = libs.versions.sdk.min.get().toInt()
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-        }
-    }
-}
-
 dependencies {
-    implementation(project(":core"))
-
-    implementation(libs.androidx.core.ktx)
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit"))
-    androidTestImplementation(kotlin("test-junit"))
-    androidTestImplementation(libs.test.runner)
-    androidTestImplementation(libs.test.junit.ext)
-    androidTestImplementation(libs.kotlinx.coroutines.test) {
-        // Conflicts with a lot of things due to having embedded "byte buddy" instead of depending on it.
-        exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-debug")
-    }
+    testImplementation(libs.archunit.junit5)
+    testImplementation(libs.konsist.junit5)
 
     modules {
         module("com.google.guava:listenablefuture") {
@@ -47,3 +26,4 @@ dependencies {
         }
     }
 }
+

@@ -39,7 +39,11 @@ android {
             path("src/main/cpp/CMakeLists.txt")
         }
     }
-    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
+    sourceSets {
+        getByName("androidTest") {
+            assets.directories.add("$projectDir/schemas")
+        }
+    }
 }
 
 tasks.register<Exec>("buildNativeDependencies") {
@@ -161,6 +165,7 @@ tasks.named("preBuild") {
 }
 
 dependencies {
+    implementation(project(":domain"))
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.datastore.preferences)
@@ -169,6 +174,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.konsist.junit5)
 
     androidTestImplementation(kotlin("test-junit"))
     androidTestImplementation(libs.test.runner)

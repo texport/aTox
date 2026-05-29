@@ -1,6 +1,10 @@
 naming:
   InvalidPackageDeclaration:
     active: false
+  FunctionNaming:
+    active: true
+    ignoreAnnotated:
+      - 'Composable'
 
 empty-blocks:
   EmptyFunctionBlock:
@@ -29,22 +33,50 @@ style:
     ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 160
+  ForbiddenComment:
+    active: true
+    comments:
+      - reason: 'Comments in Russian are not allowed.'
+        value: '[а-яёА-ЯЁ]'
+  ForbiddenImport:
+    active: true
+    includes: ['**/domain/src/**/*.kt']
+    imports:
+      - value: 'ltd.evilcorp.core.tox.runtime.*'
+        reason: 'Domain layer must not depend on concrete Tox JNI runtime.'
+      - value: 'ltd.evilcorp.core.db.*'
+        reason: 'Domain layer must not depend on Room Database implementation.'
+      - value: 'ltd.evilcorp.core.repository.*'
+        reason: 'Domain layer must not depend on concrete Repositories. Use interfaces instead.'
+      - value: 'ltd.evilcorp.atox.*'
+        reason: 'Domain layer must not depend on presentation layer (atox).'
 
 performance:
   SpreadOperator:
     active: false
 
 complexity:
+  LargeClass:
+    active: true
+    threshold: 300
+  LongMethod:
+    active: true
+    threshold: 60
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
+  ComplexInterface:
+    active: true
+    threshold: 10
   TooManyFunctions:
     active: false
   LongParameterList:
     active: false
   CyclomaticComplexMethod:
-    threshold: 40
-  LongMethod:
-    threshold: 200
+    threshold: 20
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
   NestedBlockDepth:
-    active: false
+    active: true
+    threshold: 5
+    excludes: ['**/ui/**/*.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**']
 
 exceptions:
   TooGenericExceptionCaught:

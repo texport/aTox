@@ -10,15 +10,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import ltd.evilcorp.core.model.ConnectionStatus
-import ltd.evilcorp.core.model.Contact
-import ltd.evilcorp.core.model.FT_NOT_STARTED
-import ltd.evilcorp.core.model.FileKind
-import ltd.evilcorp.core.model.FileTransfer
-import ltd.evilcorp.core.model.Message
-import ltd.evilcorp.core.model.MessageType
-import ltd.evilcorp.core.model.Sender
-import ltd.evilcorp.core.model.UserStatus
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.transfer.model.FT_NOT_STARTED
+import ltd.evilcorp.domain.features.transfer.model.FileKind
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.chat.model.Sender
+import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import org.junit.Rule
 import org.junit.runner.RunWith
 

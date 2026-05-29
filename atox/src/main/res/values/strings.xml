@@ -338,6 +338,9 @@
     <string name="chat_date_today">Today</string>
     <string name="chat_date_yesterday">Yesterday</string>
     <string name="profile_avatar_change">Change Profile Picture</string>
+    <string name="avatar_source_title">Choose Photo Source</string>
+    <string name="avatar_source_camera">Camera</string>
+    <string name="avatar_source_gallery">Gallery</string>
     <string name="avatar_too_large">Error: Avatar is too large (max 64 KB)</string>
     <string name="avatar_editor_title">Edit Profile Picture</string>
     <string name="avatar_editor_rotate">Rotate</string>
@@ -388,6 +391,7 @@
     <string name="group_role_user">User</string>
     <string name="group_role_observer">Observer</string>
     <string name="group_already_member">You are already a member of this group</string>
+    <string name="group_already_in_group">Already in group</string>
     <string name="group_invalid_chat_id">Invalid Chat ID format</string>
     <string name="group_join_failed">Failed to join group</string>
     <string name="message_copied">Message copied</string>
@@ -476,4 +480,19 @@
     <string name="settings_enable_replies_title">Enable reply threads</string>
     <string name="settings_enable_replies_subtitle">Prefix messages with thread tags for structured reply visuals</string>
     <string name="search_no_results">No settings found</string>
+    <string name="launch_timeout_title">Connection Timeout</string>
+    <string name="launch_timeout_desc">Could not connect to the Tox core. The initialization is taking too long or the system resources are busy.</string>
+    <string name="retry">Retry</string>
+    <string name="navigation_back">Back</string>
+    <string name="navigation_add">Add</string>
+    <string name="backup_warning_title">Attention!</string>
+    <string name="backup_warning_description">Make sure to save your backup password. If lost, it will be impossible to recover your Tox profile.</string>
+    <!-- Extracted UI Strings for Localization Compliance -->
+    <string name="select_chat_to_start">Select a chat to start conversation</string>
+    <string name="group_invite_card_body">You have been invited to join a group chat.</string>
+    <string name="group_invite_join">Join</string>
+    <string name="group_invite_view">Go to chat</string>
+    <string name="voice_message_play_error">Failed to play audio file</string>
+    <string name="voice_message_not_ready">Audio file is still downloading or not available</string>
+    <string name="group_invite_label">Group: %1$s</string>
 </resources>

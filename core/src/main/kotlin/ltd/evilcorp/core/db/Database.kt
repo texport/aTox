@@ -3,17 +3,34 @@ package ltd.evilcorp.core.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import ltd.evilcorp.core.model.Contact
-import ltd.evilcorp.core.model.FileTransfer
-import ltd.evilcorp.core.model.FriendRequest
-import ltd.evilcorp.core.model.Group
-import ltd.evilcorp.core.model.GroupMessage
-import ltd.evilcorp.core.model.GroupPeer
-import ltd.evilcorp.core.model.Message
-import ltd.evilcorp.core.model.User
+import ltd.evilcorp.core.db.entity.ContactEntity
+import ltd.evilcorp.core.db.entity.FileTransferEntity
+import ltd.evilcorp.core.db.entity.FriendRequestEntity
+import ltd.evilcorp.core.db.entity.GroupEntity
+import ltd.evilcorp.core.db.entity.GroupMessageEntity
+import ltd.evilcorp.core.db.entity.GroupPeerEntity
+import ltd.evilcorp.core.db.entity.MessageEntity
+import ltd.evilcorp.core.db.entity.UserEntity
+import ltd.evilcorp.core.db.dao.ContactDao
+import ltd.evilcorp.core.db.dao.FileTransferDao
+import ltd.evilcorp.core.db.dao.FriendRequestDao
+import ltd.evilcorp.core.db.dao.GroupDao
+import ltd.evilcorp.core.db.dao.GroupMessageDao
+import ltd.evilcorp.core.db.dao.GroupPeerDao
+import ltd.evilcorp.core.db.dao.MessageDao
+import ltd.evilcorp.core.db.dao.UserDao
 
 @Database(
-    entities = [Contact::class, FileTransfer::class, FriendRequest::class, Message::class, User::class, Group::class, GroupMessage::class, GroupPeer::class],
+    entities = [
+        ContactEntity::class,
+        FileTransferEntity::class,
+        FriendRequestEntity::class,
+        MessageEntity::class,
+        UserEntity::class,
+        GroupEntity::class,
+        GroupMessageEntity::class,
+        GroupPeerEntity::class
+    ],
     version = 8,
 )
 @TypeConverters(Converters::class)

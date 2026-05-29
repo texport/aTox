@@ -2,7 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>EmptyClassBlock:FileTransfer.kt$FileTransfer${ }</ID>
-    <ID>MagicNumber:UserSettingsRepository.kt$UserSettingsRepository$100</ID>
+    <ID>ComplexInterface:ContactDao.kt$ContactDao</ID>
+    <ID>ComplexInterface:GroupDao.kt$GroupDao</ID>
+    <ID>ComplexInterface:GroupPeerDao.kt$GroupPeerDao</ID>
+    <ID>ComplexInterface:MessageDao.kt$MessageDao</ID>
   </CurrentIssues>
 </SmellBaseline>
