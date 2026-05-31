@@ -366,7 +366,7 @@ class GroupConnectionSchedulerImplTest {
         scheduler.reconnectAll()
 
         // Wait for coroutine executions
-        kotlinx.coroutines.delay(100)
+        kotlinx.coroutines.delay(400)
 
         // Check if group reconnect API was called
         assertTrue(tox.reconnectCalled.contains(10))

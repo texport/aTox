@@ -169,6 +169,7 @@ class GroupConnectionSchedulerTest {
 
         // Trigger reconnect
         scheduler.reconnectAll()
+        testDispatcher.scheduler.advanceTimeBy(300)
         testDispatcher.scheduler.runCurrent()
 
         // 1. Should call groupJoinDirect because groupNumber is -1 (or not active in C core)
@@ -215,6 +216,7 @@ class GroupConnectionSchedulerTest {
 
         // Trigger reconnect
         scheduler.reconnectAll()
+        testDispatcher.scheduler.advanceTimeBy(300)
         testDispatcher.scheduler.runCurrent()
 
         // Should NOT call joinDirect since it is active in core
