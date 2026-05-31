@@ -1,0 +1,153 @@
+package ltd.evilcorp.domain.features.call
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.fakes.FakeContactRepository
+import ltd.evilcorp.domain.fakes.FakeMessageRepository
+import ltd.evilcorp.domain.fakes.FakeTox
+import ltd.evilcorp.domain.fakes.FakeCallSessionRegistry
+import ltd.evilcorp.domain.features.call.service.ICallSignalPlayer
+import ltd.evilcorp.domain.features.call.service.IAudioRecorder
+import ltd.evilcorp.domain.features.call.usecase.LogCallUseCase
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+
+class CallManagerTest {
+
+    private val signalPlayer = object : ICallSignalPlayer {
+        var ringtonePlaying = false
+        var ringbackPlaying = false
+        override fun playIncomingRingtone(scope: CoroutineScope) { ringtonePlaying = true }
+        override fun playRingback(scope: CoroutineScope, condition: () -> Boolean) { ringbackPlaying = true }
+        override fun stopSignals() {
+            ringtonePlaying = false
+            ringbackPlaying = false
+        }
+    }
+
+    private val audioRecorder = object : IAudioRecorder {
+        override val sendingAudio = MutableStateFlow(false)
+        override fun startAudioCapture(scope: CoroutineScope, to: PublicKey, speakerphone: Boolean, condition: () -> Boolean) {
+            sendingAudio.value = true
+        }
+        override fun stopAudioCapture() {
+            sendingAudio.value = false
+        }
+        override fun isRecordingActive(): Boolean = sendingAudio.value
+        override suspend fun joinRecording() {}
+    }
+
+    private val audioRoutingManager = object : IAudioRoutingManager {
+        var audioFocusActive = false
+        var isCommunicationModeActive = false
+        var isSpeakerphoneRouteActive = false
+        override fun requestCallAudioFocus(onFocusLoss: () -> Unit, onFocusGain: () -> Unit): Boolean {
+            audioFocusActive = true
+            return true
+        }
+        override fun abandonCallAudioFocus() {
+            audioFocusActive = false
+        }
+        override fun setCommunicationMode(active: Boolean) {
+            isCommunicationModeActive = active
+        }
+        override fun setSpeakerphoneRoute(on: Boolean) {
+            isSpeakerphoneRouteActive = on
+        }
+    }
+
+    @Test
+    fun `startOutgoingCall successfully starts call and changes state`() = runTest {
+        // Arrange
+        val tox = FakeTox()
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val logCallUseCase = LogCallUseCase(messageRepo)
+        
+        val mediaCoordinator = CallMediaCoordinator(signalPlayer, audioRecorder, audioRoutingManager)
+        val sessionRegistry = FakeCallSessionRegistry()
+
+        val contactPk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        contactRepo.add(Contact(contactPk.string(), connectionStatus = ConnectionStatus.UDP))
+
+        val manager = CallManager(tox, scope, contactRepo, logCallUseCase, mediaCoordinator, sessionRegistry)
+
+        // Act
+        val started = manager.startOutgoingCall(contactPk)
+
+        // Assert
+        assertTrue(started)
+        assertTrue(sessionRegistry.inCall.value is CallState.OutgoingRequesting)
+        assertTrue(signalPlayer.ringbackPlaying)
+        assertTrue(audioRoutingManager.audioFocusActive)
+        assertTrue(audioRoutingManager.isCommunicationModeActive)
+    }
+
+    @Test
+    fun `onIncomingCall changes state and plays ringtone`() = runTest {
+        // Arrange
+        val tox = FakeTox()
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val logCallUseCase = LogCallUseCase(messageRepo)
+        
+        val mediaCoordinator = CallMediaCoordinator(signalPlayer, audioRecorder, audioRoutingManager)
+        val sessionRegistry = FakeCallSessionRegistry()
+
+        val contactPk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        val contact = Contact(contactPk.string())
+
+        val manager = CallManager(tox, scope, contactRepo, logCallUseCase, mediaCoordinator, sessionRegistry)
+
+        // Act
+        manager.onIncomingCall(contact)
+
+        // Assert
+        assertTrue(sessionRegistry.inCall.value is CallState.IncomingRinging)
+        assertTrue(signalPlayer.ringtonePlaying)
+    }
+
+    @Test
+    fun `endCall hangs up call and logs history`() = runTest {
+        // Arrange
+        val tox = FakeTox()
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val logCallUseCase = LogCallUseCase(messageRepo)
+        
+        val mediaCoordinator = CallMediaCoordinator(signalPlayer, audioRecorder, audioRoutingManager)
+        val sessionRegistry = FakeCallSessionRegistry()
+
+        val contactPk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        contactRepo.add(Contact(contactPk.string()))
+        sessionRegistry.setCallState(CallState.Active(contactPk, 0L, 0L, outgoing = true))
+
+        val manager = CallManager(tox, scope, contactRepo, logCallUseCase, mediaCoordinator, sessionRegistry)
+
+        // Act
+        manager.endCall(contactPk)
+
+        // Assert
+        assertEquals(CallState.Idle, sessionRegistry.inCall.value)
+        assertFalse(audioRoutingManager.audioFocusActive)
+        assertFalse(audioRoutingManager.isCommunicationModeActive)
+        assertFalse(signalPlayer.ringbackPlaying)
+
+        // Check call logged in history
+        val msgs = messageRepo.get(contactPk.string()).first()
+        assertEquals(1, msgs.size)
+        assertEquals("[CALL_HISTORY_OUTGOING]", msgs[0].message)
+    }
+}

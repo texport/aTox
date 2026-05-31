@@ -1,0 +1,63 @@
+package ltd.evilcorp.domain.features.chat.usecase
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import ltd.evilcorp.domain.core.model.PublicKey
+import ltd.evilcorp.domain.features.chat.ChatManager
+import ltd.evilcorp.domain.features.chat.model.MessageType
+import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.fakes.FakeContactRepository
+import ltd.evilcorp.domain.fakes.FakeMessageRepository
+import ltd.evilcorp.domain.fakes.FakeTox
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class SendChatMessageUseCaseTest {
+
+    @Test
+    fun `execute sends simple message`() = runTest {
+        // Arrange
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val fakeTox = FakeTox()
+
+        val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        contactRepo.add(Contact(pk.string(), connectionStatus = ConnectionStatus.UDP))
+
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val useCase = SendChatMessageUseCase(chatManager)
+
+        // Act
+        useCase.execute(pk, "Simple message", MessageType.Normal)
+
+        // Assert
+        assertEquals(1, fakeTox.sentMessages.size)
+        assertEquals("Simple message", fakeTox.sentMessages[0].second)
+    }
+
+    @Test
+    fun `execute sends reply message with formatted prefix`() = runTest {
+        // Arrange
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val fakeTox = FakeTox()
+
+        val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        contactRepo.add(Contact(pk.string(), connectionStatus = ConnectionStatus.UDP))
+
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val useCase = SendChatMessageUseCase(chatManager)
+
+        // Act
+        useCase.execute(pk, "Replying to you", MessageType.Normal, replyToMessageId = 42)
+
+        // Assert
+        assertEquals(1, fakeTox.sentMessages.size)
+        assertEquals("[reply:42] Replying to you", fakeTox.sentMessages[0].second)
+    }
+}

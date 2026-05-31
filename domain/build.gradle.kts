@@ -19,6 +19,7 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.konsist.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     modules {
         module("com.google.guava:listenablefuture") {
