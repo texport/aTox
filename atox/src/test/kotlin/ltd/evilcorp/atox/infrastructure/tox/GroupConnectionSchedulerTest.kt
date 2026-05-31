@@ -18,7 +18,6 @@ import kotlinx.coroutines.test.setMain
 import ltd.evilcorp.core.tox.GroupConnectionSchedulerImpl
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.core.network.IToxGroupManager
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
 import ltd.evilcorp.domain.core.network.enums.ToxMessageType

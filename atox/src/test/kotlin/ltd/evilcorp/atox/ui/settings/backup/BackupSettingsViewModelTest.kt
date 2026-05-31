@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.features.settings.ISettingsFileProcessor
 import ltd.evilcorp.domain.features.auth.UserManager
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
@@ -38,10 +37,8 @@ import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
 import ltd.evilcorp.domain.features.auth.usecase.VerifyProfileExistsUseCase
 import ltd.evilcorp.domain.features.auth.usecase.ClearDatabaseUseCase
 import ltd.evilcorp.domain.features.auth.usecase.ManageProfileCheckpointUseCase
-import ltd.evilcorp.domain.features.auth.usecase.CheckpointAction
 import ltd.evilcorp.domain.features.settings.usecase.StartToxUseCase
 import ltd.evilcorp.domain.features.settings.usecase.ManageToxLifecycleUseCase
-import ltd.evilcorp.domain.features.settings.usecase.ToxLifecycleAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
