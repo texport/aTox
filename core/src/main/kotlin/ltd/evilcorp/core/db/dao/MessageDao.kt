@@ -21,6 +21,12 @@ interface MessageDao {
     @Query("SELECT * FROM messages")
     suspend fun loadAllBlocking(): List<MessageEntity>
 
+    @Query("SELECT * FROM messages ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun loadPaged(limit: Int, offset: Int): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE correlation_id == -2147483648 ORDER BY id LIMIT :limit OFFSET :offset")
+    suspend fun loadCallLogPaged(limit: Int, offset: Int): List<MessageEntity>
+
     @Query("SELECT * FROM messages WHERE conversation == :conversation AND timestamp == 0")
     suspend fun loadPending(conversation: String): List<MessageEntity>
 

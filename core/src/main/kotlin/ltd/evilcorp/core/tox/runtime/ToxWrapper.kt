@@ -46,7 +46,7 @@ class ToxWrapper(
 
     init {
         val sd = options.saveData
-        toxPtr = nativeTox.toxNewWithOptions(
+        var ptr = nativeTox.toxNewWithOptions(
             savedata = sd,
             ipv6Enabled = true,
             udpEnabled = options.udpEnabled,
@@ -55,9 +55,21 @@ class ToxWrapper(
             proxyHost = options.proxyAddress.ifEmpty { null },
             proxyPort = options.proxyPort
         )
-        if (toxPtr != 0L) {
-            toxavPtr = nativeToxAv.toxavNew(toxPtr)
+        if (ptr == 0L) {
+            Log.w(TAG, "Failed to initialize Tox with IPv6 enabled. Retrying with IPv6 disabled.")
+            ptr = nativeTox.toxNewWithOptions(
+                savedata = sd,
+                ipv6Enabled = false,
+                udpEnabled = options.udpEnabled,
+                localDiscoveryEnabled = true,
+                proxyType = options.proxyType.ordinal,
+                proxyHost = options.proxyAddress.ifEmpty { null },
+                proxyPort = options.proxyPort
+            )
         }
+        check(ptr != 0L) { "Failed to initialize Tox Core: Native pointer is null." }
+        toxPtr = ptr
+        toxavPtr = nativeToxAv.toxavNew(toxPtr)
         updateContactMapping()
     }
 

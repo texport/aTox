@@ -5,11 +5,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.model.PublicKey
-import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.domain.core.network.save.ToxSaveStatus
 import ltd.evilcorp.domain.features.auth.model.User
 import ltd.evilcorp.domain.features.auth.usecase.*
-import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.transfer.FileStoragePlatformCoordinator
 import ltd.evilcorp.domain.features.transfer.FileTransferManager

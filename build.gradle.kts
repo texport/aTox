@@ -24,7 +24,7 @@ subprojects {
         buildUponDefaultConfig = true
         config.setFrom(rootProject.files("detekt.yml"))
         baseline = file("detekt-baseline.xml")
-        source.setFrom(files("src/main/kotlin", "src/test/kotlin"))
+        source.setFrom(files("src/main/kotlin", "src/test/kotlin", "src/androidTest/kotlin"))
         ignoreFailures = false
     }
 

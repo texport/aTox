@@ -10,11 +10,9 @@ import ltd.evilcorp.domain.fakes.FakeContactRepository
 import ltd.evilcorp.domain.fakes.FakeFriendRequestRepository
 import ltd.evilcorp.domain.fakes.FakeMessageRepository
 import ltd.evilcorp.domain.fakes.FakeToxProfile
-import ltd.evilcorp.domain.core.model.PublicKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.assertFalse
 
 class AcceptFriendRequestUseCaseTest {
 

@@ -96,4 +96,39 @@ class ChatManagerTest {
         assertEquals(0L, updatedContact?.lastMessage)
         assertTrue(messageRepo.get(pk.string()).first().isEmpty())
     }
+
+    @Test
+    fun `resend sends messages in chronological order`() = runTest {
+        // Arrange
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val fakeTox = FakeTox()
+
+        val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+
+        val m1 = ltd.evilcorp.domain.features.chat.model.Message(
+            publicKey = pk.string(),
+            message = "First message",
+            sender = ltd.evilcorp.domain.features.chat.model.Sender.Sent,
+            type = MessageType.Normal,
+            correlationId = Int.MIN_VALUE
+        ).apply { id = 1 }
+        val m2 = ltd.evilcorp.domain.features.chat.model.Message(
+            publicKey = pk.string(),
+            message = "Second message",
+            sender = ltd.evilcorp.domain.features.chat.model.Sender.Sent,
+            type = MessageType.Normal,
+            correlationId = Int.MIN_VALUE
+        ).apply { id = 2 }
+
+        // Act
+        manager.resend(listOf(m1, m2))
+
+        // Assert
+        assertEquals(2, fakeTox.sentMessages.size)
+        assertEquals("First message", fakeTox.sentMessages[0].second)
+        assertEquals("Second message", fakeTox.sentMessages[1].second)
+    }
 }

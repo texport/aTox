@@ -12,7 +12,6 @@ import ltd.evilcorp.domain.fakes.FakeMessageRepository
 import ltd.evilcorp.domain.fakes.FakeToxProfile
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class GetFriendRequestsUseCaseTest {
 

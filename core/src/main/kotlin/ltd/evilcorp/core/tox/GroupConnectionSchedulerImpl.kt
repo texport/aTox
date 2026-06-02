@@ -22,6 +22,7 @@ import javax.inject.Provider
 import javax.inject.Singleton
 
 private const val TAG = "GroupConnectionScheduler"
+private const val RECONNECT_THROTTLE_ATTEMPTS = 36 // ~3 minutes (36 * 5 seconds)
 
 @Singleton
 class GroupConnectionSchedulerImpl @Inject constructor(
@@ -73,12 +74,17 @@ class GroupConnectionSchedulerImpl @Inject constructor(
 
             // If already in contacts, do not touch
             val friendNo = tox.getFriendNumber(PublicKey(pk))
-            if (friendNo >= 0) return
+            if (friendNo >= 0) {
+                Log.d(TAG, "bootstrapPeerIfNecessary: peer $pk is already in contacts (friendNo: $friendNo), skipping bootstrap add")
+                return
+            }
 
             val added = tox.addFriendNoRequest(PublicKey(pk))
             if (added >= 0) {
                 bootstrapFriends.getOrPut(chatId) { java.util.Collections.newSetFromMap(ConcurrentHashMap()) }.add(pk)
-                Log.i(TAG, "Added temporary bootstrap friend $pk for group $chatId")
+                Log.i(TAG, "Added temporary bootstrap friend $pk for group $chatId (friendNo assigned: $added)")
+            } else {
+                Log.w(TAG, "Failed to add temporary bootstrap friend $pk: addFriendNoRequest returned $added")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to bootstrap peer $peer: $e")
@@ -104,7 +110,57 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         }
     }
 
-    private suspend fun startPersistentReconnect(chatId: String, groupNumber: Int) {
+    private suspend fun executeReconnectAttempt(
+        chatId: String,
+        currentGroupNumber: Int,
+        attempt: Int,
+        manager: GroupManager,
+        skipReconnectCall: Boolean
+    ): Int {
+        val currentStatus = manager.connectionStatus(chatId)
+        if (currentStatus == GroupConnectionStatus.Connected) {
+            Log.d(TAG, "Group $chatId is already Connected, skipping reconnect")
+            return currentGroupNumber
+        }
+        
+        // If Connecting, only retry groupReconnect very rarely (every ~3 min)
+        // because tox_group_reconnect WIPES the DHT state and restarts discovery from scratch.
+        // Calling it too often prevents toxcore from completing peer discovery.
+        if (currentStatus == GroupConnectionStatus.Connecting && attempt > 0 && attempt % RECONNECT_THROTTLE_ATTEMPTS != 0) {
+            Log.d(TAG, "Group $chatId is in status Connecting, skipping redundant reconnect call for attempt $attempt")
+            return currentGroupNumber
+        }
+
+        var ok = skipReconnectCall
+        var targetGn = currentGroupNumber
+        if (targetGn >= 0 && !skipReconnectCall) {
+            ok = tox.groupReconnect(targetGn)
+        }
+
+        if (!ok) {
+            val selfName = manager.getDefaultSelfName()
+            val chatIdBytes = chatId.hexToBytes()
+            val newGn = tox.groupJoinDirect(chatIdBytes, selfName.toByteArray(), null)
+            if (newGn >= 0) {
+                Log.i(
+                    TAG,
+                    "startPersistentReconnect: groupJoinDirect succeeded for $chatId, " +
+                        "assigned new groupNumber: $newGn"
+                )
+                targetGn = newGn
+                groupRepository.setGroupNumber(chatId, newGn)
+                ok = true
+            }
+        }
+
+        Log.d(TAG, "Reconnect attempt $attempt for group $chatId (gn: $targetGn) returned: $ok")
+        if (ok) {
+            manager.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+        }
+        return targetGn
+    }
+
+    private suspend fun startPersistentReconnect(chatId: String, groupNumber: Int, justJoined: Boolean = false) {
         val manager = groupManager()
         
         // Bootstrap once from known peers before launching the loop
@@ -121,32 +177,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
                     return
                 }
 
-                var ok = false
-                if (currentGroupNumber >= 0) {
-                    ok = tox.groupReconnect(currentGroupNumber)
-                }
-
-                if (!ok) {
-                    // Fall back to direct join if regular C-core reconnect fails
-                    val selfName = manager.getDefaultSelfName()
-                    val chatIdBytes = chatId.hexToBytes()
-                    val newGn = tox.groupJoinDirect(chatIdBytes, selfName.toByteArray(), null)
-                    if (newGn >= 0) {
-                        Log.i(
-                            TAG,
-                            "startPersistentReconnect: groupJoinDirect succeeded for $chatId, " +
-                                "assigned new groupNumber: $newGn"
-                        )
-                        currentGroupNumber = newGn
-                        groupRepository.setGroupNumber(chatId, newGn)
-                        ok = tox.groupReconnect(newGn)
-                    }
-                }
-
-                Log.d(TAG, "Reconnect attempt $attempt for group $chatId (gn: $currentGroupNumber) returned: $ok")
-                if (ok) {
-                    manager.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
-                }
+                currentGroupNumber = executeReconnectAttempt(chatId, currentGroupNumber, attempt, manager, justJoined && attempt == 0)
             } catch (e: Exception) {
                 Log.w(TAG, "Reconnect attempt $attempt failed for $chatId: $e")
             }
@@ -165,13 +196,15 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         }
     }
 
-    private suspend fun syncGroupNumbers() {
+    private suspend fun syncGroupNumbers(): Map<String, Int> {
+        val syncedNumbers = mutableMapOf<String, Int>()
         try {
             val toxGroupNumbers = tox.groupGetChatlist()
             Log.d(TAG, "syncGroupNumbers: toxcore has ${toxGroupNumbers.size} active groups")
             for (gn in toxGroupNumbers) {
                 val chatIdBytes = tox.groupGetChatId(gn) ?: continue
                 val groupChatId = chatIdBytes.bytesToHex().lowercase()
+                syncedNumbers[groupChatId] = gn
                 val dbGroup = groupRepository.getDirect(groupChatId)
                 if (dbGroup != null && dbGroup.groupNumber != gn) {
                     Log.i(
@@ -185,11 +218,12 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "syncGroupNumbers failed: $e")
         }
+        return syncedNumbers
     }
 
     override fun reconnectAll() {
         scope.launch {
-            syncGroupNumbers()
+            val syncedNumbers = syncGroupNumbers()
             delay(ROOM_TRANSACTION_DELAY_MS) // Wait for Room to apply groupNumber transactions and update Flow
             
             // Get active group list from C core to see what needs registration
@@ -210,6 +244,8 @@ class GroupConnectionSchedulerImpl @Inject constructor(
             Log.d(TAG, "reconnectAll found ${groups.size} groups in database")
             val manager = groupManager()
             for (group in groups) {
+                val actualGroupNumber = syncedNumbers[group.chatId] ?: group.groupNumber
+                group.groupNumber = actualGroupNumber
                 reconnectSingleGroup(group, activeGroupNumbers, activeGroupIds, manager)
             }
         }
@@ -243,6 +279,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
             activeGroupNumbers.contains(targetGn) &&
             activeGroupIds.contains(group.chatId)
         
+        var justJoined = false
         if (!isActiveInCore) {
             try {
                 val selfName = manager.getDefaultSelfName()
@@ -251,6 +288,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
                 if (newGn >= 0) {
                     targetGn = newGn
                     groupRepository.setGroupNumber(group.chatId, newGn)
+                    justJoined = true
                     Log.i(
                         TAG,
                         "Group ${group.chatId} re-registered natively, " +
@@ -268,7 +306,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
                 "Launching reconnect for group ${group.chatId} with groupNumber: $targetGn"
             )
             val job = scope.launch {
-                startPersistentReconnect(group.chatId, targetGn)
+                startPersistentReconnect(group.chatId, targetGn, justJoined)
             }
             reconnectJobs[group.chatId] = job
         } else {

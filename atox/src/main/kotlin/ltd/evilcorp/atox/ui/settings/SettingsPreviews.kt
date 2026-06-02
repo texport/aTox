@@ -6,7 +6,6 @@ package ltd.evilcorp.atox.ui.settings
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.ui.settings.common.SettingsRootContent
@@ -14,16 +13,9 @@ import ltd.evilcorp.atox.ui.settings.screens.BackupSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.LanguageSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
 import ltd.evilcorp.atox.ui.settings.screens.NotificationSettingsScreen
-import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.features.settings.model.BackupDestination
 import ltd.evilcorp.domain.features.settings.model.BackupFrequency
-import ltd.evilcorp.domain.features.settings.model.BootstrapNodeSource
-import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
-import ltd.evilcorp.domain.features.settings.model.FtAutoAccept
-import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
-import ltd.evilcorp.domain.features.settings.model.ProxyType
-import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 
 @Preview(name = "Main Settings List Preview", showSystemUi = true)
 @Composable

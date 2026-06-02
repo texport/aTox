@@ -41,6 +41,18 @@ class FakeMessageDao : MessageDao {
         return messages.value
     }
 
+    override suspend fun loadPaged(limit: Int, offset: Int): List<MessageEntity> {
+        val list = messages.value.sortedBy { it.id }
+        if (offset >= list.size) return emptyList()
+        return list.drop(offset).take(limit)
+    }
+
+    override suspend fun loadCallLogPaged(limit: Int, offset: Int): List<MessageEntity> {
+        val list = messages.value.filter { it.correlationId == -2147483648 }.sortedBy { it.id }
+        if (offset >= list.size) return emptyList()
+        return list.drop(offset).take(limit)
+    }
+
     override suspend fun loadPending(conversation: String): List<MessageEntity> {
         return messages.value.filter { it.publicKey == conversation && it.timestamp == 0L }
     }

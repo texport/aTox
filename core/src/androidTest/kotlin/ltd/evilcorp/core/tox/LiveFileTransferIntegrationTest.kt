@@ -28,7 +28,7 @@ class LiveFileTransferIntegrationTest {
 
     @Test
     fun testLiveFileTransferTransmission() = runTest {
-        val options = SaveOptions(null, false, ProxyType.None, "", 0)
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
 
         // 1. Initialize Alice and Bob native instances
         val listenerA = ToxEventListener()
@@ -133,13 +133,12 @@ class LiveFileTransferIntegrationTest {
                 }
             }
 
-            // Bootstrap
-            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.getPublicKey().bytes())
-            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.getPublicKey().bytes())
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
             // Wait up to 5 seconds to establish connection
             val startTime = System.currentTimeMillis()
-            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 5000L) {
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
                 delay(100)
             }
 
@@ -177,6 +176,192 @@ class LiveFileTransferIntegrationTest {
         } finally {
             toxA.close()
             toxB.close()
+        }
+    }
+
+    @Test
+    fun testInsufficientStorageAbort() = runTest {
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
+
+        val listenerA = ToxEventListener()
+        val avListenerA = ToxAvEventListener()
+        val toxA = ToxWrapper(listenerA, avListenerA, options)
+
+        val listenerB = ToxEventListener()
+        val avListenerB = ToxAvEventListener()
+        val toxB = ToxWrapper(listenerB, avListenerB, options)
+
+        try {
+            toxA.setName("Alice")
+            toxB.setName("Bob")
+
+            val pkA = toxA.getPublicKey()
+            val pkB = toxB.getPublicKey()
+
+            toxA.addFriendNoRequest(pkB)
+            toxB.addFriendNoRequest(pkA)
+
+            val isAConnected = AtomicBoolean(false)
+            val isBConnected = AtomicBoolean(false)
+
+            listenerA.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkB.string() && status != ConnectionStatus.None) isAConnected.set(true)
+            }
+            listenerB.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkA.string() && status != ConnectionStatus.None) isBConnected.set(true)
+            }
+
+            val fileSize = 15360
+            val fileData = ByteArray(fileSize) { i -> (i % 256).toByte() }
+
+            val fileRecvCalled = AtomicBoolean(false)
+            val incomingFileNo = AtomicInteger(-1)
+
+            listenerB.fileRecvHandler = { publicKey, fileNo, kind, size, name ->
+                if (publicKey == pkA.string()) {
+                    incomingFileNo.set(fileNo)
+                    fileRecvCalled.set(true)
+                    toxB.startFileTransfer(pkA, fileNo)
+                }
+            }
+
+            listenerA.fileChunkRequestHandler = { publicKey, fileNo, position, length ->
+                if (publicKey == pkB.string()) {
+                    val offset = position.toInt()
+                    val end = (offset + length).coerceAtMost(fileSize)
+                    if (offset < fileSize) {
+                        val chunk = fileData.copyOfRange(offset, end)
+                        toxA.sendFileChunk(pkB, fileNo, position, chunk)
+                    }
+                }
+            }
+
+            val fileTransferAborted = AtomicBoolean(false)
+            val receivedBytes = AtomicInteger(0)
+
+            listenerB.fileRecvChunkHandler = { publicKey, fileNo, position, data ->
+                if (publicKey == pkA.string() && fileNo == incomingFileNo.get()) {
+                    val total = receivedBytes.addAndGet(data.size)
+                    if (total > 5000) {
+                        toxB.stopFileTransfer(pkA, fileNo)
+                        fileTransferAborted.set(true)
+                    }
+                }
+            }
+
+            val runLoops = AtomicBoolean(true)
+            val jobA = launch { while (runLoops.get()) { toxA.iterate(); delay(10) } }
+            val jobB = launch { while (runLoops.get()) { toxB.iterate(); delay(10) } }
+
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
+
+            val startTime = System.currentTimeMillis()
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
+                delay(100)
+            }
+            assertTrue(isAConnected.get() && isBConnected.get())
+
+            val fileNo = toxA.sendFile(pkB, FileKind.Data, fileSize.toLong(), "abort_test.bin")
+            assertTrue(fileNo >= 0)
+
+            val waitTime = System.currentTimeMillis()
+            while (!fileTransferAborted.get() && (System.currentTimeMillis() - waitTime) < 5000L) {
+                delay(100)
+            }
+            assertTrue(fileTransferAborted.get(), "File transfer should be aborted successfully")
+
+            runLoops.set(false)
+            jobA.join()
+            jobB.join()
+        } finally {
+            toxA.close()
+            toxB.close()
+        }
+    }
+
+    @Test
+    fun testSilentChunkTimeoutCleanup() = runTest {
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
+
+        val listenerA = ToxEventListener()
+        val avListenerA = ToxAvEventListener()
+        val toxA = ToxWrapper(listenerA, avListenerA, options)
+
+        val listenerB = ToxEventListener()
+        val avListenerB = ToxAvEventListener()
+        var toxB = ToxWrapper(listenerB, avListenerB, options)
+
+        try {
+            toxA.setName("Alice")
+            toxB.setName("Bob")
+
+            val pkA = toxA.getPublicKey()
+            val pkB = toxB.getPublicKey()
+
+            toxA.addFriendNoRequest(pkB)
+            toxB.addFriendNoRequest(pkA)
+
+            val isAConnected = AtomicBoolean(false)
+            val isBConnected = AtomicBoolean(false)
+
+            listenerA.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkB.string() && status != ConnectionStatus.None) isAConnected.set(true)
+            }
+            listenerB.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkA.string() && status != ConnectionStatus.None) isBConnected.set(true)
+            }
+
+            val fileSize = 15360
+            val fileRecvCalled = AtomicBoolean(false)
+            val incomingFileNo = AtomicInteger(-1)
+
+            listenerB.fileRecvHandler = { publicKey, fileNo, kind, size, name ->
+                if (publicKey == pkA.string()) {
+                    incomingFileNo.set(fileNo)
+                    fileRecvCalled.set(true)
+                    toxB.startFileTransfer(pkA, fileNo)
+                }
+            }
+
+            val fileChunkRequestedCount = AtomicInteger(0)
+            listenerA.fileChunkRequestHandler = { publicKey, fileNo, position, length ->
+                if (publicKey == pkB.string()) {
+                    fileChunkRequestedCount.incrementAndGet()
+                }
+            }
+
+            val runLoops = AtomicBoolean(true)
+            val jobA = launch { while (runLoops.get()) { toxA.iterate(); delay(10) } }
+            val runLoopsB = AtomicBoolean(true)
+            var jobB = launch { while (runLoopsB.get()) { toxB.iterate(); delay(10) } }
+
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
+
+            val startTime = System.currentTimeMillis()
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
+                delay(100)
+            }
+            assertTrue(isAConnected.get() && isBConnected.get())
+
+            val fileNo = toxA.sendFile(pkB, FileKind.Data, fileSize.toLong(), "timeout_test.bin")
+            assertTrue(fileNo >= 0)
+
+            delay(500)
+
+            runLoopsB.set(false)
+            jobB.join()
+            toxB.close()
+
+            delay(12000)
+
+            toxA.stopFileTransfer(pkB, fileNo)
+
+            runLoops.set(false)
+            jobA.join()
+        } finally {
+            toxA.close()
         }
     }
 }

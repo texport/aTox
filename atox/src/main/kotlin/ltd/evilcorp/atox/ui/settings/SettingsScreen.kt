@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package ltd.evilcorp.atox.ui.settings
 
-import android.content.Intent
 import android.net.Uri
-import android.media.RingtoneManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,16 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.Alignment
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +28,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -48,10 +37,8 @@ import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.settings.common.SettingsDestination
 import ltd.evilcorp.atox.ui.settings.common.SettingsSearchIndex
-import ltd.evilcorp.atox.ui.settings.dialogs.SettingsDialogs
 import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.settings.backup.BackupUiEvent
-import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 
 @Suppress("FunctionNaming", "ViewModelForwarding")
 @OptIn(ExperimentalMaterial3Api::class)

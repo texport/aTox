@@ -3,7 +3,6 @@ package ltd.evilcorp.domain.fakes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.filterNotNull
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupMessage
 import ltd.evilcorp.domain.features.group.model.GroupPeer

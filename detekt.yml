@@ -11,6 +11,9 @@ empty-blocks:
     ignoreOverridden: true
 
 style:
+  WildcardImport:
+    active: true
+    excludes: ['**/src/test/**', '**/src/androidTest/**', '**/src/commonTest/**', '**/src/jvmTest/**']
   UnusedImports:
     active: true
   ReturnCount:

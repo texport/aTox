@@ -16,8 +16,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.ITox
-import ltd.evilcorp.domain.core.network.IToxGroupManager
-import ltd.evilcorp.domain.core.network.IToxProfile
 import ltd.evilcorp.domain.core.network.ToxID
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
 import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
@@ -117,6 +115,7 @@ class GroupSyncManagerTest {
         groupSyncManager = GroupSyncManager(
             scope = testScope,
             groupRepository = fakeGroupRepository,
+            contactRepository = fakeContactRepository,
             tox = fakeTox,
             groupManager = groupManager
         )
@@ -152,11 +151,11 @@ class GroupSyncManagerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Verify reconnect attempt
-        assertTrue(fakeTox.reconnectedGroups.contains(42))
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
 
         // Verify summary packet was sent
-        assertEquals(1, fakeTox.sentPackets.size)
-        val packet = fakeTox.sentPackets.first()
+        assertEquals(2, fakeTox.sentPackets.size)
+        val packet = fakeTox.sentPackets.first { it.second.copyOfRange(1, it.second.size).decodeToString().contains("group_sync_summary") }
         assertEquals(peerPk, packet.first.string())
         
         val payload = packet.second.copyOfRange(1, packet.second.size).decodeToString()
@@ -191,9 +190,53 @@ class GroupSyncManagerTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Should trigger reconnect
-        assertTrue(fakeTox.reconnectedGroups.contains(42))
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
         // Should NOT send summary to bootstrap-only friend
         assertTrue(fakeTox.sentPackets.isEmpty())
+    }
+
+    @Test
+    fun testOnGroupPeerOnline_matchesByContactName() = runTest(testDispatcher) {
+        val chatId = "test_chat_id"
+        // Real personal public key of the friend
+        val friendPk = "FRIEND_PERSONAL_PK"
+        // Group-specific peer public key stored in group peers table
+        val groupPeerPk = "GROUP_SPECIFIC_PEER_PK"
+        
+        // Add contact to fakeContactRepository with name "Alice"
+        val contact = Contact(
+            publicKey = friendPk,
+            name = "Alice"
+        )
+        fakeContactRepository.add(contact)
+        
+        // Setup a disconnected group with peer named "Alice" but having a group-specific PK
+        val group = Group(
+            chatId = chatId,
+            name = "Test Group",
+            connected = false,
+            groupNumber = 42
+        )
+        fakeGroupRepository.groups[chatId] = group
+        fakeGroupRepository.peers[chatId] = listOf(
+            GroupPeer(groupChatId = chatId, peerId = 0, publicKey = "OUR_PK", isOurselves = true),
+            GroupPeer(groupChatId = chatId, peerId = 1, name = "Alice", publicKey = groupPeerPk, isOurselves = false)
+        )
+        fakeGroupRepository.messageIds[chatId] = listOf(10, 11, 12)
+        
+        groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+
+        // When the friend's personal public key comes online
+        groupSyncManager.onGroupPeerOnline(friendPk)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Verify it matched by name and triggered group reconnect!
+        assertEquals(listOf(42), fakeConnectionScheduler.scheduled)
+
+        // Verify summary packet was sent to the friend's personal public key
+        assertEquals(2, fakeTox.sentPackets.size)
+        val packet = fakeTox.sentPackets.first { it.second.copyOfRange(1, it.second.size).decodeToString().contains("group_sync_summary") }
+        assertEquals(friendPk, packet.first.string())
     }
 
     @Test
@@ -426,11 +469,12 @@ class GroupSyncManagerTest {
     }
 
     private class FakeContactRepository : IContactRepository {
-        override suspend fun exists(publicKey: String): Boolean = false
-        override suspend fun add(contact: Contact) {}
-        override suspend fun update(contact: Contact) {}
-        override suspend fun delete(contact: Contact) {}
-        override fun get(publicKey: String): Flow<Contact?> = flowOf(null)
+        val contacts = ConcurrentHashMap<String, Contact>()
+        override suspend fun exists(publicKey: String): Boolean = contacts.containsKey(publicKey)
+        override suspend fun add(contact: Contact) { contacts[contact.publicKey] = contact }
+        override suspend fun update(contact: Contact) { contacts[contact.publicKey] = contact }
+        override suspend fun delete(contact: Contact) { contacts.remove(contact.publicKey) }
+        override fun get(publicKey: String): Flow<Contact?> = flowOf(contacts[publicKey])
         override fun getAll(): Flow<List<Contact>> = flowOf(emptyList())
         override suspend fun resetTransientData() {}
         override suspend fun setName(publicKey: String, name: String) {}
@@ -458,8 +502,11 @@ class GroupSyncManagerTest {
 
     private class FakeConnectionScheduler : IGroupConnectionScheduler {
         val bootstrapFriends = mutableSetOf<String>()
+        val scheduled = mutableListOf<Int>()
         override fun reconnectAll() {}
-        override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {}
+        override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
+            scheduled.add(groupNumber)
+        }
         override fun cancelReconnect(chatId: String) {}
         override fun stopReconnect(chatId: String) {}
         override fun isBootstrapFriend(pk: String): Boolean = bootstrapFriends.contains(pk)

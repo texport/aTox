@@ -22,7 +22,6 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.infrastructure.media.SystemSoundPlayer
 import ltd.evilcorp.atox.ui.chat.ChatScreen
 import ltd.evilcorp.atox.ui.chat.ChatViewModel
-import ltd.evilcorp.atox.ui.chat.ChatUiState
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.domain.features.contacts.model.Contact

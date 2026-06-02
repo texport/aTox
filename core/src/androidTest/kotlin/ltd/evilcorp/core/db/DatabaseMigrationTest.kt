@@ -26,6 +26,7 @@ fun Boolean.toInt() = if (this) 1 else 0
 
 private const val TEST_DB = "migration-test"
 
+@Suppress("LargeClass")
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
     @Rule

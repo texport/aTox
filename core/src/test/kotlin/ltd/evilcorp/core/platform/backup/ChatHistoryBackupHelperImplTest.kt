@@ -81,4 +81,34 @@ class ChatHistoryBackupHelperImplTest {
         assertEquals(Int.MIN_VALUE, loaded[0].correlationId)
         assertEquals(4L, loaded[0].id)
     }
+
+    @Test
+    fun testSerializeChatHistoryPaged_returnsCorrectPage() = runTest {
+        val msg1 = MessageEntity("user1", "Hello 1", Sender.Sent, MessageType.Normal, 1, 1000L).apply { id = 1L }
+        val msg2 = MessageEntity("user1", "Hello 2", Sender.Sent, MessageType.Normal, 2, 2000L).apply { id = 2L }
+        val msg3 = MessageEntity("user1", "Hello 3", Sender.Sent, MessageType.Normal, 3, 3000L).apply { id = 3L }
+        messageDao.saveAll(listOf(msg1, msg2, msg3))
+
+        val page1 = backupHelper.serializeChatHistoryPaged(2, 0)
+        assertEquals(2, page1.size)
+        assertEquals(1L, page1[0].id)
+        assertEquals(2L, page1[1].id)
+
+        val page2 = backupHelper.serializeChatHistoryPaged(2, 2)
+        assertEquals(1, page2.size)
+        assertEquals(3L, page2[0].id)
+    }
+
+    @Test
+    fun testSerializeCallLogPaged_returnsCorrectPage() = runTest {
+        val msg1 = MessageEntity("user1", "Call 1", Sender.Sent, MessageType.Normal, Int.MIN_VALUE, 1000L).apply { id = 1L }
+        val msg2 = MessageEntity("user1", "Chat 2", Sender.Sent, MessageType.Normal, 2, 2000L).apply { id = 2L }
+        val msg3 = MessageEntity("user1", "Call 3", Sender.Sent, MessageType.Normal, Int.MIN_VALUE, 3000L).apply { id = 3L }
+        messageDao.saveAll(listOf(msg1, msg2, msg3))
+
+        val page = backupHelper.serializeCallLogPaged(10, 0)
+        assertEquals(2, page.size)
+        assertEquals(1L, page[0].id)
+        assertEquals(3L, page[1].id)
+    }
 }

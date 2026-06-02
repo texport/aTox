@@ -1,6 +1,5 @@
 package ltd.evilcorp.atox
 
-import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -23,9 +22,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import ltd.evilcorp.domain.features.call.CallState
-import ltd.evilcorp.domain.features.group.GroupInvite
-import ltd.evilcorp.domain.features.group.GroupManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,8 +35,6 @@ import ltd.evilcorp.atox.ui.navigation.AToxNavGraph
 import ltd.evilcorp.atox.ui.navigation.ToxLinkManager
 import ltd.evilcorp.atox.ui.theme.AToxTheme
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
-import ltd.evilcorp.domain.core.model.FINGERPRINT_LEN
-import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.call.CallManager
 import ltd.evilcorp.domain.core.network.TOX_ID_LENGTH
 import java.io.File

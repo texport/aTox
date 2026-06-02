@@ -91,6 +91,7 @@ class ChatManager @Inject constructor(
         }
 
         val msgs = message.chunked(MAX_MESSAGE_LENGTH)
+
         while (msgs.size > 1) {
             tox.sendMessage(publicKey, msgs.removeAt(0), type)
         }

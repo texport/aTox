@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -24,7 +23,6 @@ import ltd.evilcorp.atox.ui.contactlist.ContactListViewModel
 import ltd.evilcorp.atox.ui.groupchat.GroupListScreen
 import ltd.evilcorp.atox.ui.groupchat.GroupListViewModel
 import ltd.evilcorp.atox.ui.navigation.AppRoutes
-import ltd.evilcorp.atox.ui.navigation.LocalTabPadding
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar

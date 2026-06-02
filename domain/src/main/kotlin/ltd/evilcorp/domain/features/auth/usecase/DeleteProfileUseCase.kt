@@ -11,13 +11,21 @@ import ltd.evilcorp.domain.core.network.IToxProfile
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
 
+private const val STOP_RETRY_DELAY_MS = 10L
+
 class DeleteProfileUseCase @Inject constructor(
     private val tox: IToxProfile,
     private val profileDeleter: IProfileRepository,
 ) {
     suspend fun execute() = withContext(Dispatchers.IO) {
         val pk = tox.publicKey
-        (tox as? ITox)?.stop()
+        val activeTox = tox as? ITox
+        if (activeTox != null) {
+            activeTox.stop()
+            while (activeTox.started) {
+                kotlinx.coroutines.delay(STOP_RETRY_DELAY_MS)
+            }
+        }
         profileDeleter.deleteProfile(pk)
     }
 }

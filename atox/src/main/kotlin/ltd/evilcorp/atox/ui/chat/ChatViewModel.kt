@@ -11,7 +11,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -43,6 +42,7 @@ import ltd.evilcorp.domain.features.chat.usecase.SetActiveChatUseCase
 import ltd.evilcorp.domain.features.chat.usecase.SetChatDraftUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
+import ltd.evilcorp.domain.features.group.usecase.DeclineGroupInviteUseCase
 import ltd.evilcorp.atox.ui.common.debounceOffline
 
 private const val TAG = "ChatViewModel"
@@ -74,6 +74,7 @@ class ChatViewModel @Inject constructor(
     private val clearChatHistoryUseCase: ClearChatHistoryUseCase,
     private val setTypingStatusUseCase: SetTypingStatusUseCase,
     private val deleteChatMessageUseCase: DeleteChatMessageUseCase,
+    private val declineGroupInviteUseCase: DeclineGroupInviteUseCase,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
@@ -272,6 +273,13 @@ class ChatViewModel @Inject constructor(
     fun delete(msg: Message) = viewModelScope.launch {
         if (msg.type == MessageType.FileTransfer) {
             chatFileTransferDelegate.deleteFt(msg.correlationId)
+        }
+        if (msg.message.startsWith("[GROUP_INVITE:") && msg.message.contains("|") && msg.message.endsWith("]")) {
+            val payload = msg.message.removePrefix("[GROUP_INVITE:").removeSuffix("]")
+            val inviteDataHex = payload.split("|").getOrNull(1)
+            if (inviteDataHex != null) {
+                declineGroupInviteUseCase.execute(inviteDataHex)
+            }
         }
         deleteChatMessageUseCase.execute(msg.id)
     }

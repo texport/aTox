@@ -59,13 +59,13 @@ class LiveGroupManagerIntegrationTest {
             val isBConnected = AtomicBoolean(false)
 
             listenerA.friendConnectionStatusHandler = { pk, status ->
-                if (pk == pkB.string() && status != ConnectionStatus.None) {
+                if (pk.lowercase() == pkB.string().lowercase() && status != ConnectionStatus.None) {
                     isAConnected.set(true)
                 }
             }
 
             listenerB.friendConnectionStatusHandler = { pk, status ->
-                if (pk == pkA.string() && status != ConnectionStatus.None) {
+                if (pk.lowercase() == pkA.string().lowercase() && status != ConnectionStatus.None) {
                     isBConnected.set(true)
                 }
             }
@@ -111,8 +111,8 @@ class LiveGroupManagerIntegrationTest {
             }
 
             // Bootstrap
-            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.getPublicKey().bytes())
-            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.getPublicKey().bytes())
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
             // Wait up to 5 seconds to establish local connection
             val startTime = System.currentTimeMillis()

@@ -2,7 +2,6 @@ package ltd.evilcorp.domain.features.settings.usecase
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.network.bootstrap.IBootstrapNodeRegistry
 import ltd.evilcorp.domain.core.network.bootstrap.BootstrapNode

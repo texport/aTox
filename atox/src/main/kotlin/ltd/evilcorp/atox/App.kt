@@ -2,7 +2,6 @@ package ltd.evilcorp.atox
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
-import ltd.evilcorp.atox.appearance.AppearanceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

@@ -1,6 +1,5 @@
 package ltd.evilcorp.domain.fakes
 
-import ltd.evilcorp.domain.features.transfer.Chunk
 import ltd.evilcorp.domain.features.transfer.IFileTransferSessionRegistry
 import ltd.evilcorp.domain.features.transfer.OutgoingFile
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer

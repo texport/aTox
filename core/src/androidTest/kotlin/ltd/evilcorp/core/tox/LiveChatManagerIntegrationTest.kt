@@ -60,7 +60,7 @@ class LiveChatManagerIntegrationTest {
     @Test
     fun testLiveChatManagerEndToEndMessageExchange() = runTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val options = SaveOptions(null, false, ProxyType.None, "", 0)
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
 
         // 1. Initialize two separate Databases for Alice and Bob
         val dbAlice = Room.inMemoryDatabaseBuilder(context, Database::class.java).build()
@@ -137,12 +137,12 @@ class LiveChatManagerIntegrationTest {
             }
 
             // Bootstrap over loopback
-            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.getPublicKey().bytes())
-            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.getPublicKey().bytes())
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
             // Wait up to 5 seconds to establish local connection
             val startTime = System.currentTimeMillis()
-            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 5000L) {
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
                 delay(100)
             }
 

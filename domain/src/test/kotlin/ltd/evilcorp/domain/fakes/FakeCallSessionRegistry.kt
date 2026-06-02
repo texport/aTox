@@ -1,7 +1,6 @@
 package ltd.evilcorp.domain.fakes
 
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.domain.features.call.CallState
 import ltd.evilcorp.domain.features.call.ICallSessionRegistry
 

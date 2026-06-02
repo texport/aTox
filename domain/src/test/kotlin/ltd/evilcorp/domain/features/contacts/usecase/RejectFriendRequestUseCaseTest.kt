@@ -2,7 +2,6 @@ package ltd.evilcorp.domain.features.contacts.usecase
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.features.contacts.FriendRequestManager
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest

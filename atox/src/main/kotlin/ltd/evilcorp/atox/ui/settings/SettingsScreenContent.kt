@@ -5,9 +5,6 @@
 package ltd.evilcorp.atox.ui.settings
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable

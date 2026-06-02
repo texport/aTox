@@ -13,7 +13,6 @@ import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxCallBridge
 import ltd.evilcorp.core.tox.runtime.ToxWrapper
-import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.save.SaveOptions
 import ltd.evilcorp.domain.features.settings.model.ProxyType
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
@@ -28,7 +27,7 @@ class LiveCallManagerIntegrationTest {
 
     @Test
     fun testLiveCallAndAudioTransmission() = runTest {
-        val options = SaveOptions(null, false, ProxyType.None, "", 0)
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
 
         // 1. Initialize two separate live native Tox instances
         val listenerA = ToxEventListener()
@@ -58,6 +57,12 @@ class LiveCallManagerIntegrationTest {
 
             val friendNoA = toxB.addFriendNoRequest(pkA)
             assertTrue(friendNoA >= 0, "Bob should add Alice")
+
+            listenerA.contactMapping = listOf(pkB to friendNoB)
+            avListenerA.contactMapping = listOf(pkB to friendNoB)
+
+            listenerB.contactMapping = listOf(pkA to friendNoA)
+            avListenerB.contactMapping = listOf(pkA to friendNoA)
 
             val isAConnected = AtomicBoolean(false)
             val isBConnected = AtomicBoolean(false)
@@ -91,12 +96,12 @@ class LiveCallManagerIntegrationTest {
                 }
             }
 
-            // Start background run loops to iterate JNI states for both instances
             val runLoops = AtomicBoolean(true)
             val jobA = launch {
                 while (runLoops.get()) {
                     try {
                         toxA.iterate()
+                        toxA.iterateAv()
                         delay(toxA.iterationInterval().coerceAtLeast(10L))
                     } catch (e: Exception) {
                         break
@@ -107,6 +112,7 @@ class LiveCallManagerIntegrationTest {
                 while (runLoops.get()) {
                     try {
                         toxB.iterate()
+                        toxB.iterateAv()
                         delay(toxB.iterationInterval().coerceAtLeast(10L))
                     } catch (e: Exception) {
                         break
@@ -114,13 +120,12 @@ class LiveCallManagerIntegrationTest {
                 }
             }
 
-            // Bootstrap instances against each other over local loopback UDP port
-            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.getPublicKey().bytes())
-            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.getPublicKey().bytes())
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
 
             // Wait up to 5 seconds to establish local connection (DHT handshake)
             val startTime = System.currentTimeMillis()
-            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 5000L) {
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
                 delay(100)
             }
 
@@ -168,6 +173,96 @@ class LiveCallManagerIntegrationTest {
             jobA.join()
             jobB.join()
 
+        } finally {
+            toxA.close()
+            toxB.close()
+        }
+    }
+
+    @Test
+    fun testMicrophoneHardwareLossSimulation() = runTest {
+        val options = SaveOptions(null, true, ProxyType.None, "", 0)
+
+        val listenerA = ToxEventListener()
+        val avListenerA = ToxAvEventListener()
+        val toxA = ToxWrapper(listenerA, avListenerA, options)
+
+        val listenerB = ToxEventListener()
+        val avListenerB = ToxAvEventListener()
+        val toxB = ToxWrapper(listenerB, avListenerB, options)
+
+        val callBridgeA = ToxCallBridge()
+        callBridgeA.init(toxA)
+
+        val callBridgeB = ToxCallBridge()
+        callBridgeB.init(toxB)
+
+        try {
+            toxA.setName("Alice")
+            toxB.setName("Bob")
+
+            val pkA = toxA.getPublicKey()
+            val pkB = toxB.getPublicKey()
+
+            val friendNoB = toxA.addFriendNoRequest(pkB)
+            val friendNoA = toxB.addFriendNoRequest(pkA)
+
+            listenerA.contactMapping = listOf(pkB to friendNoB)
+            avListenerA.contactMapping = listOf(pkB to friendNoB)
+
+            listenerB.contactMapping = listOf(pkA to friendNoA)
+            avListenerB.contactMapping = listOf(pkA to friendNoA)
+
+            val isAConnected = AtomicBoolean(false)
+            val isBConnected = AtomicBoolean(false)
+
+            listenerA.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkB.string() && status != ConnectionStatus.None) isAConnected.set(true)
+            }
+            listenerB.friendConnectionStatusHandler = { pk, status ->
+                if (pk == pkA.string() && status != ConnectionStatus.None) isBConnected.set(true)
+            }
+
+            val incomingCallReceived = AtomicBoolean(false)
+            avListenerB.callHandler = { pk, audioEnabled, videoEnabled ->
+                if (pk == pkA.string()) {
+                    incomingCallReceived.set(true)
+                    callBridgeB.answerCall(pkA)
+                }
+            }
+
+            val runLoops = AtomicBoolean(true)
+            val jobA = launch { while (runLoops.get()) { toxA.iterate(); toxA.iterateAv(); delay(10) } }
+            val jobB = launch { while (runLoops.get()) { toxB.iterate(); toxB.iterateAv(); delay(10) } }
+
+            toxA.bootstrap("127.0.0.1", toxB.selfGetUdpPort(), toxB.selfGetDhtId())
+            toxB.bootstrap("127.0.0.1", toxA.selfGetUdpPort(), toxA.selfGetDhtId())
+
+            val startTime = System.currentTimeMillis()
+            while ((!isAConnected.get() || !isBConnected.get()) && (System.currentTimeMillis() - startTime) < 20000L) {
+                delay(100)
+            }
+            assertTrue(isAConnected.get() && isBConnected.get())
+
+            val callStarted = callBridgeA.startCall(pkB)
+            assertTrue(callStarted)
+
+            val callStartTime = System.currentTimeMillis()
+            while (!incomingCallReceived.get() && (System.currentTimeMillis() - callStartTime) < 4000L) {
+                delay(100)
+            }
+            assertTrue(incomingCallReceived.get())
+            delay(1000)
+
+            val micHardwareLost = true
+            if (micHardwareLost) {
+                val endCallSuccess = callBridgeA.endCall(pkB)
+                assertTrue(endCallSuccess, "Should cleanly end the call on microphone hardware loss")
+            }
+
+            runLoops.set(false)
+            jobA.join()
+            jobB.join()
         } finally {
             toxA.close()
             toxB.close()

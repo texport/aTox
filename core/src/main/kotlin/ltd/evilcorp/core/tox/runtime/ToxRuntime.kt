@@ -237,14 +237,23 @@ class ToxRuntime @Inject constructor(
     fun videoSetBitRate(pk: PublicKey, bitrate: Int): Boolean =
         callBridge.videoSetBitRate(pk, bitrate)
 
-    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int =
-        toxWrapper.groupNew(privacyState, groupName, selfName)
+    fun groupNew(privacyState: ToxGroupPrivacyState, groupName: ByteArray, selfName: ByteArray): Int {
+        val result = toxWrapper.groupNew(privacyState, groupName, selfName)
+        if (result >= 0) save()
+        return result
+    }
 
-    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
-        toxWrapper.groupJoin(friendNo, inviteData, selfName, password)
+    fun groupJoin(friendNo: Int, inviteData: ByteArray, selfName: ByteArray, password: ByteArray?): Int {
+        val result = toxWrapper.groupJoin(friendNo, inviteData, selfName, password)
+        if (result >= 0) save()
+        return result
+    }
 
-    fun groupLeave(groupNumber: Int): Boolean =
-        toxWrapper.groupLeave(groupNumber)
+    fun groupLeave(groupNumber: Int): Boolean {
+        val result = toxWrapper.groupLeave(groupNumber)
+        if (result) save()
+        return result
+    }
 
     fun groupSendMessage(groupNumber: Int, type: ToxMessageType, message: ByteArray): Int =
         toxWrapper.groupSendMessage(groupNumber, type, message)
@@ -261,8 +270,11 @@ class ToxRuntime @Inject constructor(
     fun groupGetChatId(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetChatId(groupNumber)
 
-    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean =
-        toxWrapper.groupSetPassword(groupNumber, password)
+    fun groupSetPassword(groupNumber: Int, password: ByteArray?): Boolean {
+        val result = toxWrapper.groupSetPassword(groupNumber, password)
+        if (result) save()
+        return result
+    }
 
     fun groupGetPassword(groupNumber: Int): ByteArray? =
         toxWrapper.groupGetPassword(groupNumber)
@@ -282,8 +294,11 @@ class ToxRuntime @Inject constructor(
     fun groupInviteSend(groupNumber: Int, friendNumber: Int): Boolean =
         toxWrapper.groupInviteSend(groupNumber, friendNumber)
 
-    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int =
-        toxWrapper.groupJoinDirect(chatId, selfName, password)
+    fun groupJoinDirect(chatId: ByteArray, selfName: ByteArray, password: ByteArray?): Int {
+        val result = toxWrapper.groupJoinDirect(chatId, selfName, password)
+        if (result >= 0) save()
+        return result
+    }
 
     fun groupReconnect(groupNumber: Int): Boolean =
         toxWrapper.groupReconnect(groupNumber)

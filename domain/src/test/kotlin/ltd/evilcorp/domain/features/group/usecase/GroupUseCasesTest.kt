@@ -10,7 +10,6 @@ import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.Contact
-import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.group.*
 import ltd.evilcorp.domain.features.group.model.*
 import ltd.evilcorp.domain.fakes.*
@@ -171,7 +170,10 @@ class GroupUseCasesTest {
     fun `GetGroupMessagesUseCase retrieves group messages`() = runTest {
         val useCase = GetGroupMessagesUseCase(groupRepo)
         val chatId = "test_chat_id"
-        val msg = GroupMessage(groupChatId = chatId, peerId = 1, senderName = "Bob", message = "Hi", sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L)
+        val msg = GroupMessage(
+            groupChatId = chatId, peerId = 1, senderName = "Bob", message = "Hi",
+            sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L
+        )
         groupRepo.addMessage(msg)
 
         val messages = useCase.execute(chatId).first()
@@ -183,7 +185,12 @@ class GroupUseCasesTest {
     fun `ClearGroupHistoryUseCase clears group messages`() = runTest {
         val useCase = ClearGroupHistoryUseCase(groupRepo)
         val chatId = "test_chat_id"
-        groupRepo.addMessage(GroupMessage(groupChatId = chatId, peerId = 1, senderName = "Bob", message = "Hi", sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L))
+        groupRepo.addMessage(
+            GroupMessage(
+                groupChatId = chatId, peerId = 1, senderName = "Bob", message = "Hi",
+                sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L
+            )
+        )
 
         useCase.execute(chatId)
 
@@ -194,7 +201,10 @@ class GroupUseCasesTest {
     @Test
     fun `DeleteGroupMessageUseCase deletes specific message`() = runTest {
         val useCase = DeleteGroupMessageUseCase(groupRepo)
-        val msg = GroupMessage(groupChatId = "chat_id", peerId = 1, senderName = "Bob", message = "Hi", sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L).apply { id = 123L }
+        val msg = GroupMessage(
+            groupChatId = "chat_id", peerId = 1, senderName = "Bob", message = "Hi",
+            sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L
+        ).apply { id = 123L }
         groupRepo.addMessage(msg)
 
         useCase.execute(123L)
@@ -253,7 +263,7 @@ class GroupUseCasesTest {
 
     @Test
     fun `DeclineGroupInviteUseCase declines pending invite`() = runTest {
-        val useCase = DeclineGroupInviteUseCase(sessionRegistry)
+        val useCase = DeclineGroupInviteUseCase(groupConnectionService, sessionRegistry)
         val invite = GroupInvite(0, byteArrayOf(1, 2), "Group Name")
         sessionRegistry.setPendingInvite(invite)
 

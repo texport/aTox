@@ -3,7 +3,6 @@ package ltd.evilcorp.domain.features.call
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.model.PublicKey
@@ -149,5 +148,82 @@ class CallManagerTest {
         val msgs = messageRepo.get(contactPk.string()).first()
         assertEquals(1, msgs.size)
         assertEquals("[CALL_HISTORY_OUTGOING]", msgs[0].message)
+    }
+
+    @Test
+    fun `terminate or endCall after already idle does not log duplicate call history`() = runTest {
+        // Arrange
+        val tox = FakeTox()
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val logCallUseCase = LogCallUseCase(messageRepo)
+        
+        val mediaCoordinator = CallMediaCoordinator(signalPlayer, audioRecorder, audioRoutingManager)
+        val sessionRegistry = FakeCallSessionRegistry()
+
+        val contactPk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        contactRepo.add(Contact(contactPk.string(), connectionStatus = ConnectionStatus.UDP))
+
+        val manager = CallManager(tox, scope, contactRepo, logCallUseCase, mediaCoordinator, sessionRegistry)
+
+        // Set call active
+        sessionRegistry.setCallState(
+            CallState.Active(contactPk, System.currentTimeMillis(), System.currentTimeMillis(), outgoing = true)
+        )
+
+        // Act: End call locally (first termination)
+        manager.endCall(contactPk)
+
+        // Assert first log is recorded
+        val msgs = messageRepo.get(contactPk.string()).first()
+        assertEquals(1, msgs.size, "Exactly one call log message should be recorded")
+
+        // Act: Trigger remote terminate (e.g. from JNI callbacks saying call finished)
+        manager.terminate(contactPk)
+
+        // Assert: No second log is recorded (still 1)
+        val msgsAfterTerminate = messageRepo.get(contactPk.string()).first()
+        assertEquals(1, msgsAfterTerminate.size, "Call log should not be duplicated")
+    }
+
+    @Test
+    fun `onIncomingCall during active call immediately rejects with busy`() = runTest {
+        // Arrange
+        val endedCalls = mutableListOf<PublicKey>()
+        val tox = object : FakeTox() {
+            override fun endCall(pk: PublicKey): Boolean {
+                endedCalls.add(pk)
+                return true
+            }
+        }
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        val contactRepo = FakeContactRepository()
+        val messageRepo = FakeMessageRepository()
+        val logCallUseCase = LogCallUseCase(messageRepo)
+        
+        val mediaCoordinator = CallMediaCoordinator(signalPlayer, audioRecorder, audioRoutingManager)
+        val sessionRegistry = FakeCallSessionRegistry()
+
+        val activePk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        val secondPk = PublicKey("5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C3982B009845B210C")
+
+        val manager = CallManager(tox, scope, contactRepo, logCallUseCase, mediaCoordinator, sessionRegistry)
+
+        // Set call active with the first peer
+        sessionRegistry.setCallState(
+            CallState.Active(activePk, System.currentTimeMillis(), System.currentTimeMillis(), outgoing = true)
+        )
+
+        // Act: Another peer (Charlie) calls us while we are busy on the first call
+        val incomingContact = Contact(secondPk.string(), name = "Charlie")
+        manager.onIncomingCall(incomingContact)
+
+        // Assert: Charlie's call is immediately rejected via JNI endCall
+        assertTrue(endedCalls.contains(secondPk), "The incoming call must be immediately rejected")
+        
+        // Assert: The active call remains active with the first peer
+        val activeCall = sessionRegistry.inCall.value as CallState.Active
+        assertEquals(activePk, activeCall.publicKey)
     }
 }

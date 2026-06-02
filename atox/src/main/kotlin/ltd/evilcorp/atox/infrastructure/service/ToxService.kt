@@ -6,7 +6,6 @@
 package ltd.evilcorp.atox.infrastructure.service
 
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.App
 import ltd.evilcorp.atox.MainActivity
 import ltd.evilcorp.atox.infrastructure.util.PendingIntentCompat
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
@@ -29,7 +28,6 @@ import ltd.evilcorp.domain.features.auth.usecase.InitializeToxUseCase
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 
 import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.CoroutineDispatcher

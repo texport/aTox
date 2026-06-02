@@ -4,9 +4,7 @@
 
 package ltd.evilcorp.core.tox
 
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,9 +13,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import ltd.evilcorp.core.db.Database
-import ltd.evilcorp.core.repository.ContactRepositoryImpl
-import ltd.evilcorp.core.repository.UserRepositoryImpl
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.settings.model.ProxyType
 import ltd.evilcorp.domain.core.network.bootstrap.BootstrapNode
@@ -50,10 +45,7 @@ class ToxTest {
     @ExperimentalCoroutinesApi
     @Test
     fun quitting_does_not_crash() = runTest {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val db = Room.inMemoryDatabaseBuilder(instrumentation.context, Database::class.java).build()
-        val userRepository = UserRepositoryImpl(db.userDao())
-        val contactRepository = ContactRepositoryImpl(db.contactDao())
+
 
         repeat(10) {
             val sessionSaver = ToxSessionSaver(FakeSaveManager())
@@ -82,10 +74,7 @@ class ToxTest {
     @Test(timeout = 60 * 1000)
     fun bootstrapping_against_a_live_node_works(): Unit = runBlocking {
         org.junit.Assume.assumeTrue("Сеть недоступна, пропускаем интеграционный тест Tox", isInternetAvailable())
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val db = Room.inMemoryDatabaseBuilder(instrumentation.context, Database::class.java).build()
-        val userRepository = UserRepositoryImpl(db.userDao())
-        val contactRepository = ContactRepositoryImpl(db.contactDao())
+
 
         var connected = false
         val eventListener = ToxEventListener().apply {

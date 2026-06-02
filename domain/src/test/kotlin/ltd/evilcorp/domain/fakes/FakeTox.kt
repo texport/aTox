@@ -3,7 +3,6 @@ package ltd.evilcorp.domain.fakes
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.core.network.ToxID
-import ltd.evilcorp.domain.features.contacts.model.UserStatus
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.transfer.model.FileKind
 import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState

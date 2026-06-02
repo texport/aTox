@@ -10,10 +10,6 @@ import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.core.network.enums.ToxGroupExitType
-import ltd.evilcorp.domain.core.network.enums.ToxGroupModEvent
-import ltd.evilcorp.domain.core.network.enums.ToxGroupPrivacyState
-import ltd.evilcorp.domain.core.network.enums.ToxGroupRole
-import ltd.evilcorp.domain.core.network.enums.ToxUserStatus
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.domain.features.group.GroupInvite
 import ltd.evilcorp.domain.features.group.GroupDomainEvent
@@ -111,6 +107,20 @@ internal suspend fun GroupDatabaseUpdater.handleGroupInvite(
     event: GroupDomainEvent.GroupInvite,
     messageRepository: IMessageRepository
 ) {
+    // Layer 3 (revised): Background speculative join
+    // We join the group in the background to get its chatId without irreparably breaking the invite.
+    // If it's a known group, preJoinInvite processes it completely and we can just return!
+    val preJoin = groupConnectionService.preJoinInvite(
+        event.friendNo,
+        event.inviteData,
+        groupManager.getDefaultSelfName()
+    )
+    if (preJoin.success && preJoin.isKnownGroup) {
+        Log.i(TAG, "Layer 3: Auto-accepted invite for KNOWN group ${preJoin.chatId}. Reconnected automatically!")
+        return
+    }
+
+    // Normal handling: show invite to user (for unknown groups, or if pre-join failed)
     try {
         val friendPkObject = tox.getFriendPublicKey(event.friendNo)
         if (friendPkObject != null) {

@@ -1,6 +1,5 @@
 package ltd.evilcorp.domain.features.backup.usecase
 
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.chat.model.Message
