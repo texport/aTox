@@ -7,6 +7,7 @@ package ltd.evilcorp.core.tox
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -67,10 +68,10 @@ class LiveChatManagerIntegrationTest {
         val dbBob = Room.inMemoryDatabaseBuilder(context, Database::class.java).build()
 
         val contactRepoAlice = ContactRepositoryImpl(dbAlice.contactDao())
-        val messageRepoAlice = MessageRepositoryImpl(dbAlice, dbAlice.messageDao())
+        val messageRepoAlice = MessageRepositoryImpl(dbAlice)
 
         val contactRepoBob = ContactRepositoryImpl(dbBob.contactDao())
-        val messageRepoBob = MessageRepositoryImpl(dbBob, dbBob.messageDao())
+        val messageRepoBob = MessageRepositoryImpl(dbBob)
 
         // 2. Initialize two live native Tox wrappers
         val listenerA = ToxEventListener()
@@ -155,7 +156,7 @@ class LiveChatManagerIntegrationTest {
 
             // Setup real ChatManager for Alice
             val messengerA = ToxWrapperMessenger(toxA)
-            val chatManagerAlice = ChatManager(this, contactRepoAlice, messageRepoAlice, messengerA)
+            val chatManagerAlice = ChatManager(this, contactRepoAlice, messageRepoAlice, messengerA, Dispatchers.Unconfined)
 
             // Register message handler on Bob to simulate FriendDatabaseUpdater behavior
             val messageReceived = AtomicBoolean(false)

@@ -27,8 +27,8 @@ class SendChatMessageUseCaseTest {
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         contactRepo.add(Contact(pk.string(), connectionStatus = ConnectionStatus.UDP))
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
-        val useCase = SendChatMessageUseCase(chatManager)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
+        val useCase = SendChatMessageUseCase(chatManager, Dispatchers.Unconfined)
 
         // Act
         useCase.execute(pk, "Simple message", MessageType.Normal)
@@ -49,8 +49,8 @@ class SendChatMessageUseCaseTest {
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         contactRepo.add(Contact(pk.string(), connectionStatus = ConnectionStatus.UDP))
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
-        val useCase = SendChatMessageUseCase(chatManager)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
+        val useCase = SendChatMessageUseCase(chatManager, Dispatchers.Unconfined)
 
         // Act
         useCase.execute(pk, "Replying to you", MessageType.Normal, replyToMessageId = 42)
@@ -71,8 +71,8 @@ class SendChatMessageUseCaseTest {
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         contactRepo.add(Contact(pk.string(), connectionStatus = ConnectionStatus.UDP))
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
-        val useCase = SendChatMessageUseCase(chatManager)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
+        val useCase = SendChatMessageUseCase(chatManager, Dispatchers.Unconfined)
 
         // 3000 characters (exceeds 1372 maximum length twice)
         val longMessage = "A".repeat(3000)

@@ -90,3 +90,14 @@ exceptions:
     active: false
   SwallowedException:
     active: false
+
+coroutines:
+  active: true
+  InjectDispatcher:
+    active: true
+    excludes: ['**/*Test.kt', '**/fakes/**', '**/test/**', '**/androidTest/**']
+    dispatcherNames:
+      - 'IO'
+      - 'Default'
+      - 'Unconfined'
+

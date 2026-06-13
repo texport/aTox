@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import ltd.evilcorp.atox.R
@@ -94,16 +94,13 @@ fun SettingsScreen(
     val showProxyDialog by viewModel.showProxyDialog.collectAsState()
     val showFtAcceptDialog by viewModel.showFtAcceptDialog.collectAsState()
     val showBootstrapDialog by viewModel.showBootstrapDialog.collectAsState()
-    LaunchedEffect(storedSettings.backupGoogleAccount) {
-        state.googleAccountInput = storedSettings.backupGoogleAccount
-    }
     val mandatoryBackupId = remember(backupViewModel.backupProviders) {
         backupViewModel.backupProviders.firstOrNull()?.id.orEmpty()
     }
     val backupExporting by backupViewModel.backupExporting.collectAsState()
     val backupImporting by backupViewModel.backupImporting.collectAsState()
 
-    val launchers = rememberSettingsLaunchers(state, viewModel, backupViewModel, mandatoryBackupId)
+    val launchers = rememberSettingsLaunchers(state, viewModel, backupViewModel, settings)
 
     val autoSaveDirectoryLabel = remember(storedSettings.autoSaveDirectoryUri) {
         val uriString = storedSettings.autoSaveDirectoryUri
@@ -137,13 +134,7 @@ fun SettingsScreen(
         listOf(
             "" to systemDefaultLabel,
             "en" to "English",
-            "ru" to "Русский",
-            "sv" to "Svenska",
-            "de" to "Deutsch",
-            "es" to "Español",
-            "fr" to "Français",
-            "it" to "Italiano",
-            "uk" to "Українська"
+            "ru" to "Русский"
         )
     }
     val searchItems = remember(languages, currentLanguageCode, appearance.themeMode) {
@@ -325,7 +316,6 @@ fun SettingsScreen(
         appearance = appearance,
         onAccentColorSeedChanged = onAccentColorSeedChanged,
         performHaptic = performHaptic,
-        focusManager = focusManager,
-        launchers = launchers
+        focusManager = focusManager
     )
 }

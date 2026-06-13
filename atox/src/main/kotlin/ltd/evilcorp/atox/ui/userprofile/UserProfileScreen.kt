@@ -89,6 +89,7 @@ fun UserProfileScreen(
     onSetName: (String) -> Unit,
     onSetStatusMessage: (String) -> Unit,
     onSetStatus: (UserStatus) -> Unit,
+    onSwitchProfile: () -> Unit = {},
     onLogout: () -> Unit = {},
     onAvatarChanged: () -> Unit = {},
     onResetCropState: () -> Unit = {},
@@ -286,6 +287,7 @@ fun UserProfileScreen(
             // Logout Card
             ProfileLogoutCard(
                 onLogoutClick = { showLogoutConfirmDialog = true },
+                onSwitchProfile = onSwitchProfile,
                 modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
             )
 

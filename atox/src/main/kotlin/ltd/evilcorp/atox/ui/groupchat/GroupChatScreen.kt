@@ -128,7 +128,9 @@ fun GroupChatScreen(
         null
     }
     val navBarColor = MaterialTheme.colorScheme.surfaceContainer
+    @Suppress("DEPRECATION")
     val originalNavBarColor = remember(activity) { activity?.window?.navigationBarColor ?: 0 }
+    @Suppress("DEPRECATION")
     androidx.compose.runtime.DisposableEffect(navBarColor) {
         activity?.window?.let { window ->
             window.navigationBarColor = navBarColor.toArgb()
@@ -303,8 +305,9 @@ fun GroupChatScreen(
                         sender = m.sender,
                         type = m.type,
                         correlationId = m.correlationId,
-                        timestamp = m.timestamp
-                    ).apply { this.id = m.id }
+                        timestamp = m.timestamp,
+                        id = m.id
+                    )
                 },
                 getBubbleConfig = { msg ->
                     val isOutgoing = msg.sender == Sender.Sent

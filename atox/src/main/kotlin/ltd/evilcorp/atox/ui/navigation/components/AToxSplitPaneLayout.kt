@@ -17,7 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
@@ -67,7 +67,6 @@ fun AToxSplitPaneLayout(
                         onTabSelected = { route ->
                             val targetRoute: Any = when (route) {
                                 AppRoutes.Chats::class.qualifiedName -> AppRoutes.Chats
-                                AppRoutes.Groups::class.qualifiedName -> AppRoutes.Groups
                                 AppRoutes.Profile::class.qualifiedName -> AppRoutes.Profile
                                 AppRoutes.Settings::class.qualifiedName -> AppRoutes.Settings
                                 else -> AppRoutes.Chats
@@ -85,7 +84,7 @@ fun AToxSplitPaneLayout(
                 floatingActionButton = {
                     AToxFAB(
                         currentRoute = currentRoute,
-                        visible = currentRoute?.endsWith("AppRoutes.Chats") == true || currentRoute?.endsWith("AppRoutes.Groups") == true,
+                        visible = currentRoute?.endsWith("AppRoutes.Chats") == true,
                         hapticEnabled = settings.hapticEnabled,
                         onAddContactClick = {
                             navController.navigate(AppRoutes.AddContactTab) {
@@ -142,6 +141,7 @@ fun AToxSplitPaneLayout(
                 ChatScreen(
                     uiState = finalUiState,
                     onBack = { contactListViewModel.clearSelectedChat() },
+                    messagesFlow = rightChatViewModel.pagedMessages,
                     onSendMessage = { content -> rightChatViewModel.send(content, ltd.evilcorp.domain.features.chat.model.MessageType.Normal) },
                     onTypingChanged = rightChatViewModel::setTyping,
                     onSendFile = rightChatViewModel::createFt,

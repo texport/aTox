@@ -7,6 +7,7 @@ import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.auth.repository.IUserRepository
 import ltd.evilcorp.domain.core.network.ITox
+import ltd.evilcorp.domain.features.group.usecase.ReconnectGroupsUseCase
 
 import android.util.Log
 
@@ -15,6 +16,7 @@ class ToxStartupSynchronizer @Inject constructor(
     private val contactRepository: IContactRepository,
     private val userRepository: IUserRepository,
     private val tox: ITox,
+    private val reconnectGroupsUseCase: ReconnectGroupsUseCase,
 ) {
     fun synchronizeAfterStart() {
         scope.launch {
@@ -34,6 +36,7 @@ class ToxStartupSynchronizer @Inject constructor(
             }
 
             userRepository.updateConnection(tox.publicKey.string(), ConnectionStatus.None)
+            reconnectGroupsUseCase.execute()
         }
     }
 }

@@ -50,7 +50,7 @@ class AuthUseCasesTest {
     @Test
     fun `GetSelfUserUseCase retrieves self user and details`() = runTest {
         val tox = FakeTox()
-        val useCase = GetSelfUserUseCase(userManager, tox)
+        val useCase = GetSelfUserUseCase(userManager, tox, FakeProfileRepository())
 
         assertEquals(tox.publicKey, useCase.publicKey)
         assertEquals(tox.toxId, useCase.toxId)
@@ -99,7 +99,7 @@ class AuthUseCasesTest {
     @Test
     fun `DeleteProfileUseCase calls IProfileRepository`() = runTest {
         val profileRepo = FakeProfileRepository()
-        val useCase = DeleteProfileUseCase(toxProfile, profileRepo)
+        val useCase = DeleteProfileUseCase(toxProfile, profileRepo, Dispatchers.Unconfined)
 
         useCase.execute()
         assertEquals(toxProfile.publicKey, profileRepo.deletedProfilePk)
@@ -199,10 +199,11 @@ class AuthUseCasesTest {
             repositories,
             fakeTox,
             fakeTox,
-            sessionRegistry
+            sessionRegistry,
+            Dispatchers.Unconfined
         )
 
-        val useCase = SaveAvatarUseCase(avatarRepo, fileTransferManager)
+        val useCase = SaveAvatarUseCase(avatarRepo, fileTransferManager, Dispatchers.Unconfined)
         val bytes = byteArrayOf(1, 2, 3)
 
         val success = useCase.execute(bytes)
@@ -233,7 +234,8 @@ class AuthUseCasesTest {
             repositories,
             fakeTox,
             fakeTox,
-            sessionRegistry
+            sessionRegistry,
+            Dispatchers.Unconfined
         )
 
         val useCase = BroadcastAvatarUseCase(fileTransferManager)

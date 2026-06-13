@@ -17,6 +17,7 @@ open class FakeTox(
     override var started: Boolean = true
     override var isBootstrapNeeded: Boolean = false
     override val password: String? = null
+    override val sessionId: String? = "dummy_session"
 
     val sentMessages = mutableListOf<Triple<PublicKey, String, MessageType>>()
     val sentTypingStatus = mutableMapOf<PublicKey, Boolean>()

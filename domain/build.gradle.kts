@@ -8,12 +8,14 @@ kotlin {
     compilerOptions {
         apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
         languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2
+        freeCompilerArgs.add("-Xannotation-default-target=param-property")
     }
 }
 
 dependencies {
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
+    api(libs.androidx.paging.common)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(kotlin("test-junit"))

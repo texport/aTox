@@ -122,7 +122,7 @@ class LiveBackupStressTest {
         val db = Room.inMemoryDatabaseBuilder(context, Database::class.java).build()
 
         val contactRepository = ContactRepositoryImpl(db.contactDao())
-        val messageRepository = MessageRepositoryImpl(db, db.messageDao())
+        val messageRepository = MessageRepositoryImpl(db)
 
         // 1. Populate the DB with stress-test volume: 50 contacts, 500 messages
         val stressContacts = mutableListOf<Contact>()
@@ -161,12 +161,11 @@ class LiveBackupStressTest {
         val messagesProvider = MessagesBackupProvider(messageRepository)
         val providers = listOf(contactsProvider, messagesProvider)
 
-        val exportBackup = ExportBackupUseCase(providers, platformServices)
+        val exportBackup = ExportBackupUseCase(providers)
         val importBackup = ImportBackupUseCase(providers, platformServices)
 
-        // 3. Export with encryption
-        val password = "StrongBackupPassword123!"
-        val backupBytes = exportBackup.execute(setOf("contacts", "messages"), password)
+        // 3. Export
+        val backupBytes = exportBackup.execute(setOf("contacts", "messages"))
 
         assertTrue(backupBytes.isNotEmpty(), "Backup archive should not be empty")
         assertNotEquals(0, backupBytes.size)
@@ -184,8 +183,8 @@ class LiveBackupStressTest {
             assertEquals(0, messageRepository.get("PublicKeyFriend_$i").first().size)
         }
 
-        // 6. Import and decrypt back
-        importBackup.execute(backupBytes, password)
+        // 6. Import back
+        importBackup.execute(backupBytes)
 
         // 7. Verify integrity and equality of restored tables
         val restoredContacts = contactRepository.getAll().first().associateBy { it.publicKey }

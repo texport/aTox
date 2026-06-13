@@ -39,6 +39,7 @@ private const val NOTIFICATION_ID = 1984
 class ToxService : LifecycleService() {
     private val channelId = "ToxService"
     private var connectionStatus: ConnectionStatus? = null
+    private var serviceSessionId: String? = null
     private val notifier by lazy { NotificationManagerCompat.from(this) }
 
     @Inject
@@ -50,6 +51,9 @@ class ToxService : LifecycleService() {
 
     @Inject
     lateinit var initializeToxUseCase: InitializeToxUseCase
+
+    @Inject
+    lateinit var restoreGroupsUseCase: ltd.evilcorp.domain.features.group.usecase.RestoreGroupsUseCase
 
     @Inject
     lateinit var permissionManager: PermissionManager
@@ -110,6 +114,16 @@ class ToxService : LifecycleService() {
                     stopSelf()
                     return@launch
                 }
+            }
+
+            // Capture the session ID
+            serviceSessionId = tox.sessionId
+
+            // Restore groups immediately after Tox engine starts to ensure background connection recovery
+            try {
+                restoreGroupsUseCase.execute()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to restore groups on startup: ${e.message}", e)
             }
 
             // Start lifecycle controller only after successful JNI engine startup
@@ -185,6 +199,11 @@ class ToxService : LifecycleService() {
     override fun onDestroy() {
         super.onDestroy()
         lifecycleController.stop()
-        tox.stop()
+        val currentSessionId = tox.sessionId
+        if (currentSessionId != null && currentSessionId == serviceSessionId) {
+            tox.stop()
+        } else {
+            Log.d(TAG, "Skipping tox.stop() in onDestroy: current session ID ($currentSessionId) differs from service session ID ($serviceSessionId)")
+        }
     }
 }

@@ -218,8 +218,10 @@ class FakeGroupRepository : IGroupRepository {
     }
 
     private fun updateField(chatId: String, update: (Group) -> Group) {
-        val current = groups.value[chatId] ?: return
-        groups.value = groups.value + (chatId to update(current))
+        val current = groups.value[chatId]
+        if (current != null) {
+            groups.value = groups.value + (chatId to update(current))
+        }
     }
 
     private fun updatePeerField(groupChatId: String, peerId: Int, update: (GroupPeer) -> GroupPeer) {

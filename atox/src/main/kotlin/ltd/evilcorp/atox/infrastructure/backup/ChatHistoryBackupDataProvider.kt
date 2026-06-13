@@ -119,8 +119,7 @@ private fun parseMessages(data: ByteArray): List<Message> {
             type = enumValueOf(item.type),
             correlationId = item.correlationId,
             timestamp = item.timestamp,
-        ).apply {
             id = item.id
-        }
+        )
     }
 }

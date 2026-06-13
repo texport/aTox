@@ -29,7 +29,7 @@ class ChatManagerTest {
         val contact = Contact(pk.string(), connectionStatus = ConnectionStatus.UDP)
         contactRepo.add(contact)
 
-        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
 
         // Act
         manager.sendMessage(pk, "Hello Alice!", MessageType.Normal)
@@ -59,7 +59,7 @@ class ChatManagerTest {
         val contact = Contact(pk.string(), connectionStatus = ConnectionStatus.None)
         contactRepo.add(contact)
 
-        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
 
         // Act
         manager.sendMessage(pk, "Offline message", MessageType.Normal)
@@ -86,7 +86,7 @@ class ChatManagerTest {
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         val contact = Contact(pk.string(), lastMessage = 55555L)
         contactRepo.add(contact)
-        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
 
         // Act
         manager.clearHistory(pk)
@@ -106,22 +106,24 @@ class ChatManagerTest {
         val fakeTox = FakeTox()
 
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
-        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val manager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
 
         val m1 = ltd.evilcorp.domain.features.chat.model.Message(
             publicKey = pk.string(),
             message = "First message",
             sender = ltd.evilcorp.domain.features.chat.model.Sender.Sent,
             type = MessageType.Normal,
-            correlationId = Int.MIN_VALUE
-        ).apply { id = 1 }
+            correlationId = Int.MIN_VALUE,
+            id = 1L
+        )
         val m2 = ltd.evilcorp.domain.features.chat.model.Message(
             publicKey = pk.string(),
             message = "Second message",
             sender = ltd.evilcorp.domain.features.chat.model.Sender.Sent,
             type = MessageType.Normal,
-            correlationId = Int.MIN_VALUE
-        ).apply { id = 2 }
+            correlationId = Int.MIN_VALUE,
+            id = 2L
+        )
 
         // Act
         manager.resend(listOf(m1, m2))

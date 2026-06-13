@@ -24,4 +24,10 @@ class FakeGroupSessionRegistry : IGroupSessionRegistry {
     override fun removeConnectionStatus(chatId: String) {
         _connectionStatuses.value = _connectionStatuses.value - chatId
     }
+
+    override fun clear() {
+        activeGroup = ""
+        _pendingInvite.value = null
+        _connectionStatuses.value = emptyMap()
+    }
 }

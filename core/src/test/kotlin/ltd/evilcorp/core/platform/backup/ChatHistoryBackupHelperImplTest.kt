@@ -44,7 +44,7 @@ class ChatHistoryBackupHelperImplTest {
 
     @Test
     fun testDeserializeChatHistory_savesToDatabase() = runTest {
-        val domainMsg = Message("user3", "Howdy", Sender.Sent, MessageType.Normal, 5, 3000L).apply { id = 20L }
+        val domainMsg = Message("user3", "Howdy", Sender.Sent, MessageType.Normal, 5, 3000L, id = 20L)
         backupHelper.deserializeChatHistory(listOf(domainMsg))
 
         val loaded = messageDao.loadAllBlocking()
@@ -72,7 +72,7 @@ class ChatHistoryBackupHelperImplTest {
 
     @Test
     fun testDeserializeCallLog_savesToDatabase() = runTest {
-        val callMsg = Message("user4", "Call log entry", Sender.Received, MessageType.Normal, Int.MIN_VALUE, 4000L).apply { id = 4L }
+        val callMsg = Message("user4", "Call log entry", Sender.Received, MessageType.Normal, Int.MIN_VALUE, 4000L, id = 4L)
         backupHelper.deserializeCallLog(listOf(callMsg))
 
         val loaded = messageDao.loadAllBlocking()

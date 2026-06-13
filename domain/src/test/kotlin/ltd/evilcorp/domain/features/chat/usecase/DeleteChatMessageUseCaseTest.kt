@@ -26,10 +26,10 @@ class DeleteChatMessageUseCaseTest {
         val fakeTox = FakeTox()
 
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
-        val msg = Message(pk.string(), "Hello", Sender.Sent, MessageType.Normal, correlationId = 0).apply { id = 99L }
+        val msg = Message(pk.string(), "Hello", Sender.Sent, MessageType.Normal, correlationId = 0, id = 99L)
         messageRepo.add(msg)
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
         val useCase = DeleteChatMessageUseCase(chatManager)
 
         // Act

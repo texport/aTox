@@ -133,13 +133,6 @@ class FakeUserSettingsRepository : IUserSettingsRepository {
         _settings.value = _settings.value.copy(autoSaveDirectoryUri = uri)
     }
 
-    override suspend fun updateBackupEncryptionEnabled(enabled: Boolean) {
-        _settings.value = _settings.value.copy(backupEncryptionEnabled = enabled)
-    }
-
-    override suspend fun updateBackupEndToEndEncryptionEnabled(enabled: Boolean) {
-        _settings.value = _settings.value.copy(backupEndToEndEncryptionEnabled = enabled)
-    }
 
     override suspend fun updateAutomaticBackupEnabled(enabled: Boolean) {
         _settings.value = _settings.value.copy(automaticBackupEnabled = enabled)
@@ -159,5 +152,21 @@ class FakeUserSettingsRepository : IUserSettingsRepository {
 
     override suspend fun updateBackupDestinationOrdinals(ordinals: Set<Int>) {
         _settings.value = _settings.value.copy(backupDestinationOrdinals = ordinals)
+    }
+
+    override suspend fun updateLastLocalBackupTimeMs(timeMs: Long) {
+        _settings.value = _settings.value.copy(lastLocalBackupTimeMs = timeMs)
+    }
+
+    override suspend fun updateLastLocalBackupSizeKb(sizeKb: Long) {
+        _settings.value = _settings.value.copy(lastLocalBackupSizeKb = sizeKb)
+    }
+
+    override suspend fun updateLastGoogleBackupTimeMs(timeMs: Long) {
+        _settings.value = _settings.value.copy(lastGoogleBackupTimeMs = timeMs)
+    }
+
+    override suspend fun updateLastGoogleBackupSizeKb(sizeKb: Long) {
+        _settings.value = _settings.value.copy(lastGoogleBackupSizeKb = sizeKb)
     }
 }

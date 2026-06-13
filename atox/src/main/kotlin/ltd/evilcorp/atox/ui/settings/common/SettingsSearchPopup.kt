@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ltd.evilcorp.atox.R
-import androidx.compose.ui.graphics.toArgb
 
 @Suppress("FunctionNaming")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,30 +29,7 @@ internal fun SettingsSearchPopup(
     performHaptic: () -> Unit,
     onItemClick: (SearchableSetting) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val activity = remember(context) {
-        var ctx = context
-        while (ctx is android.content.ContextWrapper) {
-            if (ctx is android.app.Activity) {
-                return@remember ctx
-            }
-            ctx = ctx.baseContext
-        }
-        null
-    }
-    val statusBarColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val originalColor = remember(activity) { activity?.window?.statusBarColor ?: 0 }
 
-    androidx.compose.runtime.DisposableEffect(statusBarColor) {
-        activity?.window?.let { window ->
-            window.statusBarColor = statusBarColor.toArgb()
-        }
-        onDispose {
-            activity?.window?.let { window ->
-                window.statusBarColor = originalColor
-            }
-        }
-    }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerHigh

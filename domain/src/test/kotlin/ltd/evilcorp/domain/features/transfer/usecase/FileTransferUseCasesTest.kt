@@ -39,10 +39,11 @@ class FileTransferUseCasesTest {
         repositories,
         tox,
         tox,
-        sessionRegistry
+        sessionRegistry,
+        Dispatchers.Unconfined
     )
 
-    private val useCase = ManageFileTransferUseCase(fileTransferManager)
+    private val useCase = ManageFileTransferUseCase(fileTransferManager, Dispatchers.Unconfined)
 
     @Test
     fun `ManageFileTransferUseCase handles Accept action`() = runTest {
@@ -128,7 +129,7 @@ class FileTransferUseCasesTest {
 
         // Set non-null mock IInputStream to avoid Reject trigger
         platformHelper.streamToReturn = object : IInputStream {
-            override fun read(b: ByteArray, off: Int, len: Int): Int = -1
+            override fun read(bytes: ByteArray, offset: Int, length: Int): Int = -1
             override fun close() {}
         }
 

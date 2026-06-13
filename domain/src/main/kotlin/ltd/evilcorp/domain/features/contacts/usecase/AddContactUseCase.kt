@@ -1,8 +1,9 @@
 package ltd.evilcorp.domain.features.contacts.usecase
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
@@ -17,8 +18,9 @@ class AddContactUseCase @Inject constructor(
     private val contactManager: ContactManager,
     private val messageRepository: IMessageRepository,
     private val timeProvider: ITimeProvider,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
-    suspend fun execute(toxId: ToxID, message: String) = withContext(Dispatchers.IO) {
+    suspend fun execute(toxId: ToxID, message: String) = withContext(ioDispatcher) {
         require(ToxIdValidator.validate(toxId) == ToxIdValidator.Result.NO_ERROR) {
             "Invalid Tox ID format"
         }
@@ -35,3 +37,4 @@ class AddContactUseCase @Inject constructor(
         )
     }
 }
+

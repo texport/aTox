@@ -26,6 +26,12 @@ import ltd.evilcorp.core.tox.runtime.ToxSessionSaver
 import ltd.evilcorp.core.tox.runtime.ToxEngine
 import ltd.evilcorp.core.tox.runtime.ToxCallBridge
 import ltd.evilcorp.core.tox.runtime.ToxRuntime
+import kotlinx.coroutines.test.StandardTestDispatcher
+import ltd.evilcorp.core.tox.impl.ToxCallControllerImpl
+import ltd.evilcorp.core.tox.impl.ToxFileTransmitterImpl
+import ltd.evilcorp.core.tox.impl.ToxGroupManagerImpl
+import ltd.evilcorp.core.tox.impl.ToxMessengerImpl
+import ltd.evilcorp.core.tox.impl.ToxProfileImpl
 import org.junit.runner.RunWith
 
 class FakeBootstrapNodeRegistry(val nodes: List<BootstrapNode> = listOf()) : IBootstrapNodeRegistry {
@@ -51,8 +57,16 @@ class ToxTest {
             val sessionSaver = ToxSessionSaver(FakeSaveManager())
             val engine = ToxEngine(this, FakeBootstrapNodeRegistry())
             val callBridge = ToxCallBridge()
-            val runtime = ToxRuntime(this, sessionSaver, engine, callBridge)
-            val tox = ToxImpl(runtime).apply { isBootstrapNeeded = false }
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val runtime = ToxRuntime(this, sessionSaver, engine, callBridge, dispatcher)
+            val tox = ToxImpl(
+                runtime = runtime,
+                profileImpl = ToxProfileImpl(runtime),
+                messengerImpl = ToxMessengerImpl(runtime),
+                fileTransmitterImpl = ToxFileTransmitterImpl(runtime),
+                callControllerImpl = ToxCallControllerImpl(runtime),
+                groupManagerImpl = ToxGroupManagerImpl(runtime)
+            ).apply { isBootstrapNeeded = false }
 
             tox.start(SaveOptions(null, false, ProxyType.None, "", 0), null, ToxEventListener(), ToxAvEventListener())
             advanceTimeBy(25.milliseconds)
@@ -109,8 +123,15 @@ class ToxTest {
         val sessionSaver = ToxSessionSaver(FakeSaveManager())
         val engine = ToxEngine(this, FakeBootstrapNodeRegistry(nodes))
         val callBridge = ToxCallBridge()
-        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge)
-        val tox = ToxImpl(runtime)
+        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge, kotlinx.coroutines.Dispatchers.IO)
+        val tox = ToxImpl(
+            runtime = runtime,
+            profileImpl = ToxProfileImpl(runtime),
+            messengerImpl = ToxMessengerImpl(runtime),
+            fileTransmitterImpl = ToxFileTransmitterImpl(runtime),
+            callControllerImpl = ToxCallControllerImpl(runtime),
+            groupManagerImpl = ToxGroupManagerImpl(runtime)
+        )
 
         tox.start(SaveOptions(null, false, ProxyType.None, "", 0), null, eventListener, ToxAvEventListener())
 

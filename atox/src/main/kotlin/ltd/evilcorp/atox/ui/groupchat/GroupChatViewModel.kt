@@ -4,7 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.group.model.Group
 import ltd.evilcorp.domain.features.group.model.GroupMessage
@@ -35,6 +36,7 @@ import ltd.evilcorp.domain.features.group.usecase.GroupChatActions
 import ltd.evilcorp.domain.features.group.usecase.GroupFileTransferActions
 import ltd.evilcorp.domain.features.group.usecase.LeaveGroupUseCase
 import ltd.evilcorp.domain.features.group.usecase.InviteFriendToGroupUseCase
+import ltd.evilcorp.domain.features.group.usecase.ObserveGroupMigratedEventUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 private const val METADATA_SYNC_DELAY_MS = 3000L
@@ -54,7 +56,9 @@ class GroupChatViewModel @Inject constructor(
     private val fileTransferActions: GroupFileTransferActions,
     private val leaveGroupUseCase: LeaveGroupUseCase,
     private val inviteFriendToGroupUseCase: InviteFriendToGroupUseCase,
+    private val observeGroupMigratedEventUseCase: ObserveGroupMigratedEventUseCase,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel(), ltd.evilcorp.atox.ui.chat.IChatController {
     private var chatId = ""
     private var metadataSyncJob: kotlinx.coroutines.Job? = null
@@ -68,6 +72,14 @@ class GroupChatViewModel @Inject constructor(
         val uri = getSelfAvatarUriUseCase.execute()
         if (uri != null) {
             _selfAvatarUri.value = uri
+        }
+
+        viewModelScope.launch {
+            observeGroupMigratedEventUseCase.execute().collect { (oldChatId, newChatId) ->
+                if (chatId == oldChatId) {
+                    setActiveGroup(newChatId)
+                }
+            }
         }
     }
 
@@ -111,7 +123,7 @@ class GroupChatViewModel @Inject constructor(
  
         // Start background synchronization of metadata and peer keys (avatars)
         metadataSyncJob?.cancel()
-        metadataSyncJob = viewModelScope.launch(Dispatchers.IO) {
+        metadataSyncJob = viewModelScope.launch(ioDispatcher) {
             while (true) {
                 syncGroupMetadataUseCase.execute(chatId)
                 delay(METADATA_SYNC_DELAY_MS)
@@ -121,19 +133,19 @@ class GroupChatViewModel @Inject constructor(
 
     override fun sendMessage(message: String, type: MessageType) {
         if (message.trim().isEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             chatActions.sendGroupMessage.execute(chatId, message, type)
         }
     }
 
     override fun sendFile(uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             chatActions.sendGroupFile.execute(chatId, uri.toString())
         }
     }
 
     override fun sendVoice(uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             chatActions.sendGroupVoice.execute(chatId, uri.toString())
         }
     }
@@ -157,7 +169,7 @@ class GroupChatViewModel @Inject constructor(
     }
 
     fun saveFt(id: Int, uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             fileTransferActions.saveGroupFileTransfer.execute(id, uri.toString())
         }
     }

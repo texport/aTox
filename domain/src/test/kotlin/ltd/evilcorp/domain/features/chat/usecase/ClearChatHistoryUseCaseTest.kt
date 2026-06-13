@@ -31,7 +31,7 @@ class ClearChatHistoryUseCaseTest {
         contactRepo.add(Contact(pk.string(), lastMessage = 99999L))
         messageRepo.add(Message(pk.string(), "Hello", Sender.Sent, MessageType.Normal, correlationId = 0))
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
         val useCase = ClearChatHistoryUseCase(chatManager)
 
         // Act

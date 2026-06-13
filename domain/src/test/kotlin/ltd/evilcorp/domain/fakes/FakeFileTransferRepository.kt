@@ -41,7 +41,9 @@ class FakeFileTransferRepository : IFileTransferRepository {
     }
 
     private fun updateField(id: Int, update: (FileTransfer) -> FileTransfer) {
-        val current = transfers.value[id] ?: return
-        transfers.value = transfers.value + (id to update(current))
+        val current = transfers.value[id]
+        if (current != null) {
+            transfers.value = transfers.value + (id to update(current))
+        }
     }
 }

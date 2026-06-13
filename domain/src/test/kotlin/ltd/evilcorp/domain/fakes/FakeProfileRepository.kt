@@ -2,6 +2,7 @@ package ltd.evilcorp.domain.fakes
 
 import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.auth.repository.IProfileRepository
+import ltd.evilcorp.domain.features.auth.model.ProfileInfo
 
 class FakeProfileRepository : IProfileRepository {
     var deletedProfilePk: PublicKey? = null
@@ -34,4 +35,14 @@ class FakeProfileRepository : IProfileRepository {
     override suspend fun clearCheckpoint() {
         checkpointCleared = true
     }
+
+    override suspend fun finalizeProfileCreation(oldId: String, newId: String, name: String) {}
+
+    override fun getActiveProfileId(): String = "default"
+    override fun setActiveProfileId(id: String) {}
+    override fun getShowProfilePicker(): Boolean = false
+    override fun setShowProfilePicker(show: Boolean) {}
+    override fun getProfiles(): List<ProfileInfo> = emptyList()
+    override fun addOrUpdateProfile(profile: ProfileInfo) {}
+    override fun removeProfile(id: String) {}
 }

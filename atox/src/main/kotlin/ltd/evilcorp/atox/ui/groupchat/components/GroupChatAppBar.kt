@@ -16,8 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,7 +74,12 @@ fun GroupChatAppBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .combinedClickable(
-                            onClick = {},
+                            onClick = {
+                                if (uiConfig.hapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                onPeersClick()
+                            },
                             onLongClick = {
                                 if (uiConfig.hapticEnabled) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -175,7 +180,7 @@ fun GroupChatAppBar(
                     }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
+                            contentDescription = context.getString(R.string.more_options),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -197,9 +202,9 @@ fun GroupChatAppBar(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(context.getString(R.string.group_peers)) },
+                            text = { Text(context.getString(R.string.group_info)) },
                             leadingIcon = {
-                                Icon(Icons.Default.Person, contentDescription = null)
+                                Icon(Icons.Default.Info, contentDescription = null)
                             },
                             onClick = {
                                 menuExpanded = false

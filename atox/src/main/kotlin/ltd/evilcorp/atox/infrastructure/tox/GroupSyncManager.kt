@@ -5,6 +5,8 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 import kotlinx.serialization.json.Json
@@ -17,45 +19,72 @@ import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.group.GroupConnectionStatus
 import ltd.evilcorp.domain.features.group.GroupManager
+import ltd.evilcorp.domain.features.group.GroupEventBus
+import ltd.evilcorp.domain.features.group.GroupDomainEvent
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import java.util.concurrent.ConcurrentHashMap
+
 private const val TAG = "GroupSyncManager"
 private val json = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
 }
 private val SYNC_PACKET_PREFIX = byteArrayOf(0xA0.toByte())
+
 @Singleton
 class GroupSyncManager @Inject constructor(
     private val scope: CoroutineScope,
     private val groupRepository: IGroupRepository,
     private val contactRepository: IContactRepository,
     private val tox: ITox,
-    private val groupManager: GroupManager
+    private val groupManager: GroupManager,
+    private val groupEventBus: GroupEventBus
 ) {
+
     // Store accumulated IDs for multi-page requests (key = chatId|fromPk).
     private val pendingIdPages = ConcurrentHashMap<String, MutableSet<Int>>()
+
+    init {
+        groupEventBus.events.onEach { event ->
+            if (event is GroupDomainEvent.LocalMessageSent) {
+                triggerSyncForGroup(event.chatId)
+            }
+        }.launchIn(scope)
+    }
+
     // Entry Points
+
+    fun triggerSyncForGroup(chatId: String) {
+        scope.launch {
+            val contacts = contactRepository.getAll().firstOrNull() ?: emptyList()
+            for (contact in contacts) {
+                val isBootstrap = groupManager.isBootstrapFriend(contact.publicKey)
+                if (!isBootstrap) {
+                    sendSummary(chatId, contact.publicKey)
+                }
+            }
+        }
+    }
+
     /**
      * Triggered when a friend comes online. Triggers reconnection or message synchronization.
      */
     fun onGroupPeerOnline(friendPublicKey: String) {
         scope.launch {
             val isBootstrapOnly = groupManager.isBootstrapFriend(friendPublicKey)
-            val groups = findGroupsWithPeer(friendPublicKey)
-            for (chatId in groups) {
-                val group = groupRepository.get(chatId).firstOrNull() ?: continue
-                // If group is disconnected or connecting, trigger reconnect via the scheduler
+
+            val allGroups = groupRepository.getAll().firstOrNull() ?: emptyList()
+            for (group in allGroups) {
+                val chatId = group.chatId
                 val currentStatus = groupManager.connectionStatus(chatId)
-                if ((currentStatus == GroupConnectionStatus.Disconnected || currentStatus == GroupConnectionStatus.Connecting) && group.groupNumber >= 0) {
+                if (currentStatus == GroupConnectionStatus.Disconnected || currentStatus == GroupConnectionStatus.Connecting) {
                     groupManager.scheduleAutoReconnect(chatId, group.groupNumber)
                 }
-                // Sync only with real chat participants, not bootstrap-only friends
+                
                 if (!isBootstrapOnly) {
                     sendSummary(chatId, friendPublicKey)
                 }
             }
-            // Layer 2: Send group relay status to help reconnect stuck groups
             if (!isBootstrapOnly) {
                 sendGroupRelay(friendPublicKey)
             }
@@ -88,7 +117,7 @@ class GroupSyncManager @Inject constructor(
     // Phase 1 — Summary Exchange (Each side sends: count, lastId)
     private suspend fun sendSummary(chatId: String, peerPk: String) {
         val allIds = groupRepository.getMessageIds(chatId)
-        val validIds = allIds.filter { it >= 0 } // Exclude unsent (-1)
+        val validIds = allIds.filter { it != -1 } // Exclude unsent (-1)
         val lastId = validIds.maxOrNull() ?: return // Empty group, nothing to sync
         val payload = GroupSyncPayload(
             type = TYPE_SUMMARY,
@@ -106,7 +135,7 @@ class GroupSyncManager @Inject constructor(
         val theirLastId = payload.lastId
         if (theirCount < 0 || theirLastId < 0) return
         scope.launch {
-            val myIds = groupRepository.getMessageIds(chatId).filter { it >= 0 }
+            val myIds = groupRepository.getMessageIds(chatId).filter { it != -1 }
             val myCount = myIds.size
             val myLastId = myIds.maxOrNull() ?: -1
             // If summaries match, we are in-sync
@@ -152,7 +181,7 @@ class GroupSyncManager @Inject constructor(
         scope.launch {
             val remoteIds = accumulator.toList()
             pendingIdPages.remove("$chatId|$fromPk")
-            val myIds = groupRepository.getMessageIds(chatId).filter { it >= 0 }
+            val myIds = groupRepository.getMessageIds(chatId).filter { it != -1 }
             // Find missing messages we have, but they don't, and send them
             val remoteSet = remoteIds.toSet()
             val theyNeed = myIds.filter { it !in remoteSet }
@@ -209,10 +238,14 @@ class GroupSyncManager @Inject constructor(
         if (chatId.isEmpty()) return
         val more = payload.more
         val messages = payload.messages
+        Log.w(TAG, "onMsgPageReceived: payload.messages.size = ${messages.size}")
         var saved = 0
         for (obj in messages) {
             val corrId = obj.correlationId
-            if (groupRepository.existsByCorrelationId(chatId, corrId)) continue
+            val exists = groupRepository.existsByCorrelationId(chatId, corrId)
+            Log.w(TAG, "onMsgPageReceived: checking corrId=$corrId, exists=$exists")
+            if (exists) continue
+            
             val msg = GroupMessage(
                 groupChatId = chatId,
                 peerId = obj.peerId,
@@ -224,32 +257,11 @@ class GroupSyncManager @Inject constructor(
                 correlationId = corrId,
                 timestamp = obj.timestamp,
             )
+            Log.w(TAG, "onMsgPageReceived: inserting message $corrId '${obj.message}'")
             groupRepository.addMessage(msg)
             saved++
         }
         Log.i(TAG, "Saved $saved synced messages for $chatId from $fromPk (more=$more)")
-    }
-    // Helper Methods
-    private suspend fun findGroupsWithPeer(peerPublicKey: String): List<String> {
-        val allGroups = groupRepository.getAll().firstOrNull() ?: return emptyList()
-        val result = mutableListOf<String>()
-        val contact = contactRepository.get(peerPublicKey).firstOrNull()
-        val contactName = contact?.name ?: ""
-        for (group in allGroups) {
-            val peers = groupRepository.getPeers(group.chatId).firstOrNull() ?: continue
-            val hasDirectMatch = peers.any { it.publicKey.equals(peerPublicKey, ignoreCase = true) }
-            val hasNameMatch = contactName.isNotEmpty() && peers.any { it.name.equals(contactName, ignoreCase = true) }
-            // Robust Fallback: if the group is disconnected/reconnecting and has peers, and the online node is a real friend contact, reconnect
-            val currentStatus = groupManager.connectionStatus(group.chatId)
-            val isDisconnectedOrReconnecting = currentStatus == GroupConnectionStatus.Disconnected || currentStatus == GroupConnectionStatus.Reconnecting
-            val hasPeers = peers.isNotEmpty()
-            val isRealFriend = contact != null
-            val isFallbackMatch = isDisconnectedOrReconnecting && hasPeers && isRealFriend
-            if (hasDirectMatch || hasNameMatch || isFallbackMatch) {
-                result.add(group.chatId)
-            }
-        }
-        return result
     }
     // Layer 2+4: Group Relay — invite exchange for stuck groups
     /**

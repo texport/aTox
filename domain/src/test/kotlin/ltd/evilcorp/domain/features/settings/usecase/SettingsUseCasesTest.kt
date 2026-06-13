@@ -45,7 +45,8 @@ class SettingsUseCasesTest {
         repositories,
         tox,
         tox,
-        sessionRegistry
+        sessionRegistry,
+        Dispatchers.Unconfined
     )
 
     @Test

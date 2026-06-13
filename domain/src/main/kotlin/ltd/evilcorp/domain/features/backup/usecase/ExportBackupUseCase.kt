@@ -5,18 +5,18 @@
 package ltd.evilcorp.domain.features.backup.usecase
 
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
-import ltd.evilcorp.domain.core.platform.IPlatformServices
 import javax.inject.Inject
 
 /**
  * Use case to export selectively selected app database profiles and backup files
  * into a single encrypted or raw byte array zip archive.
  */
+private const val MANIFEST_ENTRY = "manifest.txt"
+
 open class ExportBackupUseCase @Inject constructor(
-    private val providers: List<@JvmSuppressWildcards IBackupDataProvider>,
-    private val platformServices: IPlatformServices
+    private val providers: List<@JvmSuppressWildcards IBackupDataProvider>
 ) {
-    open suspend fun execute(selectedIds: Set<String>, password: String? = null): ByteArray {
+    open suspend fun execute(selectedIds: Set<String>): ByteArray {
         val bos = java.io.ByteArrayOutputStream()
         java.util.zip.ZipOutputStream(bos).use { zip ->
             val manifestEntry = java.util.zip.ZipEntry(MANIFEST_ENTRY)
@@ -38,8 +38,6 @@ open class ExportBackupUseCase @Inject constructor(
                     zip.closeEntry()
                 }
         }
-        val zipBytes = bos.toByteArray()
-
-        return password?.takeIf(String::isNotBlank)?.let { BackupCryptoHelper.encrypt(zipBytes, it, platformServices) } ?: zipBytes
+        return bos.toByteArray()
     }
 }

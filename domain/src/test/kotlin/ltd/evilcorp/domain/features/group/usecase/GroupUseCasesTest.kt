@@ -28,7 +28,8 @@ class GroupUseCasesTest {
         scope = scope,
         contactRepository = contactRepo,
         messageRepository = messageRepo,
-        tox = tox
+        tox = tox,
+        ioDispatcher = Dispatchers.Unconfined
     )
 
     private val toxServices = GroupToxServices(tox, tox)
@@ -37,8 +38,9 @@ class GroupUseCasesTest {
     private val sessionRegistry = FakeGroupSessionRegistry()
     private val sessionCoordinator = GroupSessionCoordinator(connectionScheduler, sessionRegistry)
 
-    private val groupConnectionService = GroupConnectionService(scope, sessionCoordinator, groupRepo, toxServices)
-    private val groupMessagingService = GroupMessagingService(scope, groupRepo, messageRepo, contactRepo, toxServices, sessionCoordinator)
+    private val groupConnectionService = GroupConnectionService(scope, sessionCoordinator, groupRepo, toxServices, Dispatchers.Unconfined)
+    private val groupEventBus = GroupEventBus()
+    private val groupMessagingService = GroupMessagingService(scope, groupDataRepos, toxServices, sessionCoordinator, groupEventBus, Dispatchers.Unconfined)
     private val groupServices = GroupServices(groupConnectionService, groupMessagingService)
 
     private val groupManager = GroupManager(
@@ -82,7 +84,9 @@ class GroupUseCasesTest {
         assertEquals(0, groupNumber)
         val allGroups = groupManager.getAll().first()
         assertEquals(1, allGroups.size)
-        assertEquals("Unknown Group", allGroups[0].name)
+        val createdGroup = allGroups[0]
+        assertEquals("Unknown Group", createdGroup.name)
+        assertEquals(0, connectionScheduler.scheduledAutoReconnects[createdGroup.chatId])
     }
 
     @Test
@@ -203,8 +207,9 @@ class GroupUseCasesTest {
         val useCase = DeleteGroupMessageUseCase(groupRepo)
         val msg = GroupMessage(
             groupChatId = "chat_id", peerId = 1, senderName = "Bob", message = "Hi",
-            sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L
-        ).apply { id = 123L }
+            sender = Sender.Received, type = MessageType.Normal, correlationId = 0, timestamp = 1000L,
+            id = 123L
+        )
         groupRepo.addMessage(msg)
 
         useCase.execute(123L)

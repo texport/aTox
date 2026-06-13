@@ -26,7 +26,7 @@ class CallManagerTest {
         var ringtonePlaying = false
         var ringbackPlaying = false
         override fun playIncomingRingtone(scope: CoroutineScope) { ringtonePlaying = true }
-        override fun playRingback(scope: CoroutineScope, condition: () -> Boolean) { ringbackPlaying = true }
+        override fun playRingback(scope: CoroutineScope, isCallActive: () -> Boolean) { ringbackPlaying = true }
         override fun stopSignals() {
             ringtonePlaying = false
             ringbackPlaying = false
@@ -35,7 +35,7 @@ class CallManagerTest {
 
     private val audioRecorder = object : IAudioRecorder {
         override val sendingAudio = MutableStateFlow(false)
-        override fun startAudioCapture(scope: CoroutineScope, to: PublicKey, speakerphone: Boolean, condition: () -> Boolean) {
+        override fun startAudioCapture(scope: CoroutineScope, to: PublicKey, speakerphoneOn: Boolean, isTargetValid: () -> Boolean) {
             sendingAudio.value = true
         }
         override fun stopAudioCapture() {

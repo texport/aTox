@@ -39,8 +39,11 @@ import androidx.activity.compose.BackHandler
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.atox.ui.common.chat.ChatScreenContent
 import ltd.evilcorp.atox.ui.common.chat.MessageBubbleConfig
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.paging.PagingData
+import androidx.paging.compose.collectAsLazyPagingItems
 import ltd.evilcorp.atox.ui.chat.components.CallConfirmDialog
 import ltd.evilcorp.atox.ui.chat.components.ChatAppBar
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -57,6 +60,7 @@ import androidx.compose.foundation.lazy.LazyListState
 fun ChatScreen(
     uiState: ChatUiState,
     onBack: () -> Unit,
+    messagesFlow: Flow<PagingData<Message>>? = null,
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
     onSendFile: (Uri) -> Unit,
@@ -81,6 +85,7 @@ fun ChatScreen(
 ) {
     val contact = uiState.contact
     val messages = uiState.messages
+    val pagedMessages = messagesFlow?.collectAsLazyPagingItems()
     val fileTransfers = uiState.fileTransfers
     val replyingToMessage = uiState.replyingToMessage
     val uiConfig = uiState.uiConfig ?: ChatUiConfig(
@@ -131,7 +136,9 @@ fun ChatScreen(
         null
     }
     val navBarColor = MaterialTheme.colorScheme.surfaceContainer
+    @Suppress("DEPRECATION")
     val originalNavBarColor = remember(activity) { activity?.window?.navigationBarColor ?: 0 }
+    @Suppress("DEPRECATION")
     androidx.compose.runtime.DisposableEffect(navBarColor) {
         activity?.window?.let { window ->
             window.navigationBarColor = navBarColor.toArgb()
@@ -198,6 +205,7 @@ fun ChatScreen(
             ChatScreenContent(
                 messages = messages,
                 toMessage = { it },
+                pagedMessages = pagedMessages,
                 getBubbleConfig = {
                     MessageBubbleConfig(
                         contactName = contactName

@@ -29,7 +29,7 @@ class GetChatMessagesUseCaseTest {
         val msg = Message(pk.string(), "Hello", Sender.Sent, MessageType.Normal, correlationId = 0)
         messageRepo.add(msg)
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
         val useCase = GetChatMessagesUseCase(chatManager)
 
         // Act

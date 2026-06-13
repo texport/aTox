@@ -29,6 +29,9 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.atox.ui.contactlist.components.ChatListTab
+import ltd.evilcorp.domain.features.group.model.Group
+import ltd.evilcorp.domain.features.group.GroupConnectionStatus
+import androidx.compose.runtime.State
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.settings.model.DateFormatPreference
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest
@@ -53,12 +56,16 @@ import androidx.compose.animation.core.Spring
 fun ChatsRouteScreen(
     connectionStatus: ConnectionStatus,
     contacts: List<Contact>,
+    groupsState: State<List<Group>>,
+    connectionStatusesState: State<Map<String, GroupConnectionStatus>>,
     friendRequests: List<FriendRequest>,
     groupInvite: GroupInvite?,
     groupInviteFriendName: String,
     dateFormatPreference: DateFormatPreference,
     timeFormatPreference: TimeFormatPreference,
     onContactClick: (Contact) -> Unit,
+    onGroupClick: (Group) -> Unit,
+    onLeaveGroup: (Group) -> Unit,
     onDeleteContact: (Contact) -> Unit,
     onAcceptFriendRequest: (FriendRequest) -> Unit,
     onRejectFriendRequest: (FriendRequest) -> Unit,
@@ -69,6 +76,7 @@ fun ChatsRouteScreen(
     onSearchClick: () -> Unit,
 ) {
     var contactToDelete by remember { mutableStateOf<Contact?>(null) }
+    var groupToLeave by remember { mutableStateOf<Group?>(null) }
     val listState = rememberSaveable(saver = LazyListState.Saver) {
         LazyListState()
     }
@@ -142,6 +150,8 @@ fun ChatsRouteScreen(
             ) {
                 ChatListTab(
                     contacts = contacts,
+                    groups = groupsState.value,
+                    connectionStatuses = connectionStatusesState.value,
                     friendRequests = friendRequests,
                     groupInvite = groupInvite,
                     groupInviteFriendName = groupInviteFriendName,
@@ -149,6 +159,8 @@ fun ChatsRouteScreen(
                     dateFormatPreference = dateFormatPreference,
                     timeFormatPreference = timeFormatPreference,
                     onContactClick = onContactClick,
+                    onGroupClick = onGroupClick,
+                    onLeaveGroup = { groupToLeave = it },
                     onDeleteContact = { contactToDelete = it },
                     onAcceptFriendRequest = onAcceptFriendRequest,
                     onRejectFriendRequest = onRejectFriendRequest,
@@ -178,6 +190,21 @@ fun ChatsRouteScreen(
                         contentDescription = stringResource(R.string.delete)
                     )
                 }
+            )
+        }
+
+        groupToLeave?.let { group ->
+            AtoxConfirmDialog(
+                onDismiss = { groupToLeave = null },
+                onConfirm = {
+                    groupToLeave = null
+                    onLeaveGroup(group)
+                },
+                title = stringResource(R.string.group_leave),
+                text = stringResource(R.string.group_leave_confirm, group.name),
+                confirmText = stringResource(R.string.confirm),
+                dismissText = stringResource(android.R.string.cancel),
+                isDangerous = true
             )
         }
 }

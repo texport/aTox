@@ -27,7 +27,7 @@ class SetActiveChatUseCaseTest {
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         contactRepo.add(Contact(pk.string(), hasUnreadMessages = true))
 
-        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox)
+        val chatManager = ChatManager(scope, contactRepo, messageRepo, fakeTox, Dispatchers.Unconfined)
         val useCase = SetActiveChatUseCase(chatManager)
 
         // Act

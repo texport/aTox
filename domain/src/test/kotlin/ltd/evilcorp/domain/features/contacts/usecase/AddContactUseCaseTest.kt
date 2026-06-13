@@ -1,5 +1,6 @@
 package ltd.evilcorp.domain.features.contacts.usecase
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.network.ITimeProvider
@@ -19,7 +20,7 @@ class AddContactUseCaseTest {
         // Arrange
         val fakeContactRepo = FakeContactRepository()
         val fakeToxProfile = FakeToxProfile()
-        val contactManager = ContactManager(fakeContactRepo, fakeToxProfile)
+        val contactManager = ContactManager(fakeContactRepo, fakeToxProfile, Dispatchers.Unconfined)
         val fakeMessageRepo = FakeMessageRepository()
         
         val fixedTime = 1234567890L
@@ -27,7 +28,7 @@ class AddContactUseCaseTest {
             override fun getCurrentTimeMillis(): Long = fixedTime
         }
 
-        val useCase = AddContactUseCase(contactManager, fakeMessageRepo, fakeTimeProvider)
+        val useCase = AddContactUseCase(contactManager, fakeMessageRepo, fakeTimeProvider, Dispatchers.Unconfined)
         val toxId = ToxID("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C4ACEE797596D")
         val message = "Hello from testing!"
 

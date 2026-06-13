@@ -26,8 +26,9 @@ class BackupUseCasesTest {
             sender = Sender.Sent,
             type = MessageType.Normal,
             correlationId = 0,
-            timestamp = 1000L
-        ).apply { id = 1L }
+            timestamp = 1000L,
+            id = 1L
+        )
         messageRepo.add(msg)
 
         val jsonResult = exportManager.generateExportMessagesJString(pk.string().lowercase())
@@ -38,7 +39,7 @@ class BackupUseCasesTest {
 
     @Test
     fun `ExportChatHistoryUseCase delegates to ExportManager`() = runTest {
-        val useCase = ExportChatHistoryUseCase(exportManager)
+        val useCase = ExportChatHistoryUseCase(exportManager, kotlinx.coroutines.Dispatchers.Unconfined)
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         val msg = Message(
             publicKey = pk.string().lowercase(),
@@ -46,24 +47,15 @@ class BackupUseCasesTest {
             sender = Sender.Sent,
             type = MessageType.Normal,
             correlationId = 0,
-            timestamp = 1000L
-        ).apply { id = 1L }
+            timestamp = 1000L,
+            id = 1L
+        )
         messageRepo.add(msg)
 
         val jsonResult = useCase.execute(pk.string().lowercase())
         assertTrue(jsonResult.contains("Hello UseCase!"))
     }
 
-    @Test
-    fun `BackupCryptoHelper encrypts and decrypts correctly`() {
-        val rawData = "Secret Backup Data".encodeToByteArray()
-        val password = "super_password"
-        
-        val encrypted = BackupCryptoHelper.encrypt(rawData, password, FakePlatformServices())
-        val decrypted = BackupCryptoHelper.decryptIfNeeded(encrypted, password)
-
-        assertContentEquals(rawData, decrypted)
-    }
 
     @Test
     fun `ExportBackupUseCase zips and optionally encrypts provider data`() = runTest {
@@ -76,12 +68,12 @@ class BackupUseCasesTest {
             }
             override suspend fun deserialize(data: ByteArray) {}
         }
-        val useCase = ExportBackupUseCase(listOf(provider), platformServices)
+        val useCase = ExportBackupUseCase(listOf(provider))
 
         val selectedIds = setOf("test_provider")
         
         // Test raw backup export
-        val rawResult = useCase.execute(selectedIds, password = null)
+        val rawResult = useCase.execute(selectedIds)
         assertTrue(rawResult.isNotEmpty())
 
         val entries = mutableMapOf<String, ByteArray>()
@@ -100,9 +92,6 @@ class BackupUseCasesTest {
         assertTrue(entries.containsKey("test_provider.bin"))
         assertEquals("serialized_data", entries["test_provider.bin"]?.decodeToString())
 
-        // Test encrypted backup export
-        val encryptedResult = useCase.execute(selectedIds, password = "password")
-        assertTrue(encryptedResult.size > rawResult.size)
     }
 
     @Test
@@ -122,7 +111,7 @@ class BackupUseCasesTest {
         val mockZipBytes = "zipped_data".encodeToByteArray()
         platformServices.unzippedResult = mapOf("test_provider.bin" to "deserialized_data".encodeToByteArray())
 
-        useCase.execute(mockZipBytes, password = null)
+        useCase.execute(mockZipBytes)
 
         assertNotNull(deserializedBytes)
         assertContentEquals("deserialized_data".encodeToByteArray(), deserializedBytes)

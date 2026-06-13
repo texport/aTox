@@ -22,7 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
@@ -31,6 +31,7 @@ import ltd.evilcorp.atox.ui.navigation.AppRoutes
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import ltd.evilcorp.atox.ui.theme.AToxMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.settingsTabRoute(
@@ -43,7 +44,10 @@ fun NavGraphBuilder.settingsTabRoute(
     onLocaleTagChanged: (String) -> Unit,
     onDisableScreenshotsChanged: (Boolean) -> Unit
 ) {
-    composable<AppRoutes.Settings> {
+    composable<AppRoutes.Settings>(
+        enterTransition = { AToxMotion.fadeThroughEnter() },
+        exitTransition = { AToxMotion.fadeThroughExit() }
+    ) {
         val context = LocalContext.current
         val settingsTitleState = remember { mutableStateOf("") }
         val settingsOnBackActionState = remember { mutableStateOf<(() -> Unit)?>(null) }

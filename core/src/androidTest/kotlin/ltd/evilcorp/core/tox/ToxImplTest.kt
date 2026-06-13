@@ -2,8 +2,15 @@ package ltd.evilcorp.core.tox
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import ltd.evilcorp.core.tox.impl.ToxCallControllerImpl
+import ltd.evilcorp.core.tox.impl.ToxFileTransmitterImpl
+import ltd.evilcorp.core.tox.impl.ToxGroupManagerImpl
+import ltd.evilcorp.core.tox.impl.ToxMessengerImpl
+import ltd.evilcorp.core.tox.impl.ToxProfileImpl
 import ltd.evilcorp.core.tox.listener.ToxAvEventListener
 import ltd.evilcorp.core.tox.listener.ToxEventListener
 import ltd.evilcorp.core.tox.runtime.ToxCallBridge
@@ -56,11 +63,23 @@ class ToxImplTest {
         // No-op
     }
 
+    private fun TestScope.createTox(): ToxImpl {
+        val engine = ToxEngine(this, FakeBootstrapNodeRegistry())
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge, dispatcher)
+        return ToxImpl(
+            runtime = runtime,
+            profileImpl = ToxProfileImpl(runtime),
+            messengerImpl = ToxMessengerImpl(runtime),
+            fileTransmitterImpl = ToxFileTransmitterImpl(runtime),
+            callControllerImpl = ToxCallControllerImpl(runtime),
+            groupManagerImpl = ToxGroupManagerImpl(runtime)
+        ).apply { isBootstrapNeeded = false }
+    }
+
     @Test
     fun testInitialState() = runTest {
-        val engine = ToxEngine(this, FakeBootstrapNodeRegistry())
-        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge)
-        val tox = ToxImpl(runtime).apply { isBootstrapNeeded = false }
+        val tox = createTox()
 
         assertFalse(tox.started)
         assertFalse(tox.isBootstrapNeeded)
@@ -68,9 +87,7 @@ class ToxImplTest {
 
     @Test
     fun testStart_and_stop() = runTest {
-        val engine = ToxEngine(this, FakeBootstrapNodeRegistry())
-        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge)
-        val tox = ToxImpl(runtime).apply { isBootstrapNeeded = false }
+        val tox = createTox()
 
         assertFalse(tox.started)
         
@@ -92,9 +109,7 @@ class ToxImplTest {
 
     @Test
     fun testGetSetName_and_status() = runTest {
-        val engine = ToxEngine(this, FakeBootstrapNodeRegistry())
-        val runtime = ToxRuntime(this, sessionSaver, engine, callBridge)
-        val tox = ToxImpl(runtime).apply { isBootstrapNeeded = false }
+        val tox = createTox()
 
         tox.start(
             SaveOptions(null, false, ProxyType.None, "", 0),

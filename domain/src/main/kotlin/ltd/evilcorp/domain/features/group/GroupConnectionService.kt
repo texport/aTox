@@ -6,9 +6,10 @@ package ltd.evilcorp.domain.features.group
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.core.di.IoDispatcher
 import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -39,6 +40,7 @@ class GroupConnectionService @Inject constructor(
     private val sessionCoordinator: GroupSessionCoordinator,
     private val groupRepository: IGroupRepository,
     private val toxServices: GroupToxServices,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val connectionScheduler get() = sessionCoordinator.connectionScheduler
     private val sessionRegistry get() = sessionCoordinator.sessionRegistry
@@ -74,7 +76,7 @@ class GroupConnectionService @Inject constructor(
     fun isBootstrapFriend(pk: String): Boolean =
         connectionScheduler.isBootstrapFriend(pk)
 
-    suspend fun leaveGroup(chatId: String) = withContext(Dispatchers.IO) {
+    suspend fun leaveGroup(chatId: String) = withContext(ioDispatcher) {
         stopReconnect(chatId)
         val g = groupRepository.get(chatId).firstOrNull()
         g?.let {
@@ -92,7 +94,7 @@ class GroupConnectionService @Inject constructor(
         groupName: String,
         selfName: String,
         password: String? = null,
-    ): Int = withContext(Dispatchers.IO) {
+    ): Int = withContext(ioDispatcher) {
         val toxPrivacyState = when (privacyState) {
             GroupPrivacyState.Public -> ToxGroupPrivacyState.PUBLIC
             GroupPrivacyState.Private -> ToxGroupPrivacyState.PRIVATE
@@ -154,7 +156,7 @@ class GroupConnectionService @Inject constructor(
         inviteData: ByteArray,
         selfName: String,
         password: String? = null,
-    ): Int = withContext(Dispatchers.IO) {
+    ): Int = withContext(ioDispatcher) {
         val inviteHex = inviteData.bytesToHex().lowercase()
         val pendingGn = pendingInvites.remove(inviteHex)
 
@@ -192,7 +194,7 @@ class GroupConnectionService @Inject constructor(
         }
     }
 
-    suspend fun processJoinedGroup(groupNumber: Int, selfName: String): String = withContext(Dispatchers.IO) {
+    suspend fun processJoinedGroup(groupNumber: Int, selfName: String): String = withContext(ioDispatcher) {
         var chatIdBytes = tox.groupGetChatId(groupNumber)
         var attempts = 0
         while (chatIdBytes == null && attempts < CHAT_ID_RETRY_ATTEMPTS) {
@@ -240,6 +242,7 @@ class GroupConnectionService @Inject constructor(
             groupRepository.addPeer(ourPeer)
         }
         sessionRegistry.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+        scheduleAutoReconnect(chatId, groupNumber)
         chatId
     }
 
@@ -249,7 +252,7 @@ class GroupConnectionService @Inject constructor(
      * If the group is unknown, it keeps the groupNumber pending so it can be consumed later when manually accepted.
      */
     @Suppress("ComplexCondition")
-    suspend fun preJoinInvite(friendNo: Int, inviteData: ByteArray, selfName: String): PreJoinResult = withContext(Dispatchers.IO) {
+    suspend fun preJoinInvite(friendNo: Int, friendPk: String, inviteData: ByteArray, selfName: String): PreJoinResult = withContext(ioDispatcher) {
         try {
             val groupNumber = tox.groupJoin(friendNo, inviteData, selfName.toByteArray(), null)
             if (groupNumber < 0) return@withContext PreJoinResult(false, false)
@@ -267,6 +270,31 @@ class GroupConnectionService @Inject constructor(
                 val existingGroup = groupRepository.getDirect(chatId)
 
                 if (existingGroup != null) {
+                    val status = sessionRegistry.connectionStatuses.value[chatId] ?: GroupConnectionStatus.Disconnected
+                    val count = groupRepository.peerCountDirect(chatId)
+                    
+                    if (status == GroupConnectionStatus.Connected) {
+                        if (count > 1) {
+                            // We are connected and have peers, no need to accept this invite
+                            try { tox.groupLeave(groupNumber) } catch(ignored: Exception) {}
+                            return@withContext PreJoinResult(true, true, chatId)
+                        } else {
+                            // Split-brain: we are connected but alone. The sender is also connected and alone.
+                            // If we both accept, we swap instances. Use PK tie-breaker.
+                            val myPk = toxProfile.publicKey.string().lowercase()
+                            if (friendPk < myPk) {
+                                // We win the tie-breaker, ignore their invite and wait for them to accept ours
+                                try { tox.groupLeave(groupNumber) } catch(ignored: Exception) {}
+                                // Proactively send our invite to ensure they get it
+                                val ourGroup = groupRepository.getDirect(chatId)
+                                if (ourGroup != null && ourGroup.groupNumber >= 0) {
+                                    try { tox.groupInviteSend(ourGroup.groupNumber, friendNo) } catch(ignored: Exception) {}
+                                }
+                                return@withContext PreJoinResult(true, true, chatId)
+                            }
+                        }
+                    }
+                    
                     // It's a known group -> Auto-accept it, even if we think we're connected (heals splits)
                     processJoinedGroup(groupNumber, selfName)
                     PreJoinResult(true, true, chatId)
@@ -305,7 +333,7 @@ class GroupConnectionService @Inject constructor(
         return joinGroup(friendNo, inviteData, selfName, password)
     }
 
-    suspend fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int = withContext(Dispatchers.IO) {
+    suspend fun joinByChatId(chatIdHex: String, selfName: String, password: String? = null): Int = withContext(ioDispatcher) {
         if (chatIdHex.length != HEX_KEY_LENGTH) return@withContext ERROR_INVALID_KEY_LENGTH
         if (groupRepository.exists(chatIdHex)) return@withContext ERROR_EXISTS
 
@@ -341,6 +369,7 @@ class GroupConnectionService @Inject constructor(
             )
             groupRepository.add(group)
             sessionRegistry.setConnectionStatus(chatId, GroupConnectionStatus.Connecting)
+            scheduleAutoReconnect(chatId, groupNumber)
 
             scope.launch {
                 delay(JOIN_TIMEOUT_MS)

@@ -72,6 +72,7 @@ class GroupDatabaseUpdater @Inject constructor(
             is GroupDomainEvent.GroupConnected -> handleGroupConnected(event)
             is GroupDomainEvent.GroupJoinFail -> handleGroupJoinFail(event)
             is GroupDomainEvent.GroupModeration -> handleGroupModeration(event)
+            is GroupDomainEvent.LocalMessageSent -> { /* handled by GroupSyncManager */ }
         }
     }
 

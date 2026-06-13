@@ -1,5 +1,6 @@
 package ltd.evilcorp.domain.features.contacts
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import ltd.evilcorp.domain.core.model.PublicKey
@@ -19,7 +20,7 @@ class ContactManagerTest {
         // Arrange
         val repo = FakeContactRepository()
         val tox = FakeTox()
-        val manager = ContactManager(repo, tox)
+        val manager = ContactManager(repo, tox, Dispatchers.Unconfined)
         val toxId = ToxID("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C4ACEE797596D")
 
         // Act
@@ -36,7 +37,7 @@ class ContactManagerTest {
         // Arrange
         val repo = FakeContactRepository()
         val tox = FakeTox()
-        val manager = ContactManager(repo, tox)
+        val manager = ContactManager(repo, tox, Dispatchers.Unconfined)
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         repo.add(Contact(pk.string(), name = "Alice"))
 
@@ -54,7 +55,7 @@ class ContactManagerTest {
         // Arrange
         val repo = FakeContactRepository()
         val tox = FakeTox()
-        val manager = ContactManager(repo, tox)
+        val manager = ContactManager(repo, tox, Dispatchers.Unconfined)
         val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
         repo.add(Contact(pk.string()))
 

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Settings
@@ -106,7 +105,7 @@ fun MainTabsScreen(
 
             AToxFAB(
                 currentRoute = currentRoute,
-                visible = showBottomBar && (currentRoute.endsWith("Chats") || currentRoute.endsWith("Groups")),
+                visible = showBottomBar && currentRoute.endsWith("Chats"),
                 hapticEnabled = hapticEnabled,
                 onAddContactClick = onAddContactClick,
                 onCreateGroupClick = onCreateGroupClick,
@@ -172,7 +171,6 @@ fun AToxBottomBar(
                 windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
             ) {
                 val chatsRouteName = AppRoutes.Chats::class.qualifiedName!!
-                val groupsRouteName = AppRoutes.Groups::class.qualifiedName!!
                 val profileRouteName = AppRoutes.Profile::class.qualifiedName!!
                 val settingsRouteName = AppRoutes.Settings::class.qualifiedName!!
 
@@ -189,12 +187,6 @@ fun AToxBottomBar(
                         }
                     },
                     label = { Text(stringResource(R.string.chats)) }
-                )
-                NavigationBarItem(
-                    selected = currentRoute?.endsWith("Groups") == true,
-                    onClick = { selectTab(groupsRouteName) },
-                    icon = { Icon(Icons.Default.Group, contentDescription = "Groups") },
-                    label = { Text(stringResource(R.string.groups)) }
                 )
                 NavigationBarItem(
                     selected = currentRoute?.endsWith("Profile") == true,

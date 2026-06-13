@@ -48,6 +48,26 @@ class UserManagerTest {
     }
 
     @Test
+    fun `create user updates existing record if user already exists`() = runTest {
+        val userRepo = FakeUserRepository()
+        val toxProfile = FakeToxProfile()
+        val userManager = UserManager(userRepo, toxProfile)
+
+        val pk = PublicKey("3982B009845B210C5A8904B7F540287A424DE029BC1A25C01E022944AB28FC3C")
+        val initialUser = User(pk.string(), "Old Name", "Old Status")
+        userRepo.add(initialUser)
+
+        val newUser = User(pk.string(), "Alice", "Hello", UserStatus.Away, ConnectionStatus.UDP)
+        val result = userManager.create(newUser)
+        assertTrue(result.isSuccess)
+
+        val retrieved = userRepo.get(pk.string()).first()
+        assertEquals(newUser, retrieved)
+        assertEquals("Alice", toxProfile.getName())
+        assertEquals("Hello", toxProfile.getStatusMessage())
+    }
+
+    @Test
     fun `verifyExists creates user from tox profile if not exists`() = runTest {
         val userRepo = FakeUserRepository()
         val toxProfile = FakeToxProfile().apply {
@@ -67,6 +87,24 @@ class UserManagerTest {
         val retrieved = userRepo.get(pk.string()).first()
         assertEquals("Bob", retrieved?.name)
         assertEquals("Tox active", retrieved?.statusMessage)
+    }
+
+    @Test
+    fun `verifyExists uses default values if tox profile name and status are empty`() = runTest {
+        val userRepo = FakeUserRepository()
+        val toxProfile = FakeToxProfile().apply {
+            setName("")
+            setStatusMessage("")
+        }
+        val userManager = UserManager(userRepo, toxProfile)
+
+        val pk = toxProfile.publicKey
+        val result = userManager.verifyExists(pk)
+        assertTrue(result.isSuccess)
+
+        val retrieved = userRepo.get(pk.string()).first()
+        assertEquals("aTox user", retrieved?.name)
+        assertEquals("Brought to you live, by aTox", retrieved?.statusMessage)
     }
 
     @Test

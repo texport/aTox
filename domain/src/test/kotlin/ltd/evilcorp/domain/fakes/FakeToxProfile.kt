@@ -23,7 +23,7 @@ open class FakeToxProfile(
     override fun getStatus(): UserStatus = status
     override fun setStatus(status: UserStatus) { this.status = status }
     override fun getContacts(): List<Pair<PublicKey, Int>> = emptyList()
-    override fun acceptFriendRequest(publicKey: PublicKey) {}
+    override fun acceptFriendRequest(publicKey: PublicKey): Result<Unit> = Result.success(Unit)
     override fun addFriendNoRequest(publicKey: PublicKey): Int = 0
     override fun addContact(toxId: ToxID, message: String) {
         addedContacts.add(toxId to message)

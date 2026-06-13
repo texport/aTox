@@ -14,7 +14,6 @@ import ltd.evilcorp.domain.features.settings.model.TimeFormatPreference
 import ltd.evilcorp.atox.ui.settings.appearance.AccentColorDialog
 import ltd.evilcorp.atox.ui.settings.appearance.DateFormatSettingsDialog
 import ltd.evilcorp.atox.ui.settings.appearance.TimeFormatSettingsDialog
-import ltd.evilcorp.atox.ui.settings.backup.GoogleAccountDialog
 import ltd.evilcorp.atox.ui.settings.backup.RestoreBackupConfirmDialog
 import ltd.evilcorp.atox.ui.settings.chat.FtAutoAcceptSettingsDialog
 import ltd.evilcorp.atox.ui.settings.connection.BootstrapSettingsDialog
@@ -52,12 +51,6 @@ fun SettingsDialogs(
     pendingRestoreUri: String?,
     isToxStarted: Boolean,
     onRestoreConfirm: (String) -> Unit,
-    showGoogleAccountDialog: Boolean,
-    onDismissGoogleAccountDialog: () -> Unit,
-    googleAccountInput: String,
-    onGoogleAccountInputChange: (String) -> Unit,
-    onChooseGoogleAccount: () -> Unit,
-    onConfirmGoogleAccount: () -> Unit,
     performHaptic: () -> Unit,
     focusManager: FocusManager
 ) {
@@ -117,16 +110,6 @@ fun SettingsDialogs(
             onConfirm = onRestoreConfirm,
             onDismiss = onDismissRestoreConfirmDialog,
             focusManager = focusManager
-        )
-    }
-
-    if (showGoogleAccountDialog) {
-        GoogleAccountDialog(
-            googleAccountInput = googleAccountInput,
-            onGoogleAccountInputChange = onGoogleAccountInputChange,
-            onChooseAccountClick = onChooseGoogleAccount,
-            onConfirm = onConfirmGoogleAccount,
-            onDismiss = onDismissGoogleAccountDialog
         )
     }
 }

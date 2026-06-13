@@ -25,16 +25,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import ltd.evilcorp.atox.R
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import ltd.evilcorp.atox.ui.common.AtoxLoadingButton
 import ltd.evilcorp.atox.ui.common.AtoxPasswordField
 import ltd.evilcorp.domain.features.group.model.GroupPrivacyState
 
-private const val FOCUS_REQUEST_DELAY_MS = 100L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,11 +48,10 @@ fun CreateGroupScreen(
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(FOCUS_REQUEST_DELAY_MS)
-        focusRequester.requestFocus()
+        // delay(FOCUS_REQUEST_DELAY_MS)
+        // focusRequester.requestFocus()
     }
 
     val isScrolled by remember { derivedStateOf { scrollState.value > 0 } }
@@ -92,7 +87,7 @@ fun CreateGroupScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack, enabled = !isCreating) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -141,18 +136,13 @@ fun CreateGroupScreen(
                             value = groupName,
                             onValueChange = { groupName = it },
                             label = { Text(stringResource(R.string.group_name)) },
-                            placeholder = { Text(stringResource(R.string.group_name_placeholder)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             enabled = !isCreating,
-                            shape = MaterialTheme.shapes.medium,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                            shape = MaterialTheme.shapes.medium
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Column(
                             modifier = Modifier.fillMaxWidth(),
