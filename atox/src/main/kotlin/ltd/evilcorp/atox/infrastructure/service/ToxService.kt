@@ -28,9 +28,14 @@ import ltd.evilcorp.domain.features.auth.usecase.InitializeToxUseCase
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.atox.ui.notification.CallNotificationFactory
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
@@ -40,6 +45,13 @@ class ToxService : LifecycleService() {
     private val channelId = "ToxService"
     private var connectionStatus: ConnectionStatus? = null
     private var serviceSessionId: String? = null
+    private var activeCallState: CallState = CallState.Idle
+
+    @Inject
+    lateinit var contactRepository: IContactRepository
+
+    @Inject
+    lateinit var callNotificationFactory: CallNotificationFactory
     private val notifier by lazy { NotificationManagerCompat.from(this) }
 
     @Inject
@@ -131,7 +143,7 @@ class ToxService : LifecycleService() {
                 lifecycleOwner = this@ToxService,
                 onConnectionStatusChanged = { newStatus ->
                     connectionStatus = newStatus
-                    if (permissionManager.canPostNotifications()) {
+                    if (activeCallState is CallState.Idle && permissionManager.canPostNotifications()) {
                         notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
                     }
                 },
@@ -158,35 +170,69 @@ class ToxService : LifecycleService() {
         }
     }
 
-    private fun handleCallStateChanged(inCall: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+    private fun handleCallStateChanged(callState: CallState) {
+        activeCallState = callState
+        lifecycleScope.launch {
+            val contact = when (callState) {
+                is CallState.IncomingRinging -> callState.contact
+                is CallState.OutgoingRequesting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.OutgoingWaiting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.OutgoingRinging -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.Connecting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.Active -> contactRepository.get(callState.publicKey.string()).first()
+                CallState.Idle -> null
             }
-            val foregroundType = if (inCall) {
+            updateForeground(callState, contact)
+        }
+    }
+
+    private fun updateForeground(callState: CallState, contact: Contact?) {
+        val inCall = callState !is CallState.Idle
+        val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        }
+        val foregroundType = if (inCall) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or defaultType
             } else {
-                defaultType
+                0
             }
-            try {
+        } else {
+            defaultType
+        }
+
+        val notification = if (inCall && contact != null) {
+            callNotificationFactory.buildOngoingCallNotification(contact).build()
+        } else {
+            notificationFor(connectionStatus)
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     NOTIFICATION_ID,
-                    notificationFor(connectionStatus),
+                    notification,
                     foregroundType
                 )
-            } catch (e: SecurityException) {
-                Log.e(TAG, "Failed to start foreground service with type microphone", e)
-                try {
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Failed to start foreground service with type microphone", e)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
                         NOTIFICATION_ID,
                         notificationFor(connectionStatus),
                         defaultType
                     )
-                } catch (ex: Exception) {
-                    Log.e(TAG, "Failed to start fallback foreground service", ex)
+                } else {
+                    startForeground(NOTIFICATION_ID, notificationFor(connectionStatus))
                 }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Failed to start fallback foreground service", ex)
             }
         }
     }
