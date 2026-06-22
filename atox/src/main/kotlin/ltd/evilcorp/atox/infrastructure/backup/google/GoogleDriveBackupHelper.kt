@@ -24,6 +24,7 @@ import ltd.evilcorp.domain.features.backup.repository.ICloudBackupRepository
 
 private const val KB_IN_MB = 1024L
 
+@Suppress("unused")
 class GoogleDriveBackupHelper @Inject constructor(
     private val context: Context
 ) : ICloudBackupRepository {

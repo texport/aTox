@@ -14,13 +14,14 @@ fun NavGraphBuilder.mainTabGraph(
     settings: Settings,
     appearance: AppAppearance,
     isExpanded: () -> Boolean,
+    onQuitApp: () -> Unit,
     onThemeChanged: (Int) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
     onAccentColorSeedChanged: (Int) -> Unit,
     onLocaleTagChanged: (String) -> Unit,
     onDisableScreenshotsChanged: (Boolean) -> Unit,
 ) {
-    chatsTabRoute(navController, contactListViewModel, settings, isExpanded)
+    chatsTabRoute(navController, contactListViewModel, settings, isExpanded, onQuitApp)
     addContactTabRoute(navController)
     profileTabRoute(navController, settings)
     settingsTabRoute(

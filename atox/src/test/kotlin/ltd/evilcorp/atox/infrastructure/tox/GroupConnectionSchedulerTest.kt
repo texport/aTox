@@ -243,6 +243,9 @@ class GroupConnectionSchedulerTest {
         override suspend fun setConnected(chatId: String, connected: Boolean) {
             groups[chatId]?.let { groups[chatId] = it.copy(connected = connected) }
         }
+        override suspend fun resetTransientData() {
+            groups.replaceAll { chatId, group -> group.copy(connected = false) }
+        }
         override suspend fun setGroupNumber(chatId: String, groupNumber: Int) {
             groups[chatId]?.let { groups[chatId] = it.copy(groupNumber = groupNumber) }
         }

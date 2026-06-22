@@ -25,7 +25,8 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:localeConfig="@xml/locales_config"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme"
+            tools:ignore="DataExtractionRules,UnusedAttribute">
         <service android:name=".infrastructure.service.ToxService"
                 android:exported="false"
                 android:foregroundServiceType="specialUse|microphone|dataSync">
@@ -34,7 +35,7 @@
                 android:value="Serverless P2P communication engine that needs to remain connected to the P2P network to receive real-time messages and calls without a central push server." />
         </service>
  
-        <receiver android:name=".infrastructure.receiver.BootReceiver" android:enabled="false" android:exported="false">
+        <receiver android:name=".infrastructure.receiver.BootReceiver" android:enabled="false" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>

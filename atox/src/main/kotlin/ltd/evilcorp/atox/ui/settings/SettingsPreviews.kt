@@ -25,9 +25,11 @@ fun SettingsRootContentPreview() {
             paddingValues = PaddingValues(16.dp),
             currentLanguageLabel = "English",
             themeLabel = "System default",
+            onGeneralClick = {},
             onAppearanceClick = {},
             onChatClick = {},
             onSoundsClick = {},
+            onPrivacyClick = {},
             onConnectionClick = {},
             onBackupClick = {}
         )

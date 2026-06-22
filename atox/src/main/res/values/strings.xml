@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="UnusedResources">
     <string name="accept">Accept</string>
     <string name="cannot_call_offline">Cannot call, contact is offline</string>
     <string name="cannot_send_file_offline">Cannot send file, contact is offline</string>
@@ -112,9 +112,16 @@
     <string name="pref_heading_network">Network</string>
     <string name="pref_udp_enabled">UDP enabled</string>
     <string name="pref_heading_general">General</string>
+    <string name="pref_show_profile_picker">Show profile picker on launch</string>
+    <string name="pref_show_profile_picker_description">Ask which profile to log in with when starting the app</string>
     <string name="pref_run_at_startup">Run at boot</string>
     <string name="pref_confirm_quitting">Confirm app quit</string>
     <string name="pref_confirm_calling">Confirm call</string>
+    <string name="pref_biometric_login">Biometric login</string>
+    <string name="pref_biometric_login_description">Protect profile opening with Face ID or fingerprint</string>
+    <string name="biometric_setup_failed">Biometric setup failed. Ensure your profile has a password and biometrics are set up on your device.</string>
+    <string name="settings_general_group_subtitle">Profile picker, run on boot, exit confirmation</string>
+    <string name="settings_privacy_group_subtitle">Biometrics, screenshots, call confirmation</string>
     <string name="friend_request">Friend request</string>
     <string name="status_available">Available</string>
     <string name="status_away">Away</string>
@@ -186,6 +193,10 @@
     <string name="incorrect_password">Incorrect password</string>
     <string name="unlock_profile">Unlock profile</string>
     <string name="pref_heading_change_password">Change password</string>
+    <string name="pref_heading_set_password">Set profile password</string>
+    <string name="pref_set_password_description">Protect your profile data with a password</string>
+    <string name="pref_change_password_description">Update your profile protection password</string>
+    <string name="password_cannot_be_empty">Password cannot be empty</string>
     <string name="pref_current_password">Current password</string>
     <string name="pref_new_password">New password</string>
     <string name="pref_confirm_password">Confirm new password</string>
@@ -281,7 +292,8 @@
     <string name="settings_nodes_builtin">Built-in Tox nodes</string>
     <string name="settings_nodes_user">User-provided nodes</string>
     <string name="settings_nodes_list">Bootstrap nodes list</string>
-    <string name="settings_ft_group">File Transfer</string>
+    <string name="settings_ft_group">Chat</string>
+    <string name="settings_chat_group_subtitle">Replies, file transfers, cache</string>
     <string name="settings_proxy_group">Proxy Server</string>
     <string name="settings_proxy_type">Proxy type</string>
     <string name="settings_proxy_address">Proxy address</string>
@@ -304,8 +316,8 @@
     <string name="settings_lang_title">Language</string>
     <string name="settings_accent_color_desc">Choose preset color theme</string>
     <string name="settings_accent_dialog_title">Select Accent Color</string>
-    <string name="settings_auto_save_title">Auto-save to Downloads</string>
-    <string name="settings_auto_save_subtitle">Automatically save files to Download/aTox folder</string>
+    <string name="settings_auto_save_title">Automatically save incoming files</string>
+    <string name="settings_auto_save_subtitle">Save incoming files to a folder automatically</string>
     <string name="settings_auto_save_directory_title">Auto-save folder</string>
     <string name="settings_auto_save_directory_default">Download/aTox</string>
     <string name="settings_storage_group">Storage &amp; Cache</string>
@@ -382,7 +394,7 @@
     <string name="group_invite_friend">Invite a friend</string>
     <string name="no_groups">No groups yet</string>
     <string name="no_groups_desc">Create a group or join one to get started!</string>
-    <string name="group_peer_count">%1$d members</string>
+    <string name="group_peer_count" tools:ignore="PluralsCandidate">%1$d members</string>
     <string name="group_connected">Connected</string>
     <string name="group_connecting">Connecting…</string>
     <string name="group_offline">Offline</string>
@@ -406,6 +418,11 @@
     <string name="group_password_save_confirm">Save password</string>
     <string name="group_password_dismiss">Not now</string>
     <string name="group_password_copied">Password copied to clipboard</string>
+    <string name="group_invite_generating_link">Generating link…</string>
+    <string name="group_invite_no_friends">No friends to invite</string>
+    <string name="group_invite_no_matching_friends">No matching friends</string>
+    <string name="group_invite_sending">Sending invitation…</string>
+    <string name="clear">Clear</string>
 
     <!-- Backups & Storage -->
 
@@ -486,7 +503,7 @@
     <string name="interaction_vibration">Interaction &amp; Vibration</string>
     <string name="forward_message_title">Forward message</string>
     <string name="contacts_empty">No contacts found</string>
-    <string name="copy">Copy</string>
+    <string name="copy" tools:override="true">Copy</string>
     <string name="forward">Forward</string>
     <string name="slide_to_cancel">Slide to cancel</string>
     <string name="voice_message">Voice message</string>

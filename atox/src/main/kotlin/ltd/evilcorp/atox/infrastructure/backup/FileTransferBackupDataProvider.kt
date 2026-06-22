@@ -17,6 +17,7 @@ import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.features.backup.repository.IFileTransferBackupHelper
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 
+@Suppress("unused")
 class FileTransferHistoryBackupDataProvider @Inject constructor(
     private val helper: IFileTransferBackupHelper,
 ) : IBackupDataProvider {
@@ -33,6 +34,7 @@ class FileTransferHistoryBackupDataProvider @Inject constructor(
     }
 }
 
+@Suppress("unused")
 class TransferredFilesBackupDataProvider @Inject constructor(
     private val context: Context,
     private val resolver: ContentResolver,

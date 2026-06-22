@@ -41,6 +41,7 @@ object VoiceMessagePlayer {
         mediaPlayer?.pause()
     }
 
+    @Suppress("unused")
     fun resume() {
         mediaPlayer?.start()
     }
@@ -62,6 +63,7 @@ object VoiceMessagePlayer {
 
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
+    @Suppress("unused")
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
     fun isPlayingUri(uriString: String): Boolean = currentPlayingUri == uriString
 }

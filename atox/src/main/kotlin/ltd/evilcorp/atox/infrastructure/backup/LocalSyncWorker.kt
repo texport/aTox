@@ -18,6 +18,7 @@ import java.io.FileOutputStream
 
 private const val KB_IN_MB = 1024L
 
+@Suppress("unused")
 @HiltWorker
 class LocalSyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,

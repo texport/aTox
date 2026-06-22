@@ -47,6 +47,7 @@ class SettingsScreenTest {
         every { mockViewModel.proxyStatus } returns MutableStateFlow<ProxyStatus?>(null)
         every { mockViewModel.uiEvents } returns MutableSharedFlow<SettingsUiEvent>()
         every { mockViewModel.committed } returns MutableStateFlow(false)
+        every { mockViewModel.hasPassword() } returns false
 
         val mockBackupViewModel = mockk<BackupSettingsViewModel>(relaxed = true)
         every { mockBackupViewModel.backupExporting } returns MutableStateFlow(false)
@@ -70,8 +71,10 @@ class SettingsScreenTest {
         }
 
         // Check root categories are displayed
+        composeTestRule.onNodeWithText("General").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Appearance & Design").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("File Transfer").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Chat").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Privacy & Security").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Network & Connection").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Backup").performScrollTo().assertIsDisplayed()
     }

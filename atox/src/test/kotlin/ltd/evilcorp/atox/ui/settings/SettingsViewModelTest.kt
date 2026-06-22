@@ -24,6 +24,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import ltd.evilcorp.domain.features.settings.usecase.ChangePasswordUseCase
 
 class SettingsViewModelTest {
 
@@ -38,6 +39,7 @@ class SettingsViewModelTest {
     private val mockSetRunAtStartupUseCase = mockk<SetRunAtStartupUseCase>(relaxed = true)
     private val mockCheckProxyUseCase = mockk<CheckProxyUseCase>()
     private val mockGetSelfUserUseCase = mockk<GetSelfUserUseCase>()
+    private val mockChangePasswordUseCase = mockk<ChangePasswordUseCase>(relaxed = true)
 
     private fun createViewModel(): SettingsViewModel {
         every { mockGetSelfUserUseCase.publicKey } returns PublicKey("ABCDEF")
@@ -54,6 +56,7 @@ class SettingsViewModelTest {
             mockSetRunAtStartupUseCase,
             mockCheckProxyUseCase,
             mockGetSelfUserUseCase,
+            mockChangePasswordUseCase,
             ioDispatcher = mainDispatcherRule.testDispatcher
         )
     }
@@ -62,10 +65,10 @@ class SettingsViewModelTest {
     fun `setUdpEnabled updates use case and sets restart needed`() = runTest {
         val viewModel = createViewModel()
         
-        viewModel.setUdpEnabled(true)
+        viewModel.setUdpEnabled(false)
         runCurrent()
         
-        coVerify { mockUpdateUserSettingsUseCase.execute(UpdateAction.UdpEnabled(true)) }
+        coVerify { mockUpdateUserSettingsUseCase.execute(UpdateAction.UdpEnabled(false)) }
         
         // Assert restart needed
         assertFalse(viewModel.committed.value)
@@ -215,5 +218,41 @@ class SettingsViewModelTest {
         
         viewModel.clearCache()
         coVerify { mockClearCacheUseCase.execute() }
+    }
+
+    @Test
+    fun `changePassword succeeds and calls tox changePassword when current password is empty`() = runTest {
+        val mockContext = mockk<android.content.Context>(relaxed = true)
+        every { mockManageToxLifecycleUseCase.password } returns ""
+        val viewModel = createViewModel()
+        
+        val success = viewModel.changePassword(mockContext, "", "new_pass")
+        
+        assertTrue(success)
+        coVerify { mockChangePasswordUseCase.execute("new_pass") }
+    }
+
+    @Test
+    fun `changePassword succeeds and calls tox changePassword when current password matches`() = runTest {
+        val mockContext = mockk<android.content.Context>(relaxed = true)
+        every { mockManageToxLifecycleUseCase.password } returns "old_pass"
+        val viewModel = createViewModel()
+        
+        val success = viewModel.changePassword(mockContext, "old_pass", "new_pass")
+        
+        assertTrue(success)
+        coVerify { mockChangePasswordUseCase.execute("new_pass") }
+    }
+
+    @Test
+    fun `changePassword fails when current password does not match`() = runTest {
+        val mockContext = mockk<android.content.Context>(relaxed = true)
+        every { mockManageToxLifecycleUseCase.password } returns "old_pass"
+        val viewModel = createViewModel()
+        
+        val success = viewModel.changePassword(mockContext, "wrong_pass", "new_pass")
+        
+        assertFalse(success)
+        coVerify(exactly = 0) { mockChangePasswordUseCase.execute(any()) }
     }
 }

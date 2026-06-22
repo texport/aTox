@@ -77,7 +77,7 @@ class GroupSyncManager @Inject constructor(
             for (group in allGroups) {
                 val chatId = group.chatId
                 val currentStatus = groupManager.connectionStatus(chatId)
-                if (currentStatus == GroupConnectionStatus.Disconnected || currentStatus == GroupConnectionStatus.Connecting) {
+                if (currentStatus == GroupConnectionStatus.Disconnected) {
                     groupManager.scheduleAutoReconnect(chatId, group.groupNumber)
                 }
                 

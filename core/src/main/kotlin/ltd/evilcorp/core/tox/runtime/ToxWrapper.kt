@@ -49,7 +49,7 @@ class ToxWrapper(
         val sd = options.saveData
         var ptr = nativeTox.toxNewWithOptions(
             savedata = sd,
-            ipv6Enabled = true,
+            ipv6Enabled = false,
             udpEnabled = options.udpEnabled,
             localDiscoveryEnabled = true,
             proxyType = options.proxyType.ordinal,

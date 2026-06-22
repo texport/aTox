@@ -88,7 +88,7 @@ fun JoinGroupScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack, enabled = !isJoining) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

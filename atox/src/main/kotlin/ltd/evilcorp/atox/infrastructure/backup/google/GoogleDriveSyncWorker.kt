@@ -13,6 +13,7 @@ import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
 import ltd.evilcorp.domain.features.backup.usecase.ExportBackupUseCase
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 
+@Suppress("unused")
 @HiltWorker
 class GoogleDriveSyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,

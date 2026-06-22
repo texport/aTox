@@ -43,7 +43,6 @@ fun SettingsAppearanceScreen(
     timeFormatPreference: TimeFormatPreference,
     dateFormatPreference: DateFormatPreference,
     dynamicColor: Boolean,
-    showProfilePicker: Boolean = false,
     currentAccentSeed: Int,
     hapticEnabled: Boolean,
     performHaptic: () -> Unit,
@@ -54,7 +53,6 @@ fun SettingsAppearanceScreen(
     onDynamicColorChanged: (Boolean) -> Unit,
     onAccentColorClick: () -> Unit,
     onHapticEnabledChanged: (Boolean) -> Unit,
-    onShowProfilePickerChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var localDynamicColor by androidx.compose.runtime.remember(dynamicColor) { androidx.compose.runtime.mutableStateOf(dynamicColor) }
@@ -169,19 +167,6 @@ fun SettingsAppearanceScreen(
                     checked = hapticEnabled
                 ) { checked ->
                     onHapticEnabledChanged(checked)
-                    performHaptic()
-                }
-            }
-        }
-
-        item {
-            SettingsGroup(title = "Профили") {
-                SettingsSwitchRow(
-                    title = "Выбор профиля при входе",
-                    subtitle = "Спрашивать, под каким профилем войти",
-                    checked = showProfilePicker
-                ) { checked ->
-                    onShowProfilePickerChanged?.invoke(checked)
                     performHaptic()
                 }
             }

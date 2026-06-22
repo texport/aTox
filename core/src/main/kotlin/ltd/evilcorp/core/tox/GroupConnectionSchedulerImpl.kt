@@ -50,6 +50,21 @@ class GroupConnectionSchedulerImpl @Inject constructor(
     }
 
     override fun scheduleAutoReconnect(chatId: String, groupNumber: Int) {
+        val currentStatus = manager.connectionStatus(chatId)
+        val isAlreadyConnected = currentStatus == GroupConnectionStatus.Connected ||
+            currentStatus == GroupConnectionStatus.Connecting
+        val isAlreadyReconnecting = currentStatus == GroupConnectionStatus.Reconnecting &&
+            reconnectJobs.containsKey(chatId)
+
+        if (isAlreadyConnected || isAlreadyReconnecting) {
+            Log.d(
+                TAG,
+                "scheduleAutoReconnect: Group $chatId is already $currentStatus " +
+                    "(job active: ${reconnectJobs.containsKey(chatId)}), skipping to avoid interruption"
+            )
+            return
+        }
+
         val existingJob = reconnectJobs[chatId]
         if (existingJob != null) {
             existingJob.cancel()
@@ -57,6 +72,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         } else {
             Log.i(TAG, "scheduleAutoReconnect: starting loop for group $chatId")
         }
+        manager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
 
         val job = scope.launch {
             startPersistentReconnect(chatId, groupNumber)
@@ -87,6 +103,7 @@ class GroupConnectionSchedulerImpl @Inject constructor(
             Log.w(TAG, "reconnectSingleGroup: loop already exists for group $chatId")
             return
         }
+        manager.setConnectionStatus(chatId, GroupConnectionStatus.Reconnecting)
 
         val job = scope.launch {
             startPersistentReconnect(chatId, groupNumber)
@@ -101,6 +118,12 @@ class GroupConnectionSchedulerImpl @Inject constructor(
             executeReconnectAttempt(chatId, groupNumber, 0, manager, skipReconnectCall = false)
         } catch (e: Exception) {
             Log.w(TAG, "Reconnect attempt failed for $chatId: $e")
+        } finally {
+            reconnectJobs.remove(chatId)
+            val currentStatus = manager.connectionStatus(chatId)
+            if (currentStatus == GroupConnectionStatus.Reconnecting) {
+                manager.setConnectionStatus(chatId, GroupConnectionStatus.Disconnected)
+            }
         }
     }
 

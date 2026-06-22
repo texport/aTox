@@ -9,6 +9,7 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.MainActivity
 import ltd.evilcorp.atox.infrastructure.util.PendingIntentCompat
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Intent
@@ -39,6 +40,7 @@ import ltd.evilcorp.atox.ui.notification.CallNotificationFactory
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
+private const val NOTIFICATION_ID_CALL = 1985
 
 @AndroidEntryPoint
 class ToxService : LifecycleService() {
@@ -186,6 +188,7 @@ class ToxService : LifecycleService() {
         }
     }
 
+    @SuppressLint("InlinedApi")
     private fun updateForeground(callState: CallState, contact: Contact?) {
         val inCall = callState !is CallState.Idle
         val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -203,22 +206,26 @@ class ToxService : LifecycleService() {
             defaultType
         }
 
-        val notification = if (inCall && contact != null) {
-            callNotificationFactory.buildOngoingCallNotification(contact).build()
+        if (inCall && contact != null) {
+            startCallForeground(contact, foregroundType, defaultType)
         } else {
-            notificationFor(connectionStatus)
+            startServiceForeground(defaultType)
         }
+    }
 
+    private fun startCallForeground(contact: Contact, foregroundType: Int, defaultType: Int) {
+        val notification = callNotificationFactory.buildOngoingCallNotification(contact).build()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    NOTIFICATION_ID,
+                    NOTIFICATION_ID_CALL,
                     notification,
                     foregroundType
                 )
             } else {
-                startForeground(NOTIFICATION_ID, notification)
+                startForeground(NOTIFICATION_ID_CALL, notification)
             }
+            notifier.cancel(NOTIFICATION_ID)
         } catch (e: SecurityException) {
             Log.e(TAG, "Failed to start foreground service with type microphone", e)
             try {
@@ -231,9 +238,28 @@ class ToxService : LifecycleService() {
                 } else {
                     startForeground(NOTIFICATION_ID, notificationFor(connectionStatus))
                 }
+                notifier.cancel(NOTIFICATION_ID_CALL)
             } catch (ex: Exception) {
                 Log.e(TAG, "Failed to start fallback foreground service", ex)
             }
+        }
+    }
+
+    private fun startServiceForeground(defaultType: Int) {
+        val notification = notificationFor(connectionStatus)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    defaultType
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            notifier.cancel(NOTIFICATION_ID_CALL)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start service foreground", e)
         }
     }
 

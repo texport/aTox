@@ -158,6 +158,7 @@ internal suspend fun GroupDatabaseUpdater.handleGroupMessage(
     val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
 
     checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+    markGroupConnected(event.groupNo, chatId)
     checkAndUpdateGroupMetadata(event.groupNo, chatId)
 
     val peerNameBytes = tox.groupPeerGetName(event.groupNo, event.peerId)
@@ -273,6 +274,7 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerJoin(event: GroupDomain
     val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
 
     checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+    markGroupConnected(event.groupNo, chatId)
     checkAndUpdateGroupMetadata(event.groupNo, chatId)
 
     val group = groupRepository.get(chatId).firstOrNull() ?: return
@@ -355,6 +357,8 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerExit(event: GroupDomain
         return
     }
 
+    markGroupConnected(event.groupNo, chatId)
+
     if (event.exitType == ToxGroupExitType.QUIT || event.exitType == ToxGroupExitType.KICK) {
         val peerName = groupRepository.getPeerNameDirect(chatId, event.peerId) ?: "Unknown"
 
@@ -382,5 +386,17 @@ internal suspend fun GroupDatabaseUpdater.handleGroupPeerExit(event: GroupDomain
     }
 
     Log.i(TAG, "Peer left group: peerId=${event.peerId}, exitType=${event.exitType} in $chatId")
+}
+
+internal suspend fun GroupDatabaseUpdater.markGroupConnected(groupNo: Int, chatId: String) {
+    if (groupManager.connectionStatus(chatId) != GroupConnectionStatus.Connected) {
+        Log.i(TAG, "Self-healing: marking group $chatId as connected due to active event/message")
+        groupRepository.setConnected(chatId, true)
+        groupRepository.setGroupNumber(chatId, groupNo)
+        groupManager.setConnectionStatus(chatId, GroupConnectionStatus.Connected)
+        groupManager.cancelReconnect(chatId)
+        checkAndUpdateGroupMetadata(groupNo, chatId)
+        groupManager.resendPendingMessages(chatId)
+    }
 }
 

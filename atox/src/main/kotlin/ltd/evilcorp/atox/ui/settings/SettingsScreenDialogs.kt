@@ -7,12 +7,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.platform.LocalContext
+import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.appearance.AppAppearance
 import ltd.evilcorp.atox.infrastructure.settings.Settings
 import ltd.evilcorp.atox.ui.settings.backup.BackupSettingsViewModel
 import ltd.evilcorp.atox.ui.settings.backup.GoogleDriveRestoreDialog
 import ltd.evilcorp.atox.ui.settings.backup.RestoreBackupConfirmDialog
 import ltd.evilcorp.atox.ui.settings.dialogs.SettingsDialogs
+import ltd.evilcorp.atox.ui.settings.dialogs.ChangePasswordDialog
 
 @Composable
 internal fun SettingsScreenDialogs(
@@ -25,6 +28,7 @@ internal fun SettingsScreenDialogs(
     performHaptic: () -> Unit,
     focusManager: FocusManager
 ) {
+    val context = LocalContext.current
     val storedSettings = settings.state.collectAsState().value
     val showProxyDialog = viewModel.showProxyDialog.collectAsState().value
     val showFtAcceptDialog = viewModel.showFtAcceptDialog.collectAsState().value
@@ -119,6 +123,21 @@ internal fun SettingsScreenDialogs(
                 showGoogleRestoreConfirmDialog = false
                 pendingGoogleRestoreFileId = null
             },
+            focusManager = focusManager
+        )
+    }
+
+    if (state.showChangePasswordDialog) {
+        ChangePasswordDialog(
+            hasPassword = viewModel.hasPassword(),
+            onConfirm = { current, new ->
+                val success = viewModel.changePassword(context, current, new)
+                if (success) {
+                    viewModel.showToast(R.string.password_updated)
+                }
+                success
+            },
+            onDismiss = { state.showChangePasswordDialog = false },
             focusManager = focusManager
         )
     }

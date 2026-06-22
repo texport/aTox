@@ -40,7 +40,8 @@ import ltd.evilcorp.core.db.DatabaseCloseOnSwitch
 
 @Module
 @InstallIn(SingletonComponent::class)
-class DatabaseModule {
+@Suppress("unused")
+object DatabaseModule {
     @Provides
     @DatabaseCloseOnSwitch
     @Suppress("FunctionOnlyReturningConstant")
@@ -54,7 +55,8 @@ class DatabaseModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
-class DaoModule {
+@Suppress("unused")
+object DaoModule {
     @Provides
     internal fun provideContactDao(db: Database): ContactDao = db.contactDao()
 
@@ -82,6 +84,7 @@ class DaoModule {
 
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("unused")
 interface RepositoryModule {
     @dagger.Binds
     fun bindContactRepository(impl: ContactRepositoryImpl): IContactRepository

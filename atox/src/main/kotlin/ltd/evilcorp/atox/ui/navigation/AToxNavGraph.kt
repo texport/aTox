@@ -158,6 +158,7 @@ fun AToxNavGraph(
                     settings = settings,
                     appearance = appearance,
                     isExpanded = { isExpandedMode },
+                    onQuitApp = onQuitApp,
                     onThemeChanged = onThemeChanged,
                     onDynamicColorChanged = onDynamicColorChanged,
                     onAccentColorSeedChanged = onAccentColorSeedChanged,

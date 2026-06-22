@@ -34,6 +34,7 @@ import ltd.evilcorp.domain.features.settings.usecase.GetCacheSizeUseCase
 import ltd.evilcorp.domain.features.settings.usecase.ClearCacheUseCase
 import ltd.evilcorp.domain.features.settings.usecase.SetRunAtStartupUseCase
 import ltd.evilcorp.domain.features.auth.usecase.GetSelfUserUseCase
+import ltd.evilcorp.domain.features.settings.usecase.ChangePasswordUseCase
 
 private const val TOX_SHUTDOWN_POLL_DELAY_MS = 200L
 private const val MAX_PORT_NUMBER = 65535
@@ -52,6 +53,7 @@ class SettingsViewModel @Inject constructor(
     private val setRunAtStartupUseCase: SetRunAtStartupUseCase,
     private val checkProxyUseCase: CheckProxyUseCase,
     private val getSelfUserUseCase: GetSelfUserUseCase,
+    private val changePasswordUseCase: ChangePasswordUseCase,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     val publicKey by lazy { getSelfUserUseCase.publicKey }
@@ -92,6 +94,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowBootstrapDialog(show: Boolean) {
         _showBootstrapDialog.value = show
+    }
+
+    fun showToast(messageResId: Int) {
+        viewModelScope.launch {
+            _uiEvents.emit(SettingsUiEvent.ShowToast(messageResId))
+        }
     }
 
     fun setUdpEnabled(enabled: Boolean) {
@@ -224,6 +232,44 @@ class SettingsViewModel @Inject constructor(
 
     fun getCacheSize(): Long = getCacheSizeUseCase.execute()
     fun clearCache() = clearCacheUseCase.execute()
+
+    fun hasPassword(): Boolean = !manageToxLifecycleUseCase.password.isNullOrBlank()
+
+    fun enableBiometric(context: android.content.Context, cipher: javax.crypto.Cipher): Boolean {
+        val password = manageToxLifecycleUseCase.password
+        if (password.isNullOrBlank()) {
+            return false
+        }
+        return try {
+            val encryptedBytes = cipher.doFinal(password.toByteArray(kotlin.text.Charsets.UTF_8))
+            val iv = cipher.iv
+            ltd.evilcorp.atox.infrastructure.security.BiometricStorage.saveEncryptedPassword(context, encryptedBytes, iv)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsViewModel", "Failed to enable biometric: $e", e)
+            false
+        }
+    }
+
+    fun disableBiometric(context: android.content.Context) {
+        ltd.evilcorp.atox.infrastructure.security.BiometricStorage.clear(context)
+    }
+
+    fun changePassword(context: android.content.Context, current: String, new: String): Boolean {
+        val currentStored = manageToxLifecycleUseCase.password.orEmpty()
+        if (currentStored.isNotEmpty() && currentStored != current) {
+            return false
+        }
+        return try {
+            val passValue = new.takeIf { it.isNotEmpty() }
+            changePasswordUseCase.execute(passValue)
+            disableBiometric(context)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsViewModel", "Failed to change password: $e", e)
+            false
+        }
+    }
 
     fun commit() {
         if (!restartNeeded) {

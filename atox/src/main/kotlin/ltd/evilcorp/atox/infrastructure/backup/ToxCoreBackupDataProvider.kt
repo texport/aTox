@@ -6,6 +6,7 @@ import ltd.evilcorp.domain.core.network.save.ISaveManager
 import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.core.network.ITox
 
+@Suppress("unused")
 class ToxCoreBackupDataProvider @Inject constructor(
     private val tox: ITox,
     private val saveManager: ISaveManager,

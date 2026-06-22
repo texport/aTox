@@ -88,6 +88,10 @@ class FakeGroupDao : GroupDao {
         updateField(chatId) { it.copy(connected = connected) }
     }
 
+    override suspend fun resetConnectionStatuses() {
+        groups.value = groups.value.mapValues { (_, group) -> group.copy(connected = false) }
+    }
+
     override suspend fun setGroupNumber(chatId: String, groupNumber: Int) {
         updateField(chatId) { it.copy(groupNumber = groupNumber) }
     }

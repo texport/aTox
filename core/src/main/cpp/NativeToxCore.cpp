@@ -538,6 +538,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxNewWithOptions(JNIEnv *env, jobject thiz
     tox_options_set_ipv6_enabled(options, ipv6Enabled);
     tox_options_set_udp_enabled(options, udpEnabled);
     tox_options_set_local_discovery_enabled(options, localDiscoveryEnabled);
+    tox_options_set_tcp_port(options, 33445);
     
     if (proxyType > 0 && proxyHost) {
         const char *host_str = env->GetStringUTFChars(proxyHost, nullptr);

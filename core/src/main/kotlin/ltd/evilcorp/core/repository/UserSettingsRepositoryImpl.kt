@@ -219,7 +219,7 @@ class UserSettingsRepositoryImpl @Inject constructor(
                 timeFormatPreference = TimeFormatPreference.entries[
                     preferences[Keys.timeFormatPreferenceOrdinal] ?: TimeFormatPreference.System.ordinal
                 ],
-                udpEnabled = preferences[Keys.udpEnabled] ?: false,
+                udpEnabled = preferences[Keys.udpEnabled] ?: true,
                 runAtStartup = preferences[Keys.runAtStartup] ?: false,
                 autoAwayEnabled = preferences[Keys.autoAwayEnabled] ?: false,
                 autoAwaySeconds = preferences[Keys.autoAwaySeconds] ?: 180L,

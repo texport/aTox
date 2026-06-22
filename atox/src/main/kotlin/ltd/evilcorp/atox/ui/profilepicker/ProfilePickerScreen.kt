@@ -113,6 +113,10 @@ fun ProfilePickerScreen(
                                     // 3. Delete DataStore preferences file
                                     File(context.filesDir, "datastore/user_settings_${profile.id}.preferences_pb").delete()
                                     
+                                    // 3.1. Delete Biometric preferences file
+                                    val sharedPrefsFile = File(context.filesDir.parentFile, "shared_prefs/atox_biometric_prefs_${profile.id}.xml")
+                                    if (sharedPrefsFile.exists()) sharedPrefsFile.delete()
+                                    
                                     // 4. Delete Avatars
                                     File(context.filesDir, "self_avatar_${profile.id}.jpg").delete()
                                     File(context.filesDir, "self_avatar_${profile.id}.png").delete()

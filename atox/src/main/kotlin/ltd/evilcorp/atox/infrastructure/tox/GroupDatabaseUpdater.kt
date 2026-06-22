@@ -82,6 +82,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         groupRepository.setTopic(chatId, event.topic)
         Log.i(TAG, "Group topic changed in $chatId")
     }
@@ -90,6 +91,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         groupRepository.setPeerName(chatId, event.peerId, event.name)
     }
 
@@ -97,6 +99,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         groupRepository.setPasswordProtected(chatId, event.password.isNotEmpty())
     }
 
@@ -104,6 +107,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         val userStatus = when (event.status) {
             ToxUserStatus.NONE.ordinal -> ltd.evilcorp.domain.features.contacts.model.UserStatus.None
             ToxUserStatus.AWAY.ordinal -> ltd.evilcorp.domain.features.contacts.model.UserStatus.Away
@@ -117,6 +121,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         val state = when (event.privacyState) {
             ToxGroupPrivacyState.PUBLIC -> ltd.evilcorp.domain.features.group.model.GroupPrivacyState.Public
             ToxGroupPrivacyState.PRIVATE -> ltd.evilcorp.domain.features.group.model.GroupPrivacyState.Private
@@ -124,22 +129,35 @@ class GroupDatabaseUpdater @Inject constructor(
         groupRepository.setPrivacyState(chatId, state)
     }
 
-    private fun handleGroupVoiceState(event: GroupDomainEvent.GroupVoiceState) {
+    private suspend fun handleGroupVoiceState(event: GroupDomainEvent.GroupVoiceState) {
         Log.i(TAG, "Group voice state changed in groupNo=${event.groupNo}, state=${event.voiceState}")
+        val chatIdBytes = tox.groupGetChatId(event.groupNo)
+        val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
+        checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
     }
 
-    private fun handleGroupTopicLock(event: GroupDomainEvent.GroupTopicLock) {
+    private suspend fun handleGroupTopicLock(event: GroupDomainEvent.GroupTopicLock) {
         Log.i(TAG, "Group topic lock changed in groupNo=${event.groupNo}, lock=${event.topicLock}")
+        val chatIdBytes = tox.groupGetChatId(event.groupNo)
+        val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
+        checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
     }
 
-    private fun handleGroupPeerLimit(event: GroupDomainEvent.GroupPeerLimit) {
+    private suspend fun handleGroupPeerLimit(event: GroupDomainEvent.GroupPeerLimit) {
         Log.i(TAG, "Group peer limit changed in groupNo=${event.groupNo}, limit=${event.peerLimit}")
+        val chatIdBytes = tox.groupGetChatId(event.groupNo)
+        val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
+        checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
     }
 
     private suspend fun handleGroupPrivateMessage(event: GroupDomainEvent.GroupPrivateMessage) {
         val chatIdBytes = tox.groupGetChatId(event.groupNo)
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         val peerNameBytes = tox.groupPeerGetName(event.groupNo, event.peerId)
         val peerName = peerNameBytes?.decodeToString() ?: "Unknown"
         Log.i(TAG, "Private message in group $chatId from $peerName: ${event.message}")
@@ -173,6 +191,7 @@ class GroupDatabaseUpdater @Inject constructor(
         val chatId = chatIdBytes?.bytesToHex()?.lowercase() ?: return
 
         checkAndMigrateTemporaryGroup(event.groupNo, chatId)
+        markGroupConnected(event.groupNo, chatId)
         val sourceNameBytes = tox.groupPeerGetName(event.groupNo, event.sourcePeerId)
         val sourceName = sourceNameBytes?.decodeToString() ?: "Unknown"
 

@@ -15,7 +15,10 @@ fun testToxSave(options: SaveOptions, password: String?): ToxSaveStatus {
     val native = NativeTox()
     return try {
         val rawSaveData = options.saveData
-        val saveData = if (password != null && rawSaveData != null) {
+        val saveData = if (rawSaveData != null && native.getSalt(rawSaveData) != null) {
+            if (password == null) {
+                return ToxSaveStatus.Encrypted
+            }
             val salt = native.getSalt(rawSaveData) ?: return ToxSaveStatus.BadFormat
             val passkey = native.passKeyDeriveWithSalt(password.toByteArray(), salt)
                 ?: return ToxSaveStatus.OutOfMemory

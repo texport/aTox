@@ -11,6 +11,7 @@ import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.contacts.model.UserStatus
 
+@Suppress("unused")
 class ContactsBackupDataProvider @Inject constructor(
     private val helper: IContactsBackupHelper,
 ) : IBackupDataProvider {

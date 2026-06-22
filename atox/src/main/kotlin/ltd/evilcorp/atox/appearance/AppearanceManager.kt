@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import ltd.evilcorp.domain.features.settings.model.UserSettings
 import ltd.evilcorp.domain.features.settings.repository.IUserSettingsRepository
 
+@Suppress("unused")
 @Singleton
 class AppearanceManager @Inject constructor(
     private val context: Context,
