@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -80,6 +81,7 @@ class ChatViewModel @Inject constructor(
     private val setTypingStatusUseCase: SetTypingStatusUseCase,
     private val deleteChatMessageUseCase: DeleteChatMessageUseCase,
     private val declineGroupInviteUseCase: DeclineGroupInviteUseCase,
+    private val messageRepository: ltd.evilcorp.domain.features.chat.repository.IMessageRepository,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")
@@ -131,6 +133,36 @@ class ChatViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _reactionRefresh = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val _reactionsDirect = MutableStateFlow<List<Message>>(emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val reactions: StateFlow<List<Message>> = _reactionsDirect
+
+    fun triggerReactionRefresh() {
+        _reactionRefresh.tryEmit(Unit)
+    }
+
+    init {
+        viewModelScope.launch {
+            combine(activePublicKey, _reactionRefresh) { pk, _ -> pk }
+                .distinctUntilChanged()
+                .flatMapLatest { pk ->
+                    if (pk == null || pk.string().isEmpty()) {
+                        flowOf(emptyList())
+                    } else {
+                        messageRepository.getReactions(pk.string())
+                    }
+                }
+                .collect { _reactionsDirect.value = it }
+        }
+        viewModelScope.launch {
+            messages.drop(1).collect {
+                triggerReactionRefresh()
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedMessages: Flow<PagingData<Message>> = activePublicKey
@@ -219,6 +251,17 @@ class ChatViewModel @Inject constructor(
         replyingToMessage.value = null
         viewModelScope.launch {
             sendChatMessageUseCase.execute(publicKey, message, type, replyToMessageId)
+        }
+    }
+
+    fun sendReaction(targetMessage: Message, emoji: String) {
+        val reactionMessage = ltd.evilcorp.domain.features.chat.model.ReactionParser.buildMessage(
+            targetMessage.message.hashCode(),
+            emoji
+        )
+        viewModelScope.launch {
+            sendChatMessageUseCase.execute(publicKey, reactionMessage, MessageType.Normal)
+            triggerReactionRefresh()
         }
     }
 

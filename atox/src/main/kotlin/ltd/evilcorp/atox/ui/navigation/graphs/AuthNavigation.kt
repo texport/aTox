@@ -149,7 +149,7 @@ private fun cleanupBeforeSwitch(context: android.content.Context) {
         val tox = entryPoint.tox()
         tox.stop()
         if (tox is ltd.evilcorp.core.tox.ToxImpl) {
-            tox.waitForStop()
+            kotlinx.coroutines.runBlocking { tox.waitForStop() }
         } else {
             var waitCount = 0
             while (tox.started && waitCount < MAX_WAIT_ITERATIONS) {

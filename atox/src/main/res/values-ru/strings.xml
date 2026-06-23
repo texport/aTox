@@ -455,6 +455,11 @@
     <string name="forward">Переслать</string>
     <string name="slide_to_cancel">Сдвиньте для отмены</string>
     <string name="voice_message">Голосовое сообщение</string>
+    <string name="voice_message_reply_preview">Голосовое сообщение</string>
+    <string name="photo_reply_preview">Фотография</string>
+    <string name="file_saved_to_gallery">Сохранено в галерею</string>
+    <string name="file_save_error">Не удалось сохранить изображение</string>
+    <string name="voice_message_too_short">Голосовое сообщение слишком короткое</string>
     <string name="replying_to">В ответ %1$s</string>
     <string name="message_forwarded">Сообщение переслано</string>
     <string name="file_sharing_started">Отправка файла начата</string>
@@ -475,6 +480,9 @@
     <string name="group_invite_view">Перейти</string>
     <string name="voice_message_play_error">Не удалось воспроизвести аудиофайл</string>
     <string name="voice_message_not_ready">Аудиофайл еще загружается или не доступен</string>
+    <string name="unknown_artist">&lt;unknown&gt;</string>
+    <string name="unknown_title">&lt;unknown&gt;</string>
+    <string name="audio_message">Аудиофайл</string>
     <string name="group_invite_label">Группа: %1$s</string>
     <string name="backup_restore_title">Восстановление из Google Drive</string>
     <string name="backup_loading">Загрузка резервных копий…</string>

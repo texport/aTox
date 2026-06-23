@@ -57,8 +57,8 @@ class EventListenerCallbacks @Inject constructor(
         videoBitRateHandler = callEventHandler::onVideoBitRate
         videoReceiveFrameHandler = callEventHandler::onVideoReceiveFrame
         audioBitRateHandler = callEventHandler::onAudioBitRate
-        audioReceiveFrameHandler = { _, pcm, channels, samplingRate ->
-            callEventHandler.onAudioReceiveFrame(pcm, channels, samplingRate)
+        audioReceiveFrameHandler = { _, pcm, sampleCount, channels, samplingRate ->
+            callEventHandler.onAudioReceiveFrame(pcm, sampleCount, channels, samplingRate)
         }
     }
 }

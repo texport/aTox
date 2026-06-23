@@ -15,7 +15,8 @@ enum class MessageType(val id: Int) {
     Normal(0),
     Action(1),
     FileTransfer(2),
-    GroupEvent(3);
+    GroupEvent(3),
+    Reaction(4);
 
     companion object {
         fun fromId(id: Int): MessageType = entries.find { it.id == id } ?: Normal

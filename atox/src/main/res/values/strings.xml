@@ -490,6 +490,11 @@
     <string name="forward">Forward</string>
     <string name="slide_to_cancel">Slide to cancel</string>
     <string name="voice_message">Voice message</string>
+    <string name="voice_message_reply_preview">Voice message</string>
+    <string name="photo_reply_preview">Photo</string>
+    <string name="file_saved_to_gallery">Saved to gallery</string>
+    <string name="file_save_error">Failed to save image</string>
+    <string name="voice_message_too_short">Voice message is too short</string>
     <string name="replying_to">Replying to %1$s</string>
     <string name="message_forwarded">Message forwarded</string>
     <string name="file_sharing_started">File sharing started</string>
@@ -510,6 +515,9 @@
     <string name="group_invite_view">Go to chat</string>
     <string name="voice_message_play_error">Failed to play audio file</string>
     <string name="voice_message_not_ready">Audio file is still downloading or not available</string>
+    <string name="unknown_artist">&lt;unknown&gt;</string>
+    <string name="unknown_title">&lt;unknown&gt;</string>
+    <string name="audio_message">Audio file</string>
     <string name="group_invite_label">Group: %1$s</string>
     <!-- Group connection diagnostics strings -->
     <string name="group_diagnostics_title">Group Connection Diagnostics</string>

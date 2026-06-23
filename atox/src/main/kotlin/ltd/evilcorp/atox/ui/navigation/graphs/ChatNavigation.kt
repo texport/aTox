@@ -74,6 +74,7 @@ fun NavGraphBuilder.chatGraph(
         }
 
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+        val reactions by viewModel.reactions.collectAsStateWithLifecycle()
         val selectedChatSnapshot = selectedChatSnapshotState.value
         val contactSnapshot = remember(selectedChatSnapshot, publicKeyStr) {
             selectedChatSnapshot?.takeIf { it.publicKey == publicKeyStr }
@@ -93,6 +94,7 @@ fun NavGraphBuilder.chatGraph(
                 uiState = finalUiState,
                 onBack = navController::popBackStack,
                 messagesFlow = viewModel.pagedMessages,
+                reactions = reactions,
 
                 onSendMessage = { content -> viewModel.send(content, MessageType.Normal) },
                 onTypingChanged = viewModel::setTyping,
@@ -118,6 +120,7 @@ fun NavGraphBuilder.chatGraph(
                 onForwardClick = { msg ->
                     navController.navigate(AppRoutes.ForwardSelection(msg.message))
                 },
+                onReactClick = { msg, emoji -> viewModel.sendReaction(msg, emoji) },
                 onSendVoice = viewModel::createFt,
                 isJoinedGroup = { chatId ->
                     groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }

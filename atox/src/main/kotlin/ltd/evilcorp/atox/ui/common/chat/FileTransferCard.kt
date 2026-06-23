@@ -10,6 +10,8 @@ import android.content.ContentResolver
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import ltd.evilcorp.atox.ui.common.LocalFileStorageProvider
@@ -65,10 +67,19 @@ fun FileTransferCard(
     val isRejected = ft.isRejected()
     val isOutgoing = ft.outgoing
     val context = LocalContext.current
+    var showImagePreview by remember { mutableStateOf(false) }
 
     val isImage = remember(ft.fileName) {
         val ext = ft.fileName.substringAfterLast('.', "").lowercase()
         ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+    }
+
+    if (showImagePreview) {
+        FileImageViewerDialog(
+            destination = ft.destination,
+            fileName = ft.fileName,
+            onDismiss = { showImagePreview = false }
+        )
     }
 
     val lastModified = remember(ft.destination, isComplete) {
@@ -127,7 +138,13 @@ fun FileTransferCard(
         modifier = Modifier
             .widthIn(max = MAX_WIDTH_DP.dp)
             .clip(RoundedCornerShape(THUMBNAIL_ROUNDED_CORNER.dp))
-            .clickable(enabled = isLocalReady && !isRejected) { onOpenFile(ft) }
+            .clickable(enabled = isLocalReady && !isRejected) {
+                if (isComplete && isImage) {
+                    showImagePreview = true
+                } else {
+                    onOpenFile(ft)
+                }
+            }
             .padding(vertical = 4.dp)
     ) {
         FileImageThumbnail(

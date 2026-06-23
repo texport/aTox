@@ -20,7 +20,7 @@ typealias VideoReceiveFrameHandler = (
     vStride: Int,
 ) -> Unit
 
-typealias AudioReceiveFrameHandler = (pk: String, pcm: ShortArray, channels: Int, samplingRate: Int) -> Unit
+typealias AudioReceiveFrameHandler = (pk: String, pcm: java.nio.ByteBuffer, sampleCount: Int, channels: Int, samplingRate: Int) -> Unit
 typealias AudioBitRateHandler = (pk: String, bitRate: Int) -> Unit
 typealias GroupAudioHandler = (groupNo: Int, peerId: Int, pcm: ShortArray, channels: Int, samplingRate: Int) -> Unit
 
@@ -38,7 +38,7 @@ class ToxAvEventListener @Inject constructor() {
     var callStateHandler: CallStateHandler = { _, _ -> }
     var videoBitRateHandler: VideoBitRateHandler = { _, _ -> }
     var videoReceiveFrameHandler: VideoReceiveFrameHandler = { _, _, _, _, _, _, _, _, _ -> }
-    var audioReceiveFrameHandler: AudioReceiveFrameHandler = { _, _, _, _ -> }
+    var audioReceiveFrameHandler: AudioReceiveFrameHandler = { _, _, _, _, _ -> }
     var audioBitRateHandler: AudioBitRateHandler = { _, _ -> }
     var groupAudioHandler: GroupAudioHandler = { _, _, _, _, _ -> }
 
@@ -74,9 +74,9 @@ class ToxAvEventListener @Inject constructor() {
         callStateHandler(key, callState)
     }
 
-    fun audioReceiveFrame(friendNo: Int, pcm: ShortArray, channels: Int, samplingRate: Int) {
+    fun audioReceiveFrame(friendNo: Int, pcm: java.nio.ByteBuffer, sampleCount: Int, channels: Int, samplingRate: Int) {
         val key = keyFor(friendNo) ?: return
-        audioReceiveFrameHandler(key, pcm, channels, samplingRate)
+        audioReceiveFrameHandler(key, pcm, sampleCount, channels, samplingRate)
     }
 
     fun audioBitRate(friendNo: Int, bitRate: Int) {
@@ -100,8 +100,8 @@ class ToxAvEventListener @Inject constructor() {
         callState(friendNo, set)
     }
 
-    fun onAudioReceiveFrame(friendNo: Int, pcm: ShortArray, @Suppress("UNUSED_PARAMETER") sampleCount: Int, channels: Int, samplingRate: Int) =
-        audioReceiveFrame(friendNo, pcm, channels, samplingRate)
+    fun onAudioReceiveFrame(friendNo: Int, pcm: java.nio.ByteBuffer, sampleCount: Int, channels: Int, samplingRate: Int) =
+        audioReceiveFrame(friendNo, pcm, sampleCount, channels, samplingRate)
 
     fun onVideoReceiveFrame(
         friendNo: Int,

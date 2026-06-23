@@ -126,6 +126,7 @@ fun AToxSplitPaneLayout(
                 }
                 
                 val uiState by rightChatViewModel.uiState.collectAsStateWithLifecycle()
+                val reactions by rightChatViewModel.reactions.collectAsStateWithLifecycle()
                 val finalUiState = remember(uiState, selectedChat) {
                     if (uiState.contact == null) {
                         uiState.copy(contact = selectedChat)
@@ -142,6 +143,7 @@ fun AToxSplitPaneLayout(
                     uiState = finalUiState,
                     onBack = { contactListViewModel.clearSelectedChat() },
                     messagesFlow = rightChatViewModel.pagedMessages,
+                    reactions = reactions,
                     onSendMessage = { content -> rightChatViewModel.send(content, ltd.evilcorp.domain.features.chat.model.MessageType.Normal) },
                     onTypingChanged = rightChatViewModel::setTyping,
                     onSendFile = rightChatViewModel::createFt,
@@ -169,6 +171,7 @@ fun AToxSplitPaneLayout(
                     onForwardClick = { msg ->
                         navController.navigate(AppRoutes.ForwardSelection(msg.message))
                     },
+                    onReactClick = { msg, emoji -> rightChatViewModel.sendReaction(msg, emoji) },
                     onSendVoice = rightChatViewModel::createFt,
                     isJoinedGroup = { chatId ->
                         groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }

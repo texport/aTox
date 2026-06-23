@@ -16,10 +16,10 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveAll(messages: List<MessageEntity>)
 
-    @Query("SELECT * FROM (SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC LIMIT 150) ORDER BY id ASC")
+    @Query("SELECT * FROM (SELECT * FROM messages WHERE conversation == :conversation AND type != 4 ORDER BY id DESC LIMIT 150) ORDER BY id ASC")
     fun load(conversation: String): Flow<List<MessageEntity>>
 
-    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC")
+    @Query("SELECT * FROM messages WHERE conversation == :conversation AND type != 4 ORDER BY id DESC")
     fun loadConversationPagingSource(conversation: String): PagingSource<Int, MessageEntity>
 
     @Query("SELECT * FROM messages")
@@ -28,7 +28,7 @@ interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY id LIMIT :limit OFFSET :offset")
     suspend fun loadPaged(limit: Int, offset: Int): List<MessageEntity>
 
-    @Query("SELECT * FROM messages WHERE conversation == :conversation ORDER BY id DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM messages WHERE conversation == :conversation AND type != 4 ORDER BY id DESC LIMIT :limit OFFSET :offset")
     suspend fun loadConversationPaged(conversation: String, limit: Int, offset: Int): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE correlation_id == -2147483648 ORDER BY id LIMIT :limit OFFSET :offset")
@@ -58,4 +58,7 @@ interface MessageDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE conversation == :conversation AND message == :message LIMIT 1)")
     suspend fun exists(conversation: String, message: String): Boolean
+
+    @Query("SELECT * FROM messages WHERE conversation == :conversation AND type == 4")
+    fun loadReactions(conversation: String): Flow<List<MessageEntity>>
 }

@@ -100,6 +100,9 @@ fun <T : Any> ChatScreenContent(
     replyingToMessage: Message? = null,
     onCancelReply: () -> Unit = {},
 
+    // Reactions
+    reactions: List<Message> = emptyList(),
+
     // Optional parameters
     modifier: Modifier = Modifier,
     pagedMessages: LazyPagingItems<T>? = null,
@@ -109,6 +112,7 @@ fun <T : Any> ChatScreenContent(
     onCopyClick: (Message) -> Unit = {},
     onReplyClick: (Message) -> Unit = {},
     onForwardClick: (Message) -> Unit = {},
+    onReactClick: (Message, String) -> Unit = { _, _ -> },
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
@@ -116,12 +120,30 @@ fun <T : Any> ChatScreenContent(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val showScrollToBottomFab by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 2 }
+    val mappedMessages = remember(messages, pagedMessages) {
+        val raw = if (pagedMessages != null) {
+            (0 until pagedMessages.itemCount).mapNotNull { i ->
+                pagedMessages.peek(i)?.let(toMessage)
+            }
+        } else {
+            messages.map(toMessage)
+        }
+        raw.filter { it.type != ltd.evilcorp.domain.features.chat.model.MessageType.Reaction }
     }
 
-    val mappedMessages = remember(messages) {
-        messages.map(toMessage)
+    val reactionsMap = remember(reactions) {
+        reactions
+            .filter { ltd.evilcorp.domain.features.chat.model.ReactionParser.isReaction(it.message) }
+            .groupBy { ltd.evilcorp.domain.features.chat.model.ReactionParser.parse(it.message).parentIdentifier }
+            .mapValues { (_, msgs) ->
+                msgs.groupBy { ltd.evilcorp.domain.features.chat.model.ReactionParser.parse(it.message).emoji }
+                    .map { (emoji, list) -> ReactionCount(emoji, list.size) }
+                    .sortedByDescending { it.count }
+            }
+    }
+
+    val showScrollToBottomFab by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 2 }
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -204,36 +226,38 @@ fun <T : Any> ChatScreenContent(
                     items(
                         count = itemCount,
                         key = { index ->
-                            val rawIndex = itemCount - 1 - index
+                            val dataIndex = dataIndexFor(index, itemCount, pagedMessages)
                             if (pagedMessages != null) {
-                                pagedMessages.peek(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                                pagedMessages.peek(dataIndex)?.let(toMessage)?.id ?: index.toLong()
                             } else {
-                                messages.getOrNull(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                                messages.getOrNull(dataIndex)?.let(toMessage)?.id ?: index.toLong()
                             }
                         }
                     ) { index ->
-                        val rawIndex = itemCount - 1 - index
+                        val dataIndex = dataIndexFor(index, itemCount, pagedMessages)
                         val item = if (pagedMessages != null) {
-                            pagedMessages[rawIndex]
+                            pagedMessages[dataIndex]
                         } else {
-                            messages[rawIndex]
+                            messages[dataIndex]
                         }
                         if (item != null) {
                             val msg = toMessage(item)
-                            val prevDomainMsg = if (rawIndex > 0) {
-                                if (pagedMessages != null) pagedMessages.peek(rawIndex - 1)?.let(toMessage)
-                                else messages.getOrNull(rawIndex - 1)?.let(toMessage)
-                            } else null
 
-                                val currentHeader = remember(msg.timestamp, uiConfig.dateFormatPreference) {
+                            val aboveDomainMsg = if (pagedMessages != null) {
+                                if (dataIndex + 1 < itemCount) pagedMessages.peek(dataIndex + 1)?.let(toMessage) else null
+                            } else {
+                                if (dataIndex > 0) messages.getOrNull(dataIndex - 1)?.let(toMessage) else null
+                            }
+
+                                val currentHeader = remember(msg.id, uiConfig.dateFormatPreference) {
                                     formatMessageDateHeader(
                                         context = context,
                                         timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
                                         dateFormatPreference = uiConfig.dateFormatPreference,
                                     )
                                 }
-                                val previousHeader = prevDomainMsg?.let {
-                                    remember(it.timestamp, uiConfig.dateFormatPreference) {
+                                val aboveHeader = aboveDomainMsg?.let {
+                                    remember(it.id, uiConfig.dateFormatPreference) {
                                         formatMessageDateHeader(
                                             context = context,
                                             timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
@@ -246,7 +270,9 @@ fun <T : Any> ChatScreenContent(
 
                                 @OptIn(ExperimentalFoundationApi::class)
                                 Column(modifier = Modifier.animateItem()) {
-                                    if (rawIndex == 0 || currentHeader != previousHeader) {
+                                    val isTop = index == itemCount - 1
+                                    val dateChanged = aboveHeader != null && currentHeader != aboveHeader
+                                    if (isTop || dateChanged) {
                                         DateSeparator(label = currentHeader)
                                         if (bubbleConfig.showAvatar) {
                                             Spacer(modifier = Modifier.height(8.dp))
@@ -256,6 +282,7 @@ fun <T : Any> ChatScreenContent(
                                     MessageBubble(
                                         msg = msg,
                                         messages = StableMessageList(mappedMessages),
+                                        reactionsMap = reactionsMap,
                                         uiConfig = uiConfig,
                                         contactName = bubbleConfig.contactName,
                                         onHaptic = performHaptic,
@@ -272,10 +299,15 @@ fun <T : Any> ChatScreenContent(
                                         onCopyMessage = onCopyClick,
                                         onReplyMessage = onReplyClick,
                                         onForwardMessage = onForwardClick,
+                                        onReact = onReactClick,
                                         onParentMessageClick = { parentMsg ->
                                             val parentIndex = mappedMessages.indexOfFirst { it.timestamp == parentMsg.timestamp }
                                             if (parentIndex != -1) {
-                                                val scrollIndex = mappedMessages.size - 1 - parentIndex
+                                                val scrollIndex = if (pagedMessages != null) {
+                                                    parentIndex
+                                                } else {
+                                                    mappedMessages.size - 1 - parentIndex
+                                                }
                                                 coroutineScope.launch {
                                                     listState.animateScrollToItem(scrollIndex)
                                                 }
@@ -357,9 +389,13 @@ fun <T : Any> ChatScreenContent(
                     onCancelReply = onCancelReply,
                     onSendVoice = onSendVoice,
                     voiceRecorder = voiceRecorder,
+                    fileTransfers = fileTransfers,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
 }
+
+private fun dataIndexFor(index: Int, itemCount: Int, pagedMessages: Any?): Int =
+    if (pagedMessages != null) index else itemCount - 1 - index

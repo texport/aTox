@@ -63,7 +63,7 @@ class ToxImpl @Inject constructor(
         runtime.stop()
     }
 
-    fun waitForStop() {
+    suspend fun waitForStop() {
         runtime.waitForStop()
     }
 

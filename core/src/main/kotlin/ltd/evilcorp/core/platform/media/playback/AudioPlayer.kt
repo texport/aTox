@@ -13,7 +13,7 @@ private fun intToChannel(channels: Int) = when (channels) {
     else -> AudioFormat.CHANNEL_OUT_STEREO
 }
 
-class AudioPlayer(sampleRate: Int, channels: Int) {
+class AudioPlayer(sampleRate: Int, private val channels: Int) {
     private val minBufferSize =
         AudioTrack.getMinBufferSize(sampleRate, intToChannel(channels), AudioFormat.ENCODING_PCM_16BIT) * 2
     private val audioTrack = AudioTrack.Builder()
@@ -34,6 +34,11 @@ class AudioPlayer(sampleRate: Int, channels: Int) {
 
     fun buffer(data: ShortArray) {
         audioTrack.write(data, 0, data.size)
+    }
+
+    fun buffer(data: java.nio.ByteBuffer, sampleCount: Int) {
+        data.limit(sampleCount * channels * 2)
+        audioTrack.write(data, data.remaining(), AudioTrack.WRITE_NON_BLOCKING)
     }
 
     fun start() {

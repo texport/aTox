@@ -29,6 +29,7 @@ import android.content.Context
 import android.content.ClipboardManager
 import android.widget.Toast
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
+import ltd.evilcorp.domain.features.transfer.model.isComplete
 import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
@@ -45,6 +46,7 @@ data class StableFileTransferList(val list: List<FileTransfer>)
 fun MessageBubble(
     msg: Message,
     messages: StableMessageList,
+    reactionsMap: Map<String, List<ReactionCount>> = emptyMap(),
     uiConfig: ChatUiConfig,
     contactName: String,
     onHaptic: () -> Unit,
@@ -61,7 +63,8 @@ fun MessageBubble(
     onParentMessageClick: ((Message) -> Unit)? = null,
     onJoinGroupClick: ((chatId: String, groupName: String) -> Unit)? = null,
     isJoinedGroup: ((chatId: String) -> Boolean)? = null,
-    
+    onReact: ((Message, String) -> Unit)? = null,
+
     // Group chat specific parameters
     showAvatar: Boolean = false,
     senderName: String? = null,
@@ -134,8 +137,28 @@ fun MessageBubble(
         ft != null && ft.fileName.startsWith("voice_message_")
     }
 
+    val isAudio = remember(ft) {
+        if (ft == null) false else {
+            val ext = ft.fileName.substringAfterLast('.', "").lowercase()
+            ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma")
+        }
+    }
+
+    val isImage = remember(ft) {
+        if (ft == null) false else {
+            val ext = ft.fileName.substringAfterLast('.', "").lowercase()
+            ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+        }
+    }
+
     val isGroupInvite = remember(msg.message) {
         isGroupInviteMessage(msg.message)
+    }
+
+    // Compute reactions for this message
+    val messageHashCode = remember(msg.message) { msg.message.hashCode().toString() }
+    val reactions = remember(reactionsMap, messageHashCode) {
+        reactionsMap[messageHashCode] ?: emptyList()
     }
 
     Row(
@@ -159,7 +182,9 @@ fun MessageBubble(
             modifier = Modifier.widthIn(max = 280.dp),
             horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
         ) {
-            Box {
+            SwipeableReplyBox(
+                onReply = { onReplyMessage?.invoke(msg) }
+            ) {
                 Surface(
                     color = containerColor,
                     contentColor = contentColor,
@@ -169,7 +194,7 @@ fun MessageBubble(
                         onClick = {},
                         onLongClick = {
                             onHaptic()
-                            if (onCopyMessage != null || onReplyMessage != null || onForwardMessage != null) {
+                            if (onCopyMessage != null || onReplyMessage != null || onForwardMessage != null || onReact != null) {
                                 showMenu = true
                             } else {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -180,73 +205,11 @@ fun MessageBubble(
                         }
                     )
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        // Colored Sender Name on top of incoming group chat messages
-                        if (!isOutgoing && senderName != null && showAvatar) {
-                            Text(
-                                text = senderName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = senderColor ?: MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 4.dp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        // Polymorphic body rendering
-                        when {
-                            isVoice && ft != null -> {
-                                VoiceMessageBubble(
-                                    ft = ft,
-                                    contentColor = contentColor,
-                                    onAcceptFt = onAcceptFt,
-                                    onRejectFt = onRejectFt,
-                                    msg = msg,
-                                    isOutgoing = isOutgoing,
-                                    uiConfig = uiConfig
-                                )
-                            }
-                            msg.type == MessageType.FileTransfer -> {
-                                FileTransferBubble(
-                                    msg = msg,
-                                    ft = ft,
-                                    contentColor = contentColor,
-                                    onHaptic = onHaptic,
-                                    onAcceptFt = onAcceptFt,
-                                    onRejectFt = onRejectFt,
-                                    onCancelFt = onCancelFt,
-                                    onSaveAsClick = onSaveAsClick,
-                                    onOpenFile = onOpenFile
-                                )
-                            }
-                            isGroupInvite -> {
-                                GroupInviteBubble(
-                                    msg = msg,
-                                    contentColor = contentColor,
-                                    isOutgoing = isOutgoing,
-                                    onHaptic = onHaptic,
-                                    onCancelFt = onCancelFt,
-                                    onJoinGroupClick = onJoinGroupClick,
-                                    isJoinedGroup = isJoinedGroup
-                                )
-                            }
-                            else -> {
-                                TextMessageBubble(
-                                    msg = msg,
-                                    replyInfo = replyInfo,
-                                    messages = messages.list,
-                                    contactName = contactName,
-                                    contentColor = contentColor,
-                                    isOutgoing = isOutgoing,
-                                    onParentMessageClick = onParentMessageClick
-                                )
-                            }
-                        }
-
-                        // Message time & status delivery ticks
-                        if (!isVoice) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                    val isImageBubble = isImage && ft != null && (ft.isComplete() || isOutgoing)
+                    if (isImageBubble) {
+                        Column(modifier = Modifier.padding(1.dp)) {
+                            ImageMessageBubble(ft = ft, shape = shape)
+                            Spacer(modifier = Modifier.height(2.dp))
                             val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
                                 val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
                                 formatChatTime(context, time, uiConfig.timeFormatPreference)
@@ -254,7 +217,9 @@ fun MessageBubble(
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.End,
-                                modifier = Modifier.align(Alignment.End)
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .padding(end = 8.dp)
                             ) {
                                 Text(
                                     text = timeString,
@@ -289,10 +254,132 @@ fun MessageBubble(
                                 }
                             }
                         }
+                    } else {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            // Colored Sender Name on top of incoming group chat messages
+                            if (!isOutgoing && senderName != null && showAvatar) {
+                                Text(
+                                    text = senderName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = senderColor ?: MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Polymorphic body rendering
+                            when {
+                                isVoice && ft != null -> {
+                                    VoiceMessageBubble(
+                                        ft = ft,
+                                        contentColor = contentColor,
+                                        onAcceptFt = onAcceptFt,
+                                        onRejectFt = onRejectFt,
+                                        msg = msg,
+                                        isOutgoing = isOutgoing,
+                                        uiConfig = uiConfig
+                                    )
+                                }
+                                isAudio && ft != null -> {
+                                    AudioMessageBubble(
+                                        ft = ft,
+                                        contentColor = contentColor,
+                                        onAcceptFt = onAcceptFt,
+                                        onRejectFt = onRejectFt,
+                                        msg = msg,
+                                        isOutgoing = isOutgoing,
+                                        uiConfig = uiConfig
+                                    )
+                                }
+                                msg.type == MessageType.FileTransfer -> {
+                                    FileTransferBubble(
+                                        msg = msg,
+                                        ft = ft,
+                                        contentColor = contentColor,
+                                        onHaptic = onHaptic,
+                                        onAcceptFt = onAcceptFt,
+                                        onRejectFt = onRejectFt,
+                                        onCancelFt = onCancelFt,
+                                        onSaveAsClick = onSaveAsClick,
+                                        onOpenFile = onOpenFile
+                                    )
+                                }
+                                isGroupInvite -> {
+                                    GroupInviteBubble(
+                                        msg = msg,
+                                        contentColor = contentColor,
+                                        isOutgoing = isOutgoing,
+                                        onHaptic = onHaptic,
+                                        onCancelFt = onCancelFt,
+                                        onJoinGroupClick = onJoinGroupClick,
+                                        isJoinedGroup = isJoinedGroup
+                                    )
+                                }
+                                else -> {
+                                    TextMessageBubble(
+                                        msg = msg,
+                                        replyInfo = replyInfo,
+                                        messages = messages.list,
+                                        contactName = contactName,
+                                        contentColor = contentColor,
+                                        isOutgoing = isOutgoing,
+                                        onParentMessageClick = onParentMessageClick
+                                    )
+                                }
+                            }
+
+                            // Message time & status delivery ticks
+                            if (!isVoice && !isAudio) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
+                                    val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
+                                    formatChatTime(context, time, uiConfig.timeFormatPreference)
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End,
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text(
+                                        text = timeString,
+                                        fontSize = 10.sp,
+                                        color = contentColor.copy(alpha = 0.7f)
+                                    )
+                                    if (isOutgoing) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        if (msg.timestamp == 0L) {
+                                            Icon(
+                                                imageVector = Icons.Default.AccessTime,
+                                                contentDescription = "Sending",
+                                                tint = contentColor.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        } else {
+                                            Box(modifier = Modifier.size(width = 18.dp, height = 12.dp)) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Done,
+                                                    contentDescription = null,
+                                                    tint = contentColor.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(12.dp).align(Alignment.CenterStart)
+                                                )
+                                                Icon(
+                                                    imageVector = Icons.Default.Done,
+                                                    contentDescription = "Delivered",
+                                                    tint = contentColor.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(12.dp).align(Alignment.CenterEnd)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Extracted Context menu dropdown
+                // Context menu dropdown
                 MessageContextDropdown(
                     msg = msg,
                     uiConfig = uiConfig,
@@ -301,9 +388,18 @@ fun MessageBubble(
                     onCopyMessage = onCopyMessage,
                     onReplyMessage = onReplyMessage,
                     onForwardMessage = onForwardMessage,
+                    onReact = onReact,
                     isAction = false
                 )
             }
+
+            // Reactions display
+            ReactionsRow(
+                reactions = reactions,
+                onReactionClick = { emoji ->
+                    onReact?.invoke(msg, emoji)
+                }
+            )
         }
     }
 }

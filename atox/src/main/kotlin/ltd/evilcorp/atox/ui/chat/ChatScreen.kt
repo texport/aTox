@@ -61,6 +61,7 @@ fun ChatScreen(
     uiState: ChatUiState,
     onBack: () -> Unit,
     messagesFlow: Flow<PagingData<Message>>? = null,
+    reactions: List<Message> = emptyList(),
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
     onSendFile: (Uri) -> Unit,
@@ -77,6 +78,7 @@ fun ChatScreen(
     onReplyClick: (Message) -> Unit = {},
     onCopyClick: (Message) -> Unit = {},
     onForwardClick: (Message) -> Unit = {},
+    onReactClick: (Message, String) -> Unit = { _, _ -> },
     onSendVoice: (Uri) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
@@ -206,6 +208,7 @@ fun ChatScreen(
                 messages = messages,
                 toMessage = { it },
                 pagedMessages = pagedMessages,
+                reactions = reactions,
                 getBubbleConfig = {
                     MessageBubbleConfig(
                         contactName = contactName
@@ -234,6 +237,7 @@ fun ChatScreen(
                 onCopyClick = onCopyClick,
                 onReplyClick = onReplyClick,
                 onForwardClick = onForwardClick,
+                onReactClick = onReactClick,
                 onJoinGroupClick = onJoinGroupClick,
                 isJoinedGroup = isJoinedGroup,
                 listState = listState

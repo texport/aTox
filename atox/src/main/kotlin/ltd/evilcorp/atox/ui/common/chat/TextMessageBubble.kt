@@ -97,7 +97,16 @@ fun TextMessageBubble(
                             )
                             Text(
                                 text = if (parentMsg.type == MessageType.FileTransfer) {
-                                    stringResource(R.string.voice_message)
+                                    if (parentMsg.message.startsWith("voice_message_")) {
+                                        stringResource(R.string.voice_message)
+                                    } else {
+                                        val ext = parentMsg.message.substringAfterLast('.', "").lowercase()
+                                        if (ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma")) {
+                                            stringResource(R.string.audio_message)
+                                        } else {
+                                            stringResource(R.string.voice_message)
+                                        }
+                                    }
                                 } else {
                                     stripReplyPrefix(parentMsg.message)
                                 },

@@ -90,7 +90,7 @@ class LiveCallManagerIntegrationTest {
             }
 
             val audioFrameReceived = AtomicBoolean(false)
-            avListenerB.audioReceiveFrameHandler = { pk, pcm, channels, samplingRate ->
+            avListenerB.audioReceiveFrameHandler = { pk, _, _, channels, samplingRate ->
                 if (pk == pkA.string()) {
                     audioFrameReceived.set(true)
                 }

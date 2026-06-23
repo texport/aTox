@@ -90,6 +90,7 @@ fun ChatInputBar(
     onCancelReply: () -> Unit,
     onSendVoice: (android.net.Uri) -> Unit,
     voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
+    fileTransfers: List<ltd.evilcorp.domain.features.transfer.model.FileTransfer> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var textInput by remember { mutableStateOf("") }
@@ -201,7 +202,8 @@ fun ChatInputBar(
         ReplyPreviewHeader(
             replyingToMessage = replyingToMessage,
             contact = contact,
-            onCancelReply = onCancelReply
+            onCancelReply = onCancelReply,
+            fileTransfers = fileTransfers
         )
 
         // 2. Main Input Bar Row

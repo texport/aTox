@@ -13,8 +13,16 @@ class FakeMessageRepository : IMessageRepository {
         messages.value = messages.value + message
     }
 
+    override suspend fun addAll(messages: List<Message>) {
+        this.messages.value = this.messages.value + messages
+    }
+
     override fun get(conversation: String): Flow<List<Message>> {
         return messages.map { list -> list.filter { it.publicKey == conversation } }
+    }
+
+    override fun getReactions(conversation: String): Flow<List<Message>> {
+        return messages.map { list -> list.filter { it.publicKey == conversation && it.type == ltd.evilcorp.domain.features.chat.model.MessageType.Reaction } }
     }
 
     override suspend fun getPending(conversation: String): List<Message> {

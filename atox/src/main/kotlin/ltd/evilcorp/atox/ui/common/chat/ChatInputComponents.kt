@@ -26,7 +26,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,18 +43,26 @@ import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.atox.ui.theme.AToxMotion
 import ltd.evilcorp.domain.features.contacts.model.Contact
 import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 
 private const val VOICE_RECORDING_PULSE_MS = 800
 private const val SECONDS_IN_MINUTE = 60
+private const val MILLIS_IN_SECOND = 1000
 
 @Composable
 fun ReplyPreviewHeader(
     replyingToMessage: Message?,
     contact: Contact?,
     onCancelReply: () -> Unit,
+    fileTransfers: List<FileTransfer> = emptyList(),
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     AnimatedVisibility(
         visible = replyingToMessage != null,
         enter = AToxMotion.replyPreviewEnter(),
@@ -89,8 +100,91 @@ fun ReplyPreviewHeader(
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    val replyFt = remember(replyMsg, fileTransfers) {
+                        if (replyMsg.type == MessageType.FileTransfer) {
+                            fileTransfers.find { it.id == replyMsg.correlationId || it.fileNumber == replyMsg.correlationId }
+                        } else null
+                    }
+                    val voiceDurationMs by produceState(initialValue = 0, replyMsg.id) {
+                        val ft = if (replyMsg.type == MessageType.FileTransfer) {
+                            fileTransfers.find { it.id == replyMsg.correlationId || it.fileNumber == replyMsg.correlationId }
+                        } else null
+                        val audioPath = when {
+                            ft != null && ft.destination.isNotEmpty() -> ft.destination
+                            replyMsg.message.startsWith("voice_message_") -> {
+                                val expectedName = replyMsg.message
+                                val cacheDir = context.cacheDir
+                                val cached = cacheDir.listFiles { _, name -> name == expectedName }?.firstOrNull()
+                                cached?.absolutePath
+                            }
+                            else -> null
+                        }
+                        if (audioPath != null) {
+                            value = withContext(Dispatchers.IO) {
+                                try {
+                                    val retriever = android.media.MediaMetadataRetriever()
+                                    val uri = android.net.Uri.parse(audioPath)
+                                    if (uri.scheme == "content" || uri.scheme == "file") {
+                                        retriever.setDataSource(context, uri)
+                                    } else {
+                                        val file = java.io.File(audioPath)
+                                        if (file.exists()) retriever.setDataSource(context, android.net.Uri.fromFile(file))
+                                    }
+                                    val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                                    retriever.release()
+                                    durStr?.toIntOrNull() ?: 0
+                                } catch (e: Exception) {
+                                    0
+                                }
+                            }
+                        }
+                    }
+                    val isImageReply = remember(replyMsg) {
+                        if (replyMsg.type != MessageType.FileTransfer) false else {
+                            val ext = replyMsg.message.substringAfterLast('.', "").lowercase()
+                            ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+                        }
+                    }
+                    val isVoiceReply = remember(replyMsg) {
+                        replyMsg.type == MessageType.FileTransfer &&
+                            replyMsg.message.startsWith("voice_message_")
+                    }
+                    val isAudioReply = remember(replyMsg) {
+                        if (replyMsg.type != MessageType.FileTransfer) false else {
+                            val ext = replyMsg.message.substringAfterLast('.', "").lowercase()
+                            ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma")
+                        }
+                    }
+                    val voiceLabel = context.getString(R.string.voice_message_reply_preview)
+                    val audioLabel = context.getString(R.string.audio_message)
+                    val photoLabel = context.getString(R.string.photo_reply_preview)
+                    val replyText = remember(replyMsg, voiceDurationMs, voiceLabel, audioLabel, photoLabel, isImageReply, isVoiceReply, isAudioReply) {
+                        if (isVoiceReply) {
+                            if (voiceDurationMs > 0) {
+                                val totalSec = voiceDurationMs / MILLIS_IN_SECOND
+                                val min = totalSec / SECONDS_IN_MINUTE
+                                val sec = totalSec % SECONDS_IN_MINUTE
+                                "$voiceLabel ($min:${sec.toString().padStart(2, '0')})"
+                            } else {
+                                voiceLabel
+                            }
+                        } else if (isAudioReply) {
+                            if (voiceDurationMs > 0) {
+                                val totalSec = voiceDurationMs / MILLIS_IN_SECOND
+                                val min = totalSec / SECONDS_IN_MINUTE
+                                val sec = totalSec % SECONDS_IN_MINUTE
+                                "$audioLabel ($min:${sec.toString().padStart(2, '0')})"
+                            } else {
+                                audioLabel
+                            }
+                        } else if (isImageReply) {
+                            photoLabel
+                        } else {
+                            stripReplyPrefix(replyMsg.message)
+                        }
+                    }
                     Text(
-                        text = stripReplyPrefix(replyMsg.message),
+                        text = replyText,
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
