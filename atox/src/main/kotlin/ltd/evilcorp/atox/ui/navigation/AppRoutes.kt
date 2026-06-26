@@ -48,7 +48,14 @@ sealed interface AppRoutes {
     data class AddContact(val toxId: String? = null) : AppRoutes
 
     @Serializable
-    data class ForwardSelection(val message: String) : AppRoutes
+    data class ContactProfile(val publicKey: String) : AppRoutes
+
+    @Serializable
+    data class ForwardSelection(
+        val message: String,
+        val messageType: Int = 0,
+        val correlationId: Int = 0
+    ) : AppRoutes
 
     @Serializable
     data object ForwardShared : AppRoutes

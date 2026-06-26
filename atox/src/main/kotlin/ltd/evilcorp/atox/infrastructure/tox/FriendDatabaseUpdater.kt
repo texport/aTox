@@ -24,7 +24,6 @@ import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.features.auth.repository.IUserRepository
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.chat.ChatManager
-import ltd.evilcorp.domain.features.chat.model.ReactionParser
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
 private const val MESSAGE_BATCH_SIZE = 10
@@ -48,11 +47,7 @@ class FriendDatabaseUpdater @Inject constructor(
             eventBus.events.collect { event ->
                 try {
                     if (event is ToxFriendEvent.FriendMessage) {
-                        val msgType = if (ReactionParser.isReaction(event.message)) {
-                            MessageType.Reaction
-                        } else {
-                            event.type.toMessageType()
-                        }
+                        val msgType = event.type.toMessageType()
                         messageBuffer.add(
                             Message(
                                 event.publicKey,

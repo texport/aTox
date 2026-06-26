@@ -36,12 +36,19 @@ fun GroupItemCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    // Group with only 1 peer (yourself) is always considered online
+    val effectiveConnectionStatus = if (group.peerCount == 1) {
+        GroupConnectionStatus.Connected
+    } else {
+        connectionStatus
+    }
+
     AtoxItemCard(
         avatar = {
             Box(
                 modifier = Modifier.size(48.dp)
             ) {
-                val isOnline = connectionStatus == GroupConnectionStatus.Connected
+                val isOnline = effectiveConnectionStatus == GroupConnectionStatus.Connected
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -69,7 +76,7 @@ fun GroupItemCard(
                         .background(MaterialTheme.colorScheme.background)
                         .padding(2.dp)
                 ) {
-                    val dotColor = when (connectionStatus) {
+                    val dotColor = when (effectiveConnectionStatus) {
                         GroupConnectionStatus.Connected -> StatusAvailable
                         GroupConnectionStatus.Connecting,
                         GroupConnectionStatus.Reconnecting -> StatusAway
@@ -115,13 +122,13 @@ fun GroupItemCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
             ) {
-                val statusText = when (connectionStatus) {
+                val statusText = when (effectiveConnectionStatus) {
                     GroupConnectionStatus.Connected -> stringResource(R.string.group_connected)
                     GroupConnectionStatus.Connecting,
                     GroupConnectionStatus.Reconnecting -> stringResource(R.string.group_connecting)
                     GroupConnectionStatus.Disconnected -> stringResource(R.string.group_offline)
                 }
-                val statusColor = when (connectionStatus) {
+                val statusColor = when (effectiveConnectionStatus) {
                     GroupConnectionStatus.Connected -> StatusAvailable
                     GroupConnectionStatus.Connecting,
                     GroupConnectionStatus.Reconnecting -> StatusAway

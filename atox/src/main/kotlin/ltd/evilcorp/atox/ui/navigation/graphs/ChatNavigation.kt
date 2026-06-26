@@ -5,6 +5,9 @@ import android.widget.Toast
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import ltd.evilcorp.atox.ui.navigation.LocalAnimatedVisibilityScope
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -66,15 +69,21 @@ fun NavGraphBuilder.chatGraph(
             }
         }
 
-        DisposableEffect(publicKeyStr) {
-            viewModel.setActiveChat(PublicKey(publicKeyStr))
+        val lifecycleOwner = LocalLifecycleOwner.current
+
+        LaunchedEffect(publicKeyStr, lifecycleOwner) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.setActiveChat(PublicKey(publicKeyStr))
+            }
+        }
+
+        DisposableEffect(Unit) {
             onDispose {
                 viewModel.clearActiveChat(PublicKey(publicKeyStr))
             }
         }
 
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        val reactions by viewModel.reactions.collectAsStateWithLifecycle()
         val selectedChatSnapshot = selectedChatSnapshotState.value
         val contactSnapshot = remember(selectedChatSnapshot, publicKeyStr) {
             selectedChatSnapshot?.takeIf { it.publicKey == publicKeyStr }
@@ -94,7 +103,6 @@ fun NavGraphBuilder.chatGraph(
                 uiState = finalUiState,
                 onBack = navController::popBackStack,
                 messagesFlow = viewModel.pagedMessages,
-                reactions = reactions,
 
                 onSendMessage = { content -> viewModel.send(content, MessageType.Normal) },
                 onTypingChanged = viewModel::setTyping,
@@ -118,12 +126,23 @@ fun NavGraphBuilder.chatGraph(
                     Toast.makeText(context, context.getString(R.string.message_copied), Toast.LENGTH_SHORT).show()
                 },
                 onForwardClick = { msg ->
-                    navController.navigate(AppRoutes.ForwardSelection(msg.message))
+                    navController.navigate(
+                        AppRoutes.ForwardSelection(
+                            message = msg.message,
+                            messageType = msg.type.id,
+                            correlationId = msg.correlationId
+                        )
+                    )
                 },
-                onReactClick = { msg, emoji -> viewModel.sendReaction(msg, emoji) },
                 onSendVoice = viewModel::createFt,
                 isJoinedGroup = { chatId ->
                     groupsState.any { it.chatId.equals(chatId, ignoreCase = true) }
+                },
+                onContactClick = {
+                    navController.navigate(AppRoutes.ContactProfile(publicKeyStr))
+                },
+                onContactCardClick = { toxId ->
+                    navController.navigate(AppRoutes.AddContact(toxId = toxId))
                 },
                 onJoinGroupClick = { chatIdOrBytes, groupName ->
                     coroutineScope.launch {

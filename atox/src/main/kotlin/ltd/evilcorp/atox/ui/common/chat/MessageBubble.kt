@@ -46,7 +46,6 @@ data class StableFileTransferList(val list: List<FileTransfer>)
 fun MessageBubble(
     msg: Message,
     messages: StableMessageList,
-    reactionsMap: Map<String, List<ReactionCount>> = emptyMap(),
     uiConfig: ChatUiConfig,
     contactName: String,
     onHaptic: () -> Unit,
@@ -63,7 +62,7 @@ fun MessageBubble(
     onParentMessageClick: ((Message) -> Unit)? = null,
     onJoinGroupClick: ((chatId: String, groupName: String) -> Unit)? = null,
     isJoinedGroup: ((chatId: String) -> Boolean)? = null,
-    onReact: ((Message, String) -> Unit)? = null,
+    onContactCardClick: ((toxId: String) -> Unit)? = null,
 
     // Group chat specific parameters
     showAvatar: Boolean = false,
@@ -155,10 +154,8 @@ fun MessageBubble(
         isGroupInviteMessage(msg.message)
     }
 
-    // Compute reactions for this message
-    val messageHashCode = remember(msg.message) { msg.message.hashCode().toString() }
-    val reactions = remember(reactionsMap, messageHashCode) {
-        reactionsMap[messageHashCode] ?: emptyList()
+    val isContactCard = remember(msg.message) {
+        ltd.evilcorp.domain.features.contacts.model.ContactCardParser.isContactCard(msg.message)
     }
 
     Row(
@@ -194,7 +191,7 @@ fun MessageBubble(
                         onClick = {},
                         onLongClick = {
                             onHaptic()
-                            if (onCopyMessage != null || onReplyMessage != null || onForwardMessage != null || onReact != null) {
+                            if (onCopyMessage != null || onReplyMessage != null || onForwardMessage != null) {
                                 showMenu = true
                             } else {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -317,6 +314,19 @@ fun MessageBubble(
                                         isJoinedGroup = isJoinedGroup
                                     )
                                 }
+                                isContactCard -> {
+                                    val contactCard = ltd.evilcorp.domain.features.contacts.model.ContactCardParser.decode(msg.message)
+                                    if (contactCard != null) {
+                                        ContactCardBubble(
+                                            toxId = contactCard.toxId,
+                                            displayName = contactCard.displayName,
+                                            contentColor = contentColor,
+                                            onAddContact = { toxId ->
+                                                onContactCardClick?.invoke(toxId)
+                                            }
+                                        )
+                                    }
+                                }
                                 else -> {
                                     TextMessageBubble(
                                         msg = msg,
@@ -388,18 +398,9 @@ fun MessageBubble(
                     onCopyMessage = onCopyMessage,
                     onReplyMessage = onReplyMessage,
                     onForwardMessage = onForwardMessage,
-                    onReact = onReact,
                     isAction = false
                 )
             }
-
-            // Reactions display
-            ReactionsRow(
-                reactions = reactions,
-                onReactionClick = { emoji ->
-                    onReact?.invoke(msg, emoji)
-                }
-            )
         }
     }
 }

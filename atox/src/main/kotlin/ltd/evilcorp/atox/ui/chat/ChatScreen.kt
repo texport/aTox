@@ -61,7 +61,6 @@ fun ChatScreen(
     uiState: ChatUiState,
     onBack: () -> Unit,
     messagesFlow: Flow<PagingData<Message>>? = null,
-    reactions: List<Message> = emptyList(),
     onSendMessage: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
     onSendFile: (Uri) -> Unit,
@@ -78,12 +77,13 @@ fun ChatScreen(
     onReplyClick: (Message) -> Unit = {},
     onCopyClick: (Message) -> Unit = {},
     onForwardClick: (Message) -> Unit = {},
-    onReactClick: (Message, String) -> Unit = { _, _ -> },
     onSendVoice: (Uri) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
     isTypingFlow: StateFlow<Boolean> = remember(uiState.contact?.publicKey) { MutableStateFlow(uiState.contact?.typing == true) },
     voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
+    onContactClick: () -> Unit = {},
+    onContactCardClick: (String) -> Unit = {},
 ) {
     val contact = uiState.contact
     val messages = uiState.messages
@@ -208,7 +208,6 @@ fun ChatScreen(
                 messages = messages,
                 toMessage = { it },
                 pagedMessages = pagedMessages,
-                reactions = reactions,
                 getBubbleConfig = {
                     MessageBubbleConfig(
                         contactName = contactName
@@ -237,9 +236,9 @@ fun ChatScreen(
                 onCopyClick = onCopyClick,
                 onReplyClick = onReplyClick,
                 onForwardClick = onForwardClick,
-                onReactClick = onReactClick,
                 onJoinGroupClick = onJoinGroupClick,
                 isJoinedGroup = isJoinedGroup,
+                onContactCardClick = onContactCardClick,
                 listState = listState
             )
         }
@@ -258,6 +257,7 @@ fun ChatScreen(
                 transitionAlpha = transitionAlpha,
                 onBack = onBack,
                 onCallClick = onCallClick,
+                onContactClick = onContactClick,
                 performHaptic = performHaptic
             )
         }

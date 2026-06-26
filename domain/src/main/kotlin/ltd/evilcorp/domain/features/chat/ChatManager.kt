@@ -21,7 +21,6 @@ import ltd.evilcorp.domain.core.model.PublicKey
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.core.network.MAX_MESSAGE_LENGTH
 import ltd.evilcorp.domain.core.network.IToxMessenger
-import ltd.evilcorp.domain.features.chat.model.ReactionParser
 
 private fun String.chunked(chunkSizeInBytes: Int): MutableList<String> {
     val maxBytes = chunkSizeInBytes - 1
@@ -87,14 +86,8 @@ class ChatManager @Inject constructor(
 
     fun messagesFor(publicKey: PublicKey) = messageRepository.get(publicKey.string())
 
-    fun getReactions(publicKey: PublicKey) = messageRepository.getReactions(publicKey.string())
-
     suspend fun sendMessage(publicKey: PublicKey, message: String, type: MessageType = MessageType.Normal) = withContext(ioDispatcher) {
-        val storedType = if (type == MessageType.Normal && ReactionParser.isReaction(message)) {
-            MessageType.Reaction
-        } else {
-            type
-        }
+        val storedType = type
 
         if ((contactRepository.get(publicKey.string()).first()?.connectionStatus ?: ConnectionStatus.None) == ConnectionStatus.None) {
             queueMessage(publicKey, message, storedType)

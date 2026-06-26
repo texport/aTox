@@ -45,9 +45,6 @@ class MessageRepositoryImpl @Inject internal constructor(
     override fun get(conversation: String): Flow<List<Message>> =
         activeMessageDao.load(conversation).map { list -> list.map { it.toDomain() } }
 
-    override fun getReactions(conversation: String): Flow<List<Message>> =
-        activeMessageDao.loadReactions(conversation).map { list -> list.map { it.toDomain() } }
-
     override suspend fun getPaged(conversation: String, limit: Int, offset: Int): List<Message> =
         activeMessageDao.loadConversationPaged(conversation, limit, offset).map { it.toDomain() }
 

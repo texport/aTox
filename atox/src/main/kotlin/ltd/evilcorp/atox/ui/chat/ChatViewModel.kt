@@ -134,36 +134,6 @@ class ChatViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _reactionRefresh = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    private val _reactionsDirect = MutableStateFlow<List<Message>>(emptyList())
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val reactions: StateFlow<List<Message>> = _reactionsDirect
-
-    fun triggerReactionRefresh() {
-        _reactionRefresh.tryEmit(Unit)
-    }
-
-    init {
-        viewModelScope.launch {
-            combine(activePublicKey, _reactionRefresh) { pk, _ -> pk }
-                .distinctUntilChanged()
-                .flatMapLatest { pk ->
-                    if (pk == null || pk.string().isEmpty()) {
-                        flowOf(emptyList())
-                    } else {
-                        messageRepository.getReactions(pk.string())
-                    }
-                }
-                .collect { _reactionsDirect.value = it }
-        }
-        viewModelScope.launch {
-            messages.drop(1).collect {
-                triggerReactionRefresh()
-            }
-        }
-    }
-
     @OptIn(ExperimentalCoroutinesApi::class)
     val pagedMessages: Flow<PagingData<Message>> = activePublicKey
         .flatMapLatest { pk ->
@@ -251,17 +221,6 @@ class ChatViewModel @Inject constructor(
         replyingToMessage.value = null
         viewModelScope.launch {
             sendChatMessageUseCase.execute(publicKey, message, type, replyToMessageId)
-        }
-    }
-
-    fun sendReaction(targetMessage: Message, emoji: String) {
-        val reactionMessage = ltd.evilcorp.domain.features.chat.model.ReactionParser.buildMessage(
-            targetMessage.message.hashCode(),
-            emoji
-        )
-        viewModelScope.launch {
-            sendChatMessageUseCase.execute(publicKey, reactionMessage, MessageType.Normal)
-            triggerReactionRefresh()
         }
     }
 

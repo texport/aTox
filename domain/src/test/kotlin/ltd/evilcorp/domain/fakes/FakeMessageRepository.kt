@@ -21,10 +21,6 @@ class FakeMessageRepository : IMessageRepository {
         return messages.map { list -> list.filter { it.publicKey == conversation } }
     }
 
-    override fun getReactions(conversation: String): Flow<List<Message>> {
-        return messages.map { list -> list.filter { it.publicKey == conversation && it.type == ltd.evilcorp.domain.features.chat.model.MessageType.Reaction } }
-    }
-
     override suspend fun getPending(conversation: String): List<Message> {
         return messages.value.filter { it.publicKey == conversation && it.timestamp == 0L }
     }

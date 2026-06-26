@@ -33,7 +33,8 @@ fun ProfileAvatarBox(
     selfAvatarBitmap: ImageBitmap?,
     user: User?,
     onAvatarClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showEditIcon: Boolean = true
 ) {
     Box(
         modifier = modifier
@@ -75,25 +76,27 @@ fun ProfileAvatarBox(
             }
         }
 
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            tonalElevation = 6.dp,
-            shadowElevation = 4.dp,
-            modifier = Modifier
-                .size(32.dp)
-                .clickable { onAvatarClick() }
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+        if (showEditIcon) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                tonalElevation = 6.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { onAvatarClick() }
             ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.profile_avatar_change),
-                    modifier = Modifier.size(16.dp)
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.profile_avatar_change),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }

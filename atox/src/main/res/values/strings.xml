@@ -553,4 +553,10 @@
     <string name="google_sign_in_cancelled">Google Sign-In cancelled or failed</string>
     <string name="google_sign_in_developer_error">Developer error: Check signature/OAuth settings in Cloud Console (code 10)</string>
     <string name="google_sign_in_error_code">Google Sign-In error (code: %1$d)</string>
+    <string name="contact_card">Contact Card</string>
+    <string name="tap_to_add_contact">Tap to add contact</string>
+    <string name="share_contact">Share Contact</string>
+    <string name="contact_profile">Contact Profile</string>
+    <string name="contact_profile_tox_id">Tox ID</string>
+    <string name="share_contact_desc">Share this contact with others</string>
 </resources>

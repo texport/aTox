@@ -100,9 +100,6 @@ fun <T : Any> ChatScreenContent(
     replyingToMessage: Message? = null,
     onCancelReply: () -> Unit = {},
 
-    // Reactions
-    reactions: List<Message> = emptyList(),
-
     // Optional parameters
     modifier: Modifier = Modifier,
     pagedMessages: LazyPagingItems<T>? = null,
@@ -112,9 +109,9 @@ fun <T : Any> ChatScreenContent(
     onCopyClick: (Message) -> Unit = {},
     onReplyClick: (Message) -> Unit = {},
     onForwardClick: (Message) -> Unit = {},
-    onReactClick: (Message, String) -> Unit = { _, _ -> },
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
+    onContactCardClick: (String) -> Unit = {},
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
 ) {
     val context = LocalContext.current
@@ -128,18 +125,7 @@ fun <T : Any> ChatScreenContent(
         } else {
             messages.map(toMessage)
         }
-        raw.filter { it.type != ltd.evilcorp.domain.features.chat.model.MessageType.Reaction }
-    }
-
-    val reactionsMap = remember(reactions) {
-        reactions
-            .filter { ltd.evilcorp.domain.features.chat.model.ReactionParser.isReaction(it.message) }
-            .groupBy { ltd.evilcorp.domain.features.chat.model.ReactionParser.parse(it.message).parentIdentifier }
-            .mapValues { (_, msgs) ->
-                msgs.groupBy { ltd.evilcorp.domain.features.chat.model.ReactionParser.parse(it.message).emoji }
-                    .map { (emoji, list) -> ReactionCount(emoji, list.size) }
-                    .sortedByDescending { it.count }
-            }
+        raw
     }
 
     val showScrollToBottomFab by remember {
@@ -282,7 +268,6 @@ fun <T : Any> ChatScreenContent(
                                     MessageBubble(
                                         msg = msg,
                                         messages = StableMessageList(mappedMessages),
-                                        reactionsMap = reactionsMap,
                                         uiConfig = uiConfig,
                                         contactName = bubbleConfig.contactName,
                                         onHaptic = performHaptic,
@@ -299,7 +284,6 @@ fun <T : Any> ChatScreenContent(
                                         onCopyMessage = onCopyClick,
                                         onReplyMessage = onReplyClick,
                                         onForwardMessage = onForwardClick,
-                                        onReact = onReactClick,
                                         onParentMessageClick = { parentMsg ->
                                             val parentIndex = mappedMessages.indexOfFirst { it.timestamp == parentMsg.timestamp }
                                             if (parentIndex != -1) {
@@ -315,6 +299,7 @@ fun <T : Any> ChatScreenContent(
                                         },
                                         onJoinGroupClick = onJoinGroupClick,
                                         isJoinedGroup = isJoinedGroup,
+                                        onContactCardClick = onContactCardClick,
                                         showAvatar = bubbleConfig.showAvatar,
                                         senderName = bubbleConfig.senderName,
                                         senderColor = bubbleConfig.senderColor,

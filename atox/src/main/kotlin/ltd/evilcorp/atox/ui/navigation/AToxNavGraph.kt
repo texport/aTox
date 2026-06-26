@@ -31,6 +31,7 @@ import ltd.evilcorp.atox.ui.navigation.graphs.mainTabGraph
 import ltd.evilcorp.atox.ui.navigation.graphs.groupGraph
 import ltd.evilcorp.atox.ui.navigation.graphs.chatGraph
 import ltd.evilcorp.atox.ui.navigation.graphs.searchGraph
+import ltd.evilcorp.atox.ui.navigation.graphs.contactProfileRoute
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.features.call.CallManager
@@ -179,6 +180,11 @@ fun AToxNavGraph(
                     selectedChatSnapshotState = selectedChatSnapshot,
                     systemSoundPlayer = systemSoundPlayer,
                     onOpenFile = onOpenFile,
+                )
+
+                // Contact profile
+                contactProfileRoute(
+                    navController = navController
                 )
 
                 // Group screens
