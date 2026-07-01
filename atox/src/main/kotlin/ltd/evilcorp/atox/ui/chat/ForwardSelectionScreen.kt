@@ -33,6 +33,7 @@ import ltd.evilcorp.domain.features.contacts.model.Contact
 fun ForwardSelectionScreen(
     contacts: List<Contact>,
     settings: Settings,
+    isContactShare: Boolean = false,
     onBack: () -> Unit,
     onContactsSelect: (List<Contact>) -> Unit,
 ) {
@@ -66,7 +67,9 @@ fun ForwardSelectionScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = stringResource(R.string.forward_message_title),
+                            text = stringResource(
+                                if (isContactShare) R.string.share_contact else R.string.forward_message_title
+                            ),
                             fontWeight = FontWeight.SemiBold
                         )
                     },

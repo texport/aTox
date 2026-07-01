@@ -21,6 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.ui.stripReplyPrefix
 import ltd.evilcorp.domain.features.chat.model.Message
@@ -53,6 +57,8 @@ fun TextMessageBubble(
     fileTransfers: List<FileTransfer> = emptyList(),
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Column(modifier = modifier) {
         // Reply preview block inside the bubble
         if (replyInfo.isReply && onParentMessageClick != null) {
@@ -106,33 +112,7 @@ fun TextMessageBubble(
                                     val fileName = parentMsg.message
                                     when {
                                         fileName.startsWith("voice_message_") -> {
-                                            val voiceLabel = stringResource(R.string.voice_message)
-                                            val ft = fileTransfers.find {
-                                                it.id == parentMsg.correlationId || it.fileNumber == parentMsg.correlationId
-                                            }
-                                            if (ft != null) {
-                                                val durationMs = try {
-                                                    val retriever = android.media.MediaMetadataRetriever()
-                                                    val audioPath = ft.destination
-                                                    val file = java.io.File(audioPath)
-                                                    if (file.exists()) retriever.setDataSource(audioPath)
-                                                    val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                                                    retriever.release()
-                                                    durStr?.toIntOrNull() ?: 0
-                                                } catch (e: Exception) {
-                                                    0
-                                                }
-                                                if (durationMs > 0) {
-                                                    val totalSec = durationMs / MILLIS_IN_SECOND
-                                                    val min = totalSec / SECONDS_IN_MINUTE
-                                                    val sec = totalSec % SECONDS_IN_MINUTE
-                                                    "$voiceLabel ($min:${sec.toString().padStart(2, '0')})"
-                                                } else {
-                                                    voiceLabel
-                                                }
-                                            } else {
-                                                voiceLabel
-                                            }
+                                            stringResource(R.string.voice_message)
                                         }
                                         else -> {
                                             val ext = fileName.substringAfterLast('.', "").lowercase()
@@ -140,7 +120,7 @@ fun TextMessageBubble(
                                                 ext in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp") -> {
                                                     stringResource(R.string.photo_reply_preview)
                                                 }
-                                                ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma") -> {
+                                                !fileName.startsWith("voice_message_") && ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma") -> {
                                                     stringResource(R.string.audio_message)
                                                 }
                                                 else -> fileName

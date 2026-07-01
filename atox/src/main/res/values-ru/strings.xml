@@ -32,7 +32,7 @@
     <string name="settings">Настройки</string>
     <string name="chats">Чаты</string>
     <string name="status_indicator">Индикатор статуса</string>
-    <string name="status_message">Сообщение в статусе</string>
+    <string name="status_message">Биография</string>
     <string name="status_message_default">Использую Android клиент aTox</string>
     <string name="tox_id">Tox ID</string>
     <string name="tox_id_error_length">Tox ID должен иметь 76 символов (%1$d/76)</string>
@@ -71,7 +71,7 @@
     <string name="profile_information">Информация профиля</string>
     <string name="profile_settings">Настройки профиля</string>
     <string name="profile_nickname">Сменить ваше имя пользователя</string>
-    <string name="profile_status_message">Сменить ваше сообщение в статусе</string>
+    <string name="profile_status_message">Сменить вашу биографию</string>
     <string name="profile_status">Изменить ваш статус</string>
     <string name="profile">Профиль</string>
     <string name="tox_id_error_already_exists">Контакт с данным Tox ID уже существует</string>
@@ -450,6 +450,7 @@
     <string name="language_and_localization">Язык и локализация</string>
     <string name="interaction_vibration">Взаимодействие и вибрация</string>
     <string name="forward_message_title">Переслать сообщение</string>
+    <string name="share_contact">Поделиться контактом</string>
     <string name="contacts_empty">Контакты не найдены</string>
     <string name="copy">Копировать</string>
     <string name="forward">Переслать</string>

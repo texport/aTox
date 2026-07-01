@@ -9,6 +9,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,6 +75,7 @@ fun ContactProfileScreen(
     val scrollState = rememberScrollState()
 
     var showQrDialog by remember { mutableStateOf(false) }
+    var showAvatarDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -112,6 +114,11 @@ fun ContactProfileScreen(
             // Profile Avatar with status indicator
             ContactAvatarBox(
                 contact = contact,
+                onAvatarClick = {
+                    if (!contact?.avatarUri.isNullOrEmpty()) {
+                        showAvatarDialog = true
+                    }
+                },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
@@ -172,15 +179,26 @@ fun ContactProfileScreen(
             onDismiss = { showQrDialog = false }
         )
     }
+
+    if (showAvatarDialog && !contact?.avatarUri.isNullOrEmpty()) {
+        ltd.evilcorp.atox.ui.common.chat.FileImageViewerDialog(
+            destination = contact?.avatarUri ?: "",
+            fileName = "avatar.jpg",
+            onDismiss = { showAvatarDialog = false }
+        )
+    }
 }
 
 @Composable
 private fun ContactAvatarBox(
     contact: Contact?,
+    onAvatarClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.size(100.dp),
+        modifier = modifier
+            .size(100.dp)
+            .clickable(enabled = !contact?.avatarUri.isNullOrEmpty()) { onAvatarClick() },
         contentAlignment = Alignment.BottomEnd
     ) {
         // Avatar

@@ -149,8 +149,8 @@ fun ReplyPreviewHeader(
                         replyMsg.type == MessageType.FileTransfer &&
                             replyMsg.message.startsWith("voice_message_")
                     }
-                    val isAudioReply = remember(replyMsg) {
-                        if (replyMsg.type != MessageType.FileTransfer) false else {
+                    val isAudioReply = remember(replyMsg, isVoiceReply) {
+                        if (replyMsg.type != MessageType.FileTransfer || isVoiceReply) false else {
                             val ext = replyMsg.message.substringAfterLast('.', "").lowercase()
                             ext in setOf("mp3", "m4a", "ogg", "opus", "wav", "aac", "flac", "wma")
                         }
@@ -158,25 +158,11 @@ fun ReplyPreviewHeader(
                     val voiceLabel = context.getString(R.string.voice_message_reply_preview)
                     val audioLabel = context.getString(R.string.audio_message)
                     val photoLabel = context.getString(R.string.photo_reply_preview)
-                    val replyText = remember(replyMsg, voiceDurationMs, voiceLabel, audioLabel, photoLabel, isImageReply, isVoiceReply, isAudioReply) {
+                    val replyText = remember(replyMsg, voiceLabel, audioLabel, photoLabel, isImageReply, isVoiceReply, isAudioReply) {
                         if (isVoiceReply) {
-                            if (voiceDurationMs > 0) {
-                                val totalSec = voiceDurationMs / MILLIS_IN_SECOND
-                                val min = totalSec / SECONDS_IN_MINUTE
-                                val sec = totalSec % SECONDS_IN_MINUTE
-                                "$voiceLabel ($min:${sec.toString().padStart(2, '0')})"
-                            } else {
-                                voiceLabel
-                            }
+                            voiceLabel
                         } else if (isAudioReply) {
-                            if (voiceDurationMs > 0) {
-                                val totalSec = voiceDurationMs / MILLIS_IN_SECOND
-                                val min = totalSec / SECONDS_IN_MINUTE
-                                val sec = totalSec % SECONDS_IN_MINUTE
-                                "$audioLabel ($min:${sec.toString().padStart(2, '0')})"
-                            } else {
-                                audioLabel
-                            }
+                            audioLabel
                         } else if (isImageReply) {
                             photoLabel
                         } else {

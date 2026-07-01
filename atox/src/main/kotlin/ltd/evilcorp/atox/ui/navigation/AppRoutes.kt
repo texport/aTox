@@ -54,7 +54,8 @@ sealed interface AppRoutes {
     data class ForwardSelection(
         val message: String,
         val messageType: Int = 0,
-        val correlationId: Int = 0
+        val correlationId: Int = 0,
+        val isContactShare: Boolean = false
     ) : AppRoutes
 
     @Serializable

@@ -36,12 +36,14 @@ fun NavGraphBuilder.sharingGraph(
         val messageText = forwardRoute.message
         val messageType = forwardRoute.messageType
         val correlationId = forwardRoute.correlationId
+        val isContactShare = forwardRoute.isContactShare
         val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
         val ctx = LocalContext.current
 
         ForwardSelectionScreen(
             contacts = contactsState,
             settings = settings,
+            isContactShare = isContactShare,
             onBack = { navController.popBackStack() },
             onContactsSelect = { selectedList ->
                 selectedList.forEach { contact ->

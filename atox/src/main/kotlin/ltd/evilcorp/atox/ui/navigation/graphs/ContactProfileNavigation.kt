@@ -51,7 +51,8 @@ fun NavGraphBuilder.contactProfileRoute(
                         AppRoutes.ForwardSelection(
                             message = contactCard,
                             messageType = 0,
-                            correlationId = 0
+                            correlationId = 0,
+                            isContactShare = true
                         )
                     )
                 }

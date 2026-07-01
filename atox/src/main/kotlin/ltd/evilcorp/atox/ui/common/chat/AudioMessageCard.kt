@@ -152,7 +152,7 @@ fun AudioMessageCard(
 
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
-            while (isPlaying && VoiceMessagePlayer.isPlaying()) {
+            while (isPlaying && VoiceMessagePlayer.isPlayingUri(audioPath)) {
                 try {
                     val pos = VoiceMessagePlayer.getCurrentPosition()
                     val dur = VoiceMessagePlayer.getDuration().coerceAtLeast(1)

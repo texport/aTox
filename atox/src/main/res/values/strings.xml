@@ -33,7 +33,7 @@
     <string name="settings">Settings</string>
     <string name="chats">Chats</string>
     <string name="status_indicator">Status indicator</string>
-    <string name="status_message">Status message</string>
+    <string name="status_message">Bio</string>
     <string name="status_message_default">Brought to you live, by aTox</string>
     <string name="tox_id">Tox ID</string>
     <string name="tox_id_error_length">Tox ID must be 76 characters (%1$d/76)</string>
@@ -104,7 +104,7 @@
     <string name="profile_information">Profile information</string>
     <string name="profile_settings">Profile settings</string>
     <string name="profile_nickname">Change your nickname</string>
-    <string name="profile_status_message">Change your status message</string>
+    <string name="profile_status_message">Change your bio</string>
     <string name="profile_status">Change your status</string>
     <string name="profile">Profile</string>
     <string name="tox_id_error_already_exists">A contact with that Tox ID already exists</string>
