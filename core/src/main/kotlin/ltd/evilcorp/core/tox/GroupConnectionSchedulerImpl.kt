@@ -59,6 +59,15 @@ class GroupConnectionSchedulerImpl @Inject constructor(
         }
 
         val job = scope.launch {
+            // Check if this is a single-person group (only admin/host)
+            val group = groupRepository.get(chatId).firstOrNull()
+            val peerCount = groupRepository.peerCountDirect(chatId)
+
+            if (group != null && peerCount <= 1) {
+                Log.i(TAG, "scheduleAutoReconnect: skipping reconnect for single-person group $chatId")
+                return@launch
+            }
+
             startPersistentReconnect(chatId, groupNumber)
         }
         reconnectJobs[chatId] = job
@@ -70,6 +79,12 @@ class GroupConnectionSchedulerImpl @Inject constructor(
             val groups = groupRepository.getAll().firstOrNull() ?: return@launch
             for (group in groups) {
                 if (!group.connected) {
+                    // Skip reconnect for single-person groups
+                    val peerCount = groupRepository.peerCountDirect(group.chatId)
+                    if (peerCount <= 1) {
+                        Log.i(TAG, "reconnectAll: skipping single-person group ${group.chatId}")
+                        continue
+                    }
                     reconnectSingleGroup(group.chatId, group.groupNumber)
                 }
             }

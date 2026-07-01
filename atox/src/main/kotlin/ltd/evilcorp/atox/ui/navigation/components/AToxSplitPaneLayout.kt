@@ -167,7 +167,13 @@ fun AToxSplitPaneLayout(
                         Toast.makeText(context, context.getString(R.string.message_copied), Toast.LENGTH_SHORT).show()
                     },
                     onForwardClick = { msg ->
-                        navController.navigate(AppRoutes.ForwardSelection(msg.message))
+                        navController.navigate(
+                            AppRoutes.ForwardSelection(
+                                message = msg.message,
+                                messageType = msg.type.id,
+                                correlationId = msg.correlationId
+                            )
+                        )
                     },
                     onSendVoice = rightChatViewModel::createFt,
                     isJoinedGroup = { chatId ->

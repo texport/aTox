@@ -31,6 +31,17 @@ class MessageRepositoryImpl @Inject internal constructor(
         }
     }
 
+    override suspend fun addAll(messages: List<Message>) {
+        if (messages.isEmpty()) return
+        activeDatabase.withTransaction {
+            activeMessageDao.saveAll(messages.map { MessageEntity.fromDomain(it) })
+            activeDatabase.contactDao().setLastMessage(
+                messages.last().publicKey,
+                messages.last().timestamp.takeIf { it > 0L } ?: Date().time,
+            )
+        }
+    }
+
     override fun get(conversation: String): Flow<List<Message>> =
         activeMessageDao.load(conversation).map { list -> list.map { it.toDomain() } }
 

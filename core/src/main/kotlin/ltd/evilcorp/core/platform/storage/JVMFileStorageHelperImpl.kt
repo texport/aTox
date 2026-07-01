@@ -1,5 +1,6 @@
 package ltd.evilcorp.core.platform.storage
 
+import android.content.Context
 import ltd.evilcorp.domain.features.transfer.IFileStorageHelper
 import ltd.evilcorp.domain.features.transfer.IFileTransferPlatformHelper
 import java.io.File
@@ -9,7 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class JVMFileStorageHelperImpl @Inject constructor(
-    private val platformHelper: IFileTransferPlatformHelper
+    private val platformHelper: IFileTransferPlatformHelper,
+    private val context: Context
 ) : IFileStorageHelper {
     
     init {
@@ -71,10 +73,22 @@ class JVMFileStorageHelperImpl @Inject constructor(
     }
 
     override fun getSelfAvatarInfo(): Pair<String, Long>? {
-        val file = File(platformHelper.getFilesDir(), "self_avatar.png")
+        val activeProfileId = ltd.evilcorp.core.profile.ProfileManager.getActiveProfileId(context)
+        val filename = if (activeProfileId == ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID) "self_avatar.jpg" else "self_avatar_$activeProfileId.jpg"
+        val oldFilename = if (activeProfileId == ltd.evilcorp.core.profile.ProfileManager.DEFAULT_PROFILE_ID) "self_avatar.png" else "self_avatar_$activeProfileId.png"
+
+        // Try new format first
+        val file = File(platformHelper.getFilesDir(), filename)
         if (file.exists() && file.length() > 0L) {
             return Pair(android.net.Uri.fromFile(file).toString(), file.length())
         }
+
+        // Fallback to old format
+        val oldFile = File(platformHelper.getFilesDir(), oldFilename)
+        if (oldFile.exists() && oldFile.length() > 0L) {
+            return Pair(android.net.Uri.fromFile(oldFile).toString(), oldFile.length())
+        }
+
         return null
     }
 

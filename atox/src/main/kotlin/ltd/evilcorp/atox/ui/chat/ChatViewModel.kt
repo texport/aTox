@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -80,6 +81,7 @@ class ChatViewModel @Inject constructor(
     private val setTypingStatusUseCase: SetTypingStatusUseCase,
     private val deleteChatMessageUseCase: DeleteChatMessageUseCase,
     private val declineGroupInviteUseCase: DeclineGroupInviteUseCase,
+    private val messageRepository: ltd.evilcorp.domain.features.chat.repository.IMessageRepository,
     val voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
 ) : ViewModel(), IChatController {
     private var publicKey = PublicKey("")

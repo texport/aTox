@@ -19,6 +19,11 @@ static jmethodID mid_onGroupAudio;
 
 static std::map<ToxAV*, jobject> av_listeners;
 
+// Pre-allocated buffer for audio frames to avoid GC allocations in hot path.
+// Max: 960 shorts * 2 channels * 2 bytes = 3840 bytes (48kHz, 20ms, stereo)
+static constexpr size_t MAX_AUDIO_BUF_BYTES = 3840;
+static uint8_t audio_buffer[MAX_AUDIO_BUF_BYTES];
+
 JNIEnv* get_av_env() {
     JNIEnv* env;
     if (g_av_vm->GetEnv((void**)&env, JNI_VERSION_1_6) == JNI_OK) return env;
@@ -46,10 +51,13 @@ void cb_audio_receive_frame(ToxAV *av, uint32_t friend_number, const int16_t *pc
     JNIEnv* env = get_av_env();
     jobject listener = av_listeners[av];
     if (listener && mid_onAudioReceiveFrame) {
-        jshortArray arr = env->NewShortArray(sample_count * channels);
-        env->SetShortArrayRegion(arr, 0, sample_count * channels, (const jshort*)pcm);
-        env->CallVoidMethod(listener, mid_onAudioReceiveFrame, (jint)friend_number, arr, (jint)sample_count, (jint)channels, (jint)sampling_rate);
-        env->DeleteLocalRef(arr);
+        size_t byteCount = (sample_count * channels * sizeof(int16_t) <= MAX_AUDIO_BUF_BYTES)
+            ? sample_count * channels * sizeof(int16_t)
+            : MAX_AUDIO_BUF_BYTES;
+        memcpy(audio_buffer, pcm, byteCount);
+        jobject buffer = env->NewDirectByteBuffer(audio_buffer, byteCount);
+        env->CallVoidMethod(listener, mid_onAudioReceiveFrame, (jint)friend_number, buffer, (jint)sample_count, (jint)channels, (jint)sampling_rate);
+        env->DeleteLocalRef(buffer);
     }
 }
 
@@ -256,7 +264,7 @@ bool register_toxav_methods(JNIEnv* env) {
     if (!cls) return false;
     mid_onCall = env->GetMethodID(cls, "onCall", "(IZZ)V");
     mid_onCallState = env->GetMethodID(cls, "onCallState", "(II)V");
-    mid_onAudioReceiveFrame = env->GetMethodID(cls, "onAudioReceiveFrame", "(I[SIII)V");
+    mid_onAudioReceiveFrame = env->GetMethodID(cls, "onAudioReceiveFrame", "(ILjava/nio/ByteBuffer;III)V");
     mid_onVideoReceiveFrame = env->GetMethodID(cls, "onVideoReceiveFrame", "(III[B[B[BIII)V");
     mid_onAudioBitRate = env->GetMethodID(cls, "onAudioBitRate", "(II)V");
     mid_onVideoBitRate = env->GetMethodID(cls, "onVideoBitRate", "(II)V");

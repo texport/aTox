@@ -60,6 +60,10 @@ object VoiceMessagePlayer {
         currentPlayingUri = null
     }
 
+    fun seekTo(positionMs: Int) {
+        mediaPlayer?.seekTo(positionMs)
+    }
+
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false

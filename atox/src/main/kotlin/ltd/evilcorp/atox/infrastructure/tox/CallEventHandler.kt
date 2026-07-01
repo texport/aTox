@@ -84,11 +84,11 @@ class CallEventHandler @Inject constructor(
         Log.e(TAG, "audioBitRate ${pk.fingerprint()} $bitRate")
     }
 
-    fun onAudioReceiveFrame(pcm: ShortArray, channels: Int, samplingRate: Int) {
+    fun onAudioReceiveFrame(pcm: java.nio.ByteBuffer, sampleCount: Int, channels: Int, samplingRate: Int) {
         if (audioPlayer == null) {
             audioPlayer = AudioPlayer(samplingRate, channels)
             audioPlayer?.start()
         }
-        audioPlayer?.buffer(pcm)
+        audioPlayer?.buffer(pcm, sampleCount)
     }
 }

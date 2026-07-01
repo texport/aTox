@@ -87,8 +87,10 @@ class ChatManager @Inject constructor(
     fun messagesFor(publicKey: PublicKey) = messageRepository.get(publicKey.string())
 
     suspend fun sendMessage(publicKey: PublicKey, message: String, type: MessageType = MessageType.Normal) = withContext(ioDispatcher) {
+        val storedType = type
+
         if ((contactRepository.get(publicKey.string()).first()?.connectionStatus ?: ConnectionStatus.None) == ConnectionStatus.None) {
-            queueMessage(publicKey, message, type)
+            queueMessage(publicKey, message, storedType)
             return@withContext
         }
 
@@ -103,7 +105,7 @@ class ChatManager @Inject constructor(
                 publicKey.string(),
                 message,
                 Sender.Sent,
-                type,
+                storedType,
                 tox.sendMessage(publicKey, msgs.first(), type),
             ),
         )

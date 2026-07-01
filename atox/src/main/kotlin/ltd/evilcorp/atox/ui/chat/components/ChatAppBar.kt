@@ -60,6 +60,7 @@ fun ChatAppBar(
     transitionAlpha: Float,
     onBack: () -> Unit,
     onCallClick: () -> Unit,
+    onContactClick: () -> Unit,
     performHaptic: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -77,7 +78,10 @@ fun ChatAppBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .combinedClickable(
-                            onClick = {},
+                            onClick = {
+                                performHaptic()
+                                onContactClick()
+                            },
                             onLongClick = {
                                 performHaptic()
                                 val pk = contact?.publicKey ?: ""

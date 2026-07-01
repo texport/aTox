@@ -1,9 +1,8 @@
-// SPDX-FileCopyrightText: 2026 aTox contributors
-//
-// SPDX-License-Identifier: GPL-3.0-only
-
 package ltd.evilcorp.atox.ui.common.chat
 
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,33 +41,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import ltd.evilcorp.atox.R
-import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.infrastructure.media.VoiceMessagePlayer
+import ltd.evilcorp.atox.ui.chat.ChatUiConfig
 import ltd.evilcorp.atox.ui.common.formatChatTime
+import ltd.evilcorp.domain.features.chat.model.Message
 import ltd.evilcorp.domain.features.transfer.model.FileTransfer
 import ltd.evilcorp.domain.features.transfer.model.isComplete
 import ltd.evilcorp.domain.features.transfer.model.isStarted
-import ltd.evilcorp.domain.features.chat.model.Message
 
-private const val TAG = "VoiceMessageCard"
+private const val TAG = "AudioMessageCard"
 private const val PLAYBACK_DELAY_MS = 100L
 private const val MILLIS_IN_SECOND = 1000
 private const val SECONDS_IN_MINUTE = 60
 
+data class AudioMetadata(
+    val artist: String,
+    val title: String,
+    val durationMs: Int
+)
+
 @Composable
-fun VoiceMessageCard(
+fun AudioMessageCard(
     ft: FileTransfer,
     contentColor: Color,
     onAcceptFt: (Int) -> Unit,
@@ -81,7 +85,7 @@ fun VoiceMessageCard(
     var isPlaying by remember { mutableStateOf(false) }
     var playbackProgress by remember { mutableFloatStateOf(0f) }
     var currentPosition by remember { mutableIntStateOf(0) }
-    var duration by remember { mutableIntStateOf(0) }
+    var metadata by remember { mutableStateOf(AudioMetadata("<unknown>", "<unknown>", 0)) }
 
     val isComplete = ft.isComplete() || isOutgoing
     val isStarted = ft.isStarted()
@@ -100,7 +104,6 @@ fun VoiceMessageCard(
 
     LaunchedEffect(ft.destination, ft.fileName, isComplete) {
         withContext(Dispatchers.IO) {
-            val audioPath = if (ft.destination.isNotEmpty()) ft.destination else ft.fileName
             val uri = android.net.Uri.parse(audioPath)
             val exists = try {
                 when (uri.scheme) {
@@ -130,13 +133,18 @@ fun VoiceMessageCard(
                         retriever.setDataSource(context, android.net.Uri.fromFile(file))
                     }
                     val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    val artist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                    val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
                     retriever.release()
+
                     val durMs = durStr?.toIntOrNull() ?: 0
-                    if (durMs > 0) {
-                        duration = durMs
-                    }
+                    metadata = AudioMetadata(
+                        artist = artist?.takeIf { it.isNotBlank() } ?: "<unknown>",
+                        title = title?.takeIf { it.isNotBlank() } ?: "<unknown>",
+                        durationMs = durMs
+                    )
                 } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Failed to extract media duration", e)
+                    android.util.Log.e(TAG, "Failed to extract audio metadata", e)
                 }
             }
         }
@@ -199,7 +207,6 @@ fun VoiceMessageCard(
                             Toast.makeText(context, context.getString(R.string.voice_message_play_error), Toast.LENGTH_SHORT).show()
                         }
                     )
-                    duration = VoiceMessagePlayer.getDuration()
                     isPlaying = true
                 } else {
                     Toast.makeText(context, context.getString(R.string.voice_message_not_ready), Toast.LENGTH_SHORT).show()
@@ -220,7 +227,7 @@ fun VoiceMessageCard(
     val timerText = if (isPlaying || currentPosition > 0) {
         formatDuration(currentPosition)
     } else {
-        if (duration > 0) formatDuration(duration) else "Voice"
+        if (metadata.durationMs > 0) formatDuration(metadata.durationMs) else "Audio"
     }
     val timeString = remember(msg.timestamp, uiConfig.timeFormatPreference) {
         val time = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp
@@ -230,10 +237,10 @@ fun VoiceMessageCard(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .width(220.dp)
+            .width(260.dp)
             .padding(horizontal = 2.dp, vertical = 2.dp)
     ) {
-        PlaybackControl(
+        AudioPlaybackControl(
             isComplete = isComplete,
             isStarted = isStarted,
             isPlaying = isPlaying,
@@ -246,13 +253,15 @@ fun VoiceMessageCard(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        VoiceMessageProgressColumn(
+        AudioMessageProgressColumn(
             playbackProgress = playbackProgress,
             timerText = timerText,
             timeString = timeString,
             isOutgoing = isOutgoing,
             isTimestampZero = msg.timestamp == 0L,
             contentColor = contentColor,
+            artist = metadata.artist,
+            title = metadata.title,
             onSeek = seekToPosition,
             modifier = Modifier.weight(1f)
         )
@@ -260,7 +269,7 @@ fun VoiceMessageCard(
 }
 
 @Composable
-private fun PlaybackControl(
+private fun AudioPlaybackControl(
     isComplete: Boolean,
     isStarted: Boolean,
     isPlaying: Boolean,
@@ -335,13 +344,15 @@ private fun PlaybackControl(
 }
 
 @Composable
-private fun VoiceMessageProgressColumn(
+private fun AudioMessageProgressColumn(
     playbackProgress: Float,
     timerText: String,
     timeString: String,
     isOutgoing: Boolean,
     isTimestampZero: Boolean,
     contentColor: Color,
+    artist: String,
+    title: String,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -349,6 +360,24 @@ private fun VoiceMessageProgressColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.Center
     ) {
+        Text(
+            text = title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = artist,
+            fontSize = 11.sp,
+            color = contentColor.copy(alpha = 0.7f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         var barSize by remember { mutableStateOf(IntSize.Zero) }
 
         LinearProgressIndicator(

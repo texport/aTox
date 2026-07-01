@@ -82,6 +82,8 @@ fun ChatScreen(
     isJoinedGroup: (String) -> Boolean = { false },
     isTypingFlow: StateFlow<Boolean> = remember(uiState.contact?.publicKey) { MutableStateFlow(uiState.contact?.typing == true) },
     voiceRecorder: ltd.evilcorp.domain.features.call.service.IVoiceRecorder,
+    onContactClick: () -> Unit = {},
+    onContactCardClick: (String) -> Unit = {},
 ) {
     val contact = uiState.contact
     val messages = uiState.messages
@@ -236,6 +238,7 @@ fun ChatScreen(
                 onForwardClick = onForwardClick,
                 onJoinGroupClick = onJoinGroupClick,
                 isJoinedGroup = isJoinedGroup,
+                onContactCardClick = onContactCardClick,
                 listState = listState
             )
         }
@@ -254,6 +257,7 @@ fun ChatScreen(
                 transitionAlpha = transitionAlpha,
                 onBack = onBack,
                 onCallClick = onCallClick,
+                onContactClick = onContactClick,
                 performHaptic = performHaptic
             )
         }

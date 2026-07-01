@@ -64,6 +64,7 @@ fun VoiceMessageRecordButton(
                         }
 
                         val success = voiceRecorder.startRecording()
+                        val startTimeMs = System.currentTimeMillis()
                         if (success) {
                             onRecordingStateChanged(true)
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -103,7 +104,10 @@ fun VoiceMessageRecordButton(
                             scope.launch {
                                 val filePath = voiceRecorder.stopRecording()
                                 if (filePath != null) {
-                                    if (fileStorageProvider.exists(filePath) && fileStorageProvider.size(filePath) > 0) {
+                                    val recordDurationMs = System.currentTimeMillis() - startTimeMs
+                                    if (recordDurationMs < 1000L) {
+                                        Toast.makeText(context, context.getString(R.string.voice_message_too_short), Toast.LENGTH_SHORT).show()
+                                    } else if (fileStorageProvider.exists(filePath) && fileStorageProvider.size(filePath) > 0) {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onSendVoice(android.net.Uri.parse("file://$filePath"))
                                     }

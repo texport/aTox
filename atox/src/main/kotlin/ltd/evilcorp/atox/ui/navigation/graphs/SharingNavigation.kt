@@ -34,16 +34,26 @@ fun NavGraphBuilder.sharingGraph(
     ) { backStackEntry ->
         val forwardRoute = backStackEntry.toRoute<AppRoutes.ForwardSelection>()
         val messageText = forwardRoute.message
+        val messageType = forwardRoute.messageType
+        val correlationId = forwardRoute.correlationId
+        val isContactShare = forwardRoute.isContactShare
         val contactsState by contactListViewModel.contacts.collectAsStateWithLifecycle()
         val ctx = LocalContext.current
 
         ForwardSelectionScreen(
             contacts = contactsState,
             settings = settings,
+            isContactShare = isContactShare,
             onBack = { navController.popBackStack() },
             onContactsSelect = { selectedList ->
                 selectedList.forEach { contact ->
-                    contactListViewModel.onShareText(messageText, contact)
+                    if (messageType == 2) {
+                        // FileTransfer type - need to forward the file itself
+                        contactListViewModel.forwardFile(correlationId, contact)
+                    } else {
+                        // Normal text message
+                        contactListViewModel.onShareText(messageText, contact)
+                    }
                 }
                 Toast.makeText(ctx, ctx.getString(R.string.message_forwarded), Toast.LENGTH_SHORT).show()
                 navController.popBackStack()
