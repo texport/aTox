@@ -46,6 +46,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -271,6 +273,7 @@ private fun PlaybackControl(
     onPlayPause: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     Box(
         modifier = modifier.size(36.dp),
         contentAlignment = Alignment.Center
@@ -278,7 +281,10 @@ private fun PlaybackControl(
         if (!isComplete) {
             if (!isStarted) {
                 IconButton(
-                    onClick = onAcceptFt,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAcceptFt()
+                    },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -300,7 +306,10 @@ private fun PlaybackControl(
                         modifier = Modifier.fillMaxSize()
                     )
                     IconButton(
-                        onClick = onRejectFt,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onRejectFt()
+                        },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -319,7 +328,10 @@ private fun PlaybackControl(
                 modifier = Modifier.size(36.dp)
             ) {
                 IconButton(
-                    onClick = onPlayPause,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onPlayPause()
+                    },
                     modifier = Modifier.fillMaxSize()
                 ) {
                     Icon(
