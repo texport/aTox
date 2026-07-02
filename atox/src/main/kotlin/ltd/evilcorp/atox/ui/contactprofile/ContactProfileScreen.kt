@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,6 +70,7 @@ fun ContactProfileScreen(
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
 
     var showQrDialog by remember { mutableStateOf(false) }
@@ -85,12 +88,15 @@ fun ContactProfileScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
@@ -191,10 +197,14 @@ private fun ContactAvatarBox(
     onAvatarClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     Box(
         modifier = modifier
             .size(100.dp)
-            .clickable(enabled = !contact?.avatarUri.isNullOrEmpty()) { onAvatarClick() },
+            .clickable(enabled = !contact?.avatarUri.isNullOrEmpty()) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onAvatarClick()
+            },
         contentAlignment = Alignment.BottomEnd
     ) {
         // Avatar

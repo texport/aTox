@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import ltd.evilcorp.atox.R
 
 private const val COPY_BUTTON_WEIGHT = 1.2f
@@ -46,6 +48,7 @@ fun ContactIdShareCard(
     onShareContactClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -89,7 +92,10 @@ fun ContactIdShareCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilledTonalButton(
-                    onClick = onCopyClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onCopyClick()
+                    },
                     modifier = Modifier.weight(COPY_BUTTON_WEIGHT),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
@@ -105,7 +111,10 @@ fun ContactIdShareCard(
                 }
 
                 FilledTonalButton(
-                    onClick = onShareClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onShareClick()
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
@@ -121,7 +130,10 @@ fun ContactIdShareCard(
                 }
 
                 FilledTonalButton(
-                    onClick = onQrClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onQrClick()
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
@@ -141,7 +153,10 @@ fun ContactIdShareCard(
 
             // Share Contact button (full width)
             FilledTonalButton(
-                onClick = onShareContactClick,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onShareContactClick()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
