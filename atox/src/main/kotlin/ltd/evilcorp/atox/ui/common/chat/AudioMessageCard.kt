@@ -1,4 +1,6 @@
 
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package ltd.evilcorp.atox.ui.common.chat
 
 import android.widget.Toast
@@ -22,11 +24,13 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -404,7 +408,25 @@ private fun AudioMessageProgressColumn(
                 activeTrackColor = contentColor,
                 inactiveTrackColor = contentColor.copy(alpha = 0.2f)
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(width = 3.dp, height = 12.dp)
+                        .background(contentColor, RoundedCornerShape(1.5.dp))
+                )
+            },
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier.height(4.dp),
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = contentColor,
+                        inactiveTrackColor = contentColor.copy(alpha = 0.2f)
+                    ),
+                    thumbTrackGapSize = 0.dp
+                )
+            }
         )
 
         Spacer(modifier = Modifier.height(4.dp))

@@ -24,8 +24,8 @@ object VoiceMessagePlayer {
                 }
                 prepare()
                 setOnCompletionListener {
-                    onComplete()
                     stop()
+                    onComplete()
                 }
                 start()
             }
@@ -69,5 +69,5 @@ object VoiceMessagePlayer {
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
     @Suppress("unused")
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
-    fun isPlayingUri(uriString: String): Boolean = currentPlayingUri == uriString
+    fun isPlayingUri(uriString: String): Boolean = currentPlayingUri == uriString && mediaPlayer != null
 }
