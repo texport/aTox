@@ -7,7 +7,6 @@ package ltd.evilcorp.domain.features.backup
 
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import ltd.evilcorp.domain.features.chat.repository.IMessageRepository
 import ltd.evilcorp.domain.core.platform.IPlatformServices
 import kotlinx.serialization.SerialName
@@ -37,8 +36,8 @@ class ExportManager @Inject constructor(
 ) {
     private val json = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
-    fun generateExportMessagesJString(publicKey: String): String {
-        val messages = runBlocking { messageRepository.get(publicKey).first() }
+    suspend fun generateExportMessagesJString(publicKey: String): String {
+        val messages = messageRepository.get(publicKey).first()
 
         val entries = messages.map {
             ExportEntry(

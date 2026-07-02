@@ -7,6 +7,7 @@ import ltd.evilcorp.domain.features.chat.model.Message
 @Suppress("ComplexInterface")
 interface IMessageRepository {
     suspend fun add(message: Message)
+    suspend fun addAll(messages: List<Message>)
     fun get(conversation: String): Flow<List<Message>>
     suspend fun getPaged(conversation: String, limit: Int, offset: Int): List<Message>
     fun getPagingFlow(conversation: String): Flow<PagingData<Message>>

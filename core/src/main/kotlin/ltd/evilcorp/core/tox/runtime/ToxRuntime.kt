@@ -12,7 +12,6 @@ import kotlinx.coroutines.Job
 import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ltd.evilcorp.domain.features.transfer.model.FileKind
@@ -119,10 +118,8 @@ class ToxRuntime @Inject constructor(
         return job
     }
 
-    fun waitForStop() {
-        runBlocking {
-            stopJob?.join()
-        }
+    suspend fun waitForStop() {
+        stopJob?.join()
     }
 
     fun changePassword(new: String?) {

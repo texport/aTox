@@ -27,6 +27,7 @@ import ltd.evilcorp.domain.features.settings.model.UserSettings
 import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
 import ltd.evilcorp.domain.features.transfer.usecase.ManageFileTransferUseCase
+import ltd.evilcorp.domain.features.transfer.usecase.GetFileTransferUseCase
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -49,6 +50,7 @@ class ContactListViewModelTest {
     private val mockDeclineGroupInviteUseCase = mockk<DeclineGroupInviteUseCase>(relaxed = true)
     private val mockSendChatMessageUseCase = mockk<SendChatMessageUseCase>(relaxed = true)
     private val mockManageFileTransferUseCase = mockk<ManageFileTransferUseCase>(relaxed = true)
+    private val mockGetFileTransferUseCase = mockk<GetFileTransferUseCase>(relaxed = true)
     private val mockSharedContentRegistry = mockk<SharedContentRegistry>(relaxed = true)
 
     private fun createViewModel(): ContactListViewModel {
@@ -75,6 +77,7 @@ class ContactListViewModelTest {
             mockDeclineGroupInviteUseCase,
             mockSendChatMessageUseCase,
             mockManageFileTransferUseCase,
+            mockGetFileTransferUseCase,
             mockSharedContentRegistry
         )
     }

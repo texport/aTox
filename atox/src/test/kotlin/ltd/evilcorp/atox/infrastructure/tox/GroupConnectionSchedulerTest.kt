@@ -191,8 +191,9 @@ class GroupConnectionSchedulerTest {
         )
         fakeGroupRepository.add(group)
 
-        val peer = GroupPeer(groupChatId = chatId, peerId = 1, name = "Peer A", publicKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        fakeGroupRepository.peers[chatId] = listOf(peer)
+        val peerA = GroupPeer(groupChatId = chatId, peerId = 1, name = "Peer A", publicKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        val peerB = GroupPeer(groupChatId = chatId, peerId = 2, name = "Peer B", publicKey = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+        fakeGroupRepository.peers[chatId] = listOf(peerA, peerB)
 
         fakeTox.chatList = intArrayOf(42)
         fakeTox.chatIdMock[42] = chatId.hexToBytes()
@@ -275,8 +276,8 @@ class GroupConnectionSchedulerTest {
         override suspend fun setPeerName(groupChatId: String, peerId: Int, name: String) {}
         override suspend fun setPeerRole(groupChatId: String, peerId: Int, role: String) {}
         override suspend fun setPeerStatus(groupChatId: String, peerId: Int, status: UserStatus) {}
-        override fun peerCount(groupChatId: String): Flow<Int> = flowOf(0)
-        override suspend fun peerCountDirect(groupChatId: String): Int = 0
+        override fun peerCount(groupChatId: String): Flow<Int> = flowOf(peers[groupChatId]?.size ?: 0)
+        override suspend fun peerCountDirect(groupChatId: String): Int = peers[groupChatId]?.size ?: 0
     }
 
     private class FakeContactRepository : IContactRepository {

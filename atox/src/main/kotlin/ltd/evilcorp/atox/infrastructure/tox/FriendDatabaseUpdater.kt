@@ -16,6 +16,7 @@ import ltd.evilcorp.domain.features.contacts.model.ToxFriendEvent
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.model.FriendRequest
 import ltd.evilcorp.domain.features.chat.model.Message
+import ltd.evilcorp.domain.features.chat.model.MessageType
 import ltd.evilcorp.domain.features.chat.model.Sender
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.contacts.repository.IFriendRequestRepository
@@ -25,6 +26,7 @@ import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.chat.ChatManager
 
 private const val MAX_ACTIVE_FRIEND_REQUESTS = 32
+private const val MESSAGE_BATCH_SIZE = 10
 private const val TAG = "FriendDatabaseUpdater"
 private const val SECONDS_TO_MS = 1000L
 
@@ -40,15 +42,46 @@ class FriendDatabaseUpdater @Inject constructor(
     private val tox: ITox,
 ) {
     init {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
+            val messageBuffer = mutableListOf<Message>()
             eventBus.events.collect { event ->
                 try {
-                    launch(Dispatchers.IO) {
+                    if (event is ToxFriendEvent.FriendMessage) {
+                        val msgType = event.type.toMessageType()
+                        messageBuffer.add(
+                            Message(
+                                event.publicKey,
+                                event.message,
+                                Sender.Received,
+                                msgType,
+                                Int.MIN_VALUE,
+                                Date().time
+                            )
+                        )
+                        if (messageBuffer.size >= MESSAGE_BATCH_SIZE) {
+                            flushMessageBuffer(messageBuffer)
+                        }
+                    } else {
+                        flushMessageBuffer(messageBuffer)
                         processEvent(event)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error processing event in DatabaseUpdater: $event", e)
+                    flushMessageBuffer(messageBuffer)
+                    Log.e(TAG, "Error processing event: $event", e)
                 }
+            }
+        }
+    }
+
+    private suspend fun flushMessageBuffer(buffer: MutableList<Message>) {
+        if (buffer.isEmpty()) return
+        val batch = buffer.toList()
+        buffer.clear()
+        messageRepository.addAll(batch)
+        val unreadKeys = batch.map { it.publicKey }.distinct()
+        for (key in unreadKeys) {
+            if (chatManager.activeChat != key) {
+                contactRepository.setHasUnreadMessages(key, true)
             }
         }
     }
@@ -84,19 +117,7 @@ class FriendDatabaseUpdater @Inject constructor(
                 }
             }
             is ToxFriendEvent.FriendMessage -> {
-                messageRepository.add(
-                    Message(
-                        event.publicKey,
-                        event.message,
-                        Sender.Received,
-                        event.type.toMessageType(),
-                        Int.MIN_VALUE,
-                        Date().time
-                    )
-                )
-                if (chatManager.activeChat != event.publicKey) {
-                    contactRepository.setHasUnreadMessages(event.publicKey, true)
-                }
+                // Handled inline via messageBuffer in init
             }
             is ToxFriendEvent.FriendName -> {
                 contactRepository.setName(event.publicKey, event.newName)

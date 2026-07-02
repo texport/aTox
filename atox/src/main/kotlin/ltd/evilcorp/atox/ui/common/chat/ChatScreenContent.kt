@@ -111,17 +111,25 @@ fun <T : Any> ChatScreenContent(
     onForwardClick: (Message) -> Unit = {},
     onJoinGroupClick: (String, String) -> Unit = { _, _ -> },
     isJoinedGroup: (String) -> Boolean = { false },
+    onContactCardClick: (String) -> Unit = {},
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val showScrollToBottomFab by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 2 }
+    val mappedMessages = remember(messages, pagedMessages) {
+        val raw = if (pagedMessages != null) {
+            (0 until pagedMessages.itemCount).mapNotNull { i ->
+                pagedMessages.peek(i)?.let(toMessage)
+            }
+        } else {
+            messages.map(toMessage)
+        }
+        raw
     }
 
-    val mappedMessages = remember(messages) {
-        messages.map(toMessage)
+    val showScrollToBottomFab by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 2 }
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -204,41 +212,38 @@ fun <T : Any> ChatScreenContent(
                     items(
                         count = itemCount,
                         key = { index ->
+                            val dataIndex = dataIndexFor(index, itemCount, pagedMessages)
                             if (pagedMessages != null) {
-                                pagedMessages.peek(index)?.let(toMessage)?.id ?: index.toLong()
+                                pagedMessages.peek(dataIndex)?.let(toMessage)?.id ?: index.toLong()
                             } else {
-                                val rawIndex = itemCount - 1 - index
-                                messages.getOrNull(rawIndex)?.let(toMessage)?.id ?: index.toLong()
+                                messages.getOrNull(dataIndex)?.let(toMessage)?.id ?: index.toLong()
                             }
                         }
                     ) { index ->
-                        val rawIndex = itemCount - 1 - index
+                        val dataIndex = dataIndexFor(index, itemCount, pagedMessages)
                         val item = if (pagedMessages != null) {
-                            pagedMessages[index]
+                            pagedMessages[dataIndex]
                         } else {
-                            messages[rawIndex]
+                            messages[dataIndex]
                         }
                         if (item != null) {
                             val msg = toMessage(item)
-                            val prevDomainMsg = if (pagedMessages != null) {
-                                if (index + 1 < itemCount) {
-                                    pagedMessages.peek(index + 1)?.let(toMessage)
-                                } else null
+
+                            val aboveDomainMsg = if (pagedMessages != null) {
+                                if (dataIndex + 1 < itemCount) pagedMessages.peek(dataIndex + 1)?.let(toMessage) else null
                             } else {
-                                if (rawIndex > 0) {
-                                    messages.getOrNull(rawIndex - 1)?.let(toMessage)
-                                } else null
+                                if (dataIndex > 0) messages.getOrNull(dataIndex - 1)?.let(toMessage) else null
                             }
 
-                                val currentHeader = remember(msg.timestamp, uiConfig.dateFormatPreference) {
+                                val currentHeader = remember(msg.id, uiConfig.dateFormatPreference) {
                                     formatMessageDateHeader(
                                         context = context,
                                         timestamp = if (msg.timestamp == 0L) System.currentTimeMillis() else msg.timestamp,
                                         dateFormatPreference = uiConfig.dateFormatPreference,
                                     )
                                 }
-                                val previousHeader = prevDomainMsg?.let {
-                                    remember(it.timestamp, uiConfig.dateFormatPreference) {
+                                val aboveHeader = aboveDomainMsg?.let {
+                                    remember(it.id, uiConfig.dateFormatPreference) {
                                         formatMessageDateHeader(
                                             context = context,
                                             timestamp = if (it.timestamp == 0L) System.currentTimeMillis() else it.timestamp,
@@ -251,7 +256,9 @@ fun <T : Any> ChatScreenContent(
 
                                 @OptIn(ExperimentalFoundationApi::class)
                                 Column(modifier = Modifier.animateItem()) {
-                                    if (rawIndex == 0 || currentHeader != previousHeader) {
+                                    val isTop = index == itemCount - 1
+                                    val dateChanged = aboveHeader != null && currentHeader != aboveHeader
+                                    if (isTop || dateChanged) {
                                         DateSeparator(label = currentHeader)
                                         if (bubbleConfig.showAvatar) {
                                             Spacer(modifier = Modifier.height(8.dp))
@@ -280,7 +287,11 @@ fun <T : Any> ChatScreenContent(
                                         onParentMessageClick = { parentMsg ->
                                             val parentIndex = mappedMessages.indexOfFirst { it.timestamp == parentMsg.timestamp }
                                             if (parentIndex != -1) {
-                                                val scrollIndex = mappedMessages.size - 1 - parentIndex
+                                                val scrollIndex = if (pagedMessages != null) {
+                                                    parentIndex
+                                                } else {
+                                                    mappedMessages.size - 1 - parentIndex
+                                                }
                                                 coroutineScope.launch {
                                                     listState.animateScrollToItem(scrollIndex)
                                                 }
@@ -288,6 +299,7 @@ fun <T : Any> ChatScreenContent(
                                         },
                                         onJoinGroupClick = onJoinGroupClick,
                                         isJoinedGroup = isJoinedGroup,
+                                        onContactCardClick = onContactCardClick,
                                         showAvatar = bubbleConfig.showAvatar,
                                         senderName = bubbleConfig.senderName,
                                         senderColor = bubbleConfig.senderColor,
@@ -362,9 +374,13 @@ fun <T : Any> ChatScreenContent(
                     onCancelReply = onCancelReply,
                     onSendVoice = onSendVoice,
                     voiceRecorder = voiceRecorder,
+                    fileTransfers = fileTransfers,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
 }
+
+private fun dataIndexFor(index: Int, itemCount: Int, pagedMessages: Any?): Int =
+    if (pagedMessages != null) index else itemCount - 1 - index
