@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package ltd.evilcorp.atox.ui.common.chat
 
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +26,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,17 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.unit.DpSize
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -361,35 +361,34 @@ private fun VoiceMessageProgressColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.Center
     ) {
-        var barSize by remember { mutableStateOf(IntSize.Zero) }
+        var sliderPosition by remember { mutableFloatStateOf(0f) }
+        var isDragging by remember { mutableStateOf(false) }
 
-        LinearProgressIndicator(
-            progress = { playbackProgress },
+        Slider(
+            value = if (isDragging) sliderPosition else playbackProgress,
+            onValueChange = {
+                isDragging = true
+                sliderPosition = it
+            },
+            onValueChangeFinished = {
+                isDragging = false
+                onSeek(sliderPosition)
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = contentColor,
+                activeTrackColor = contentColor,
+                inactiveTrackColor = contentColor.copy(alpha = 0.2f)
+            ),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .onSizeChanged { barSize = it }
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        val fraction = (offset.x / barSize.width).coerceIn(0f, 1f)
-                        onSeek(fraction)
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {},
-                        onDragCancel = {},
-                        onHorizontalDrag = { _, dragAmount ->
-                            if (barSize.width > 0) {
-                                val fraction = ((playbackProgress * barSize.width + dragAmount) / barSize.width).coerceIn(0f, 1f)
-                                onSeek(fraction)
-                            }
-                        }
-                    )
-                },
-            color = contentColor,
-            trackColor = contentColor.copy(alpha = 0.2f),
-            strokeCap = StrokeCap.Round
+                .height(24.dp),
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = remember { MutableInteractionSource() },
+                    colors = SliderDefaults.colors(thumbColor = contentColor),
+                    thumbSize = DpSize(10.dp, 10.dp)
+                )
+            }
         )
 
         Spacer(modifier = Modifier.height(4.dp))
