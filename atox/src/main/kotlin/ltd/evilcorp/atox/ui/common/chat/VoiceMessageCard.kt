@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 
-@file:OptIn(ExperimentalMaterial3Api::class)
 
 package ltd.evilcorp.atox.ui.common.chat
 
@@ -27,13 +26,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
-import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +42,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
@@ -68,6 +70,7 @@ private const val TAG = "VoiceMessageCard"
 private const val PLAYBACK_DELAY_MS = 100L
 private const val MILLIS_IN_SECOND = 1000
 private const val SECONDS_IN_MINUTE = 60
+private const val REPLAY_THRESHOLD_MS = 200
 
 @Composable
 fun VoiceMessageCard(
@@ -125,11 +128,23 @@ fun VoiceMessageCard(
             if (exists) {
                 try {
                     val retriever = android.media.MediaMetadataRetriever()
-                    if (uri.scheme == "content" || uri.scheme == "file") {
-                        retriever.setDataSource(context, uri)
-                    } else {
-                        val file = java.io.File(audioPath)
-                        retriever.setDataSource(context, android.net.Uri.fromFile(file))
+                    when (uri.scheme) {
+                        "content" -> {
+                            retriever.setDataSource(context, uri)
+                        }
+                        "file" -> {
+                            val path = uri.path
+                            if (path != null) {
+                                val fis = java.io.FileInputStream(java.io.File(path))
+                                try { retriever.setDataSource(fis.fd) } finally { fis.close() }
+                            } else {
+                                retriever.setDataSource(context, uri)
+                            }
+                        }
+                        else -> {
+                            val fis = java.io.FileInputStream(java.io.File(audioPath))
+                            try { retriever.setDataSource(fis.fd) } finally { fis.close() }
+                        }
                     }
                     val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
                     retriever.release()
@@ -165,7 +180,7 @@ fun VoiceMessageCard(
             VoiceMessagePlayer.pause()
             isPlaying = false
         } else {
-            if (VoiceMessagePlayer.isPlayingUri(audioPath)) {
+            if (VoiceMessagePlayer.isPlayingUri(audioPath) && currentPosition < duration - REPLAY_THRESHOLD_MS) {
                 VoiceMessagePlayer.resume()
                 isPlaying = true
             } else {
@@ -361,43 +376,35 @@ private fun VoiceMessageProgressColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.Center
     ) {
-        var sliderPosition by remember { mutableFloatStateOf(0f) }
-        var isDragging by remember { mutableStateOf(false) }
+        var barSize by remember { mutableStateOf(IntSize.Zero) }
 
-        Slider(
-            value = if (isDragging) sliderPosition else playbackProgress,
-            onValueChange = {
-                isDragging = true
-                sliderPosition = it
-            },
-            onValueChangeFinished = {
-                isDragging = false
-                onSeek(sliderPosition)
-            },
-            colors = SliderDefaults.colors(
-                thumbColor = contentColor,
-                activeTrackColor = contentColor,
-                inactiveTrackColor = contentColor.copy(alpha = 0.2f)
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            thumb = {
-                Box(
-                    modifier = Modifier
-                        .size(width = 3.dp, height = 12.dp)
-                        .background(contentColor, RoundedCornerShape(1.5.dp))
-                )
-            },
-            track = { sliderState ->
-                SliderDefaults.Track(
-                    sliderState = sliderState,
-                    modifier = Modifier.height(4.dp),
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = contentColor,
-                        inactiveTrackColor = contentColor.copy(alpha = 0.2f)
-                    ),
-                    thumbTrackGapSize = 0.dp
-                )
-            }
+        LinearProgressIndicator(
+            progress = { playbackProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .onSizeChanged { barSize = it }
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val fraction = (offset.x / barSize.width).coerceIn(0f, 1f)
+                        onSeek(fraction)
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {},
+                        onDragCancel = {},
+                        onHorizontalDrag = { _, dragAmount ->
+                            if (barSize.width > 0) {
+                                val fraction = ((playbackProgress * barSize.width + dragAmount) / barSize.width).coerceIn(0f, 1f)
+                                onSeek(fraction)
+                            }
+                        }
+                    )
+                },
+            color = contentColor,
+            trackColor = contentColor.copy(alpha = 0.2f),
+            strokeCap = StrokeCap.Round
         )
 
         Spacer(modifier = Modifier.height(4.dp))
