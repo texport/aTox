@@ -97,11 +97,11 @@ fun <T : Any> ChatScreenContent(
 
     // Bottom input bar configurations
     contact: Contact?, // Passing null works for group chat
+    modifier: Modifier = Modifier,
     replyingToMessage: Message? = null,
     onCancelReply: () -> Unit = {},
 
     // Optional parameters
-    modifier: Modifier = Modifier,
     pagedMessages: LazyPagingItems<T>? = null,
     isTypingFlow: StateFlow<Boolean>? = null, // null for group chats
     showConversationContent: Boolean = true,
@@ -374,7 +374,6 @@ fun <T : Any> ChatScreenContent(
                     onCancelReply = onCancelReply,
                     onSendVoice = onSendVoice,
                     voiceRecorder = voiceRecorder,
-                    fileTransfers = fileTransfers,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

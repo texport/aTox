@@ -57,29 +57,28 @@ class MessageNotificationFactory @Inject constructor(
             .setAutoCancel(true)
             .setSilent(silent)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val avatarBitmap = avatarLoader.loadAvatar(contact.avatarUri)
-            val icon = avatarBitmap?.let { IconCompat.createWithBitmap(it) }
+        val avatarBitmap = avatarLoader.loadAvatar(contact.avatarUri)
+        val icon = avatarBitmap?.let { IconCompat.createWithBitmap(it) }
 
-            val chatPartner = Person.Builder()
-                .setName(contact.name.ifEmpty { context.getText(R.string.contact_default_name) })
-                .setKey(if (outgoing) "myself" else contact.publicKey)
-                .setIcon(icon)
-                .setImportant(true)
-                .build()
+        val chatPartner = Person.Builder()
+            .setName(contact.name.ifEmpty { context.getText(R.string.contact_default_name) })
+            .setKey(if (outgoing) "myself" else contact.publicKey)
+            .setIcon(icon)
+            .setImportant(true)
+            .build()
 
-            val style = notifierOld.activeNotifications.find { it.notification.group == contact.publicKey }?.notification?.let {
-                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it)
-            } ?: NotificationCompat.MessagingStyle(chatPartner)
+        val style = notifierOld.activeNotifications.find { it.notification.group == contact.publicKey }?.notification?.let {
+            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it)
+        } ?: NotificationCompat.MessagingStyle(chatPartner)
 
-            style.messages.add(
-                NotificationCompat.MessagingStyle.Message(message, System.currentTimeMillis(), chatPartner)
-            )
+        style.messages.add(
+            NotificationCompat.MessagingStyle.Message(message, System.currentTimeMillis(), chatPartner)
+        )
 
-            notificationBuilder
-                .setStyle(style)
-                .setGroup(contact.publicKey)
-        }
+        notificationBuilder
+            .setStyle(style)
+            .setGroup(contact.publicKey)
+
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             notificationBuilder.addAction(

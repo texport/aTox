@@ -16,22 +16,16 @@ object PendingIntentCompat {
         intent: Intent,
         flags: Int,
         mutable: Boolean = false,
-    ): PendingIntent = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-        PendingIntent.getBroadcast(context, requestCode, intent, flags)
-    } else {
+    ): PendingIntent {
         val mutabilityFlag =
             if (mutable) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
             } else {
                 PendingIntent.FLAG_IMMUTABLE
             }
-        PendingIntent.getBroadcast(context, requestCode, intent, flags or mutabilityFlag)
+        return PendingIntent.getBroadcast(context, requestCode, intent, flags or mutabilityFlag)
     }
 
     fun getActivity(context: Context, requestCode: Int, intent: Intent, flags: Int): PendingIntent =
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            PendingIntent.getActivity(context, requestCode, intent, flags)
-        } else {
-            PendingIntent.getActivity(context, requestCode, intent, flags or PendingIntent.FLAG_IMMUTABLE)
-        }
+        PendingIntent.getActivity(context, requestCode, intent, flags or PendingIntent.FLAG_IMMUTABLE)
 }

@@ -76,7 +76,7 @@ import ltd.evilcorp.core.platform.JvmPlatformServices
 
 @Module
 @InstallIn(SingletonComponent::class)
-@Suppress("ComplexInterface")
+@Suppress("ComplexInterface", "unused")
 interface AppBindingsModule {
 
     @Binds

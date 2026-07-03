@@ -538,6 +538,7 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxNewWithOptions(JNIEnv *env, jobject thiz
     tox_options_set_ipv6_enabled(options, ipv6Enabled);
     tox_options_set_udp_enabled(options, udpEnabled);
     tox_options_set_local_discovery_enabled(options, localDiscoveryEnabled);
+    tox_options_set_tcp_port(options, 33445);
     
     if (proxyType > 0 && proxyHost) {
         const char *host_str = env->GetStringUTFChars(proxyHost, nullptr);
@@ -768,13 +769,25 @@ Java_ltd_evilcorp_core_tox_NativeTox_toxGetSavedata(JNIEnv *env, jobject thiz, j
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxAddFriend(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray pubKey, jbyteArray message) {
     std::vector<uint8_t> pk = jba2vec(env, pubKey);
     std::vector<uint8_t> msg = jba2vec(env, message);
-    return tox_friend_add(reinterpret_cast<Tox*>(toxPtr), pk.data(), msg.data(), msg.size(), nullptr);
+    TOX_ERR_FRIEND_ADD err;
+    uint32_t res = tox_friend_add(reinterpret_cast<Tox*>(toxPtr), pk.data(), msg.data(), msg.size(), &err);
+    if (res == UINT32_MAX) {
+        LOGE("tox_friend_add failed with error: %d", err);
+        return -1;
+    }
+    return (jint)res;
 }
 
 // Добавление друга без отправки запроса (для подтверждения входящего запроса)
 JNIEXPORT jint JNICALL Java_ltd_evilcorp_core_tox_NativeTox_toxAddFriendNorequest(JNIEnv *env, jobject thiz, jlong toxPtr, jbyteArray pubKey) {
     std::vector<uint8_t> pk = jba2vec(env, pubKey);
-    return tox_friend_add_norequest(reinterpret_cast<Tox*>(toxPtr), pk.data(), nullptr);
+    TOX_ERR_FRIEND_ADD err;
+    uint32_t res = tox_friend_add_norequest(reinterpret_cast<Tox*>(toxPtr), pk.data(), &err);
+    if (res == UINT32_MAX) {
+        LOGE("tox_friend_add_norequest failed with error: %d", err);
+        return -1;
+    }
+    return (jint)res;
 }
 
 // Удаление друга из списка контактов

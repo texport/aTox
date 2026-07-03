@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,9 +45,11 @@ fun SettingsRootContent(
     paddingValues: PaddingValues,
     currentLanguageLabel: String,
     themeLabel: String,
+    onGeneralClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onChatClick: () -> Unit,
     onSoundsClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     onConnectionClick: () -> Unit,
     onBackupClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -71,6 +75,15 @@ fun SettingsRootContent(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsCategoryRow(
+                        title = stringResource(R.string.pref_heading_general),
+                        subtitle = stringResource(R.string.settings_general_group_subtitle),
+                        icon = Icons.Default.Settings,
+                        iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        onClick = onGeneralClick
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                    SettingsCategoryRow(
                         title = stringResource(R.string.appearance_and_design),
                         subtitle = "$currentLanguageLabel, $themeLabel",
                         icon = Icons.Default.Palette,
@@ -81,7 +94,7 @@ fun SettingsRootContent(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                     SettingsCategoryRow(
                         title = stringResource(R.string.settings_ft_group),
-                        subtitle = stringResource(R.string.settings_auto_save_subtitle),
+                        subtitle = stringResource(R.string.settings_chat_group_subtitle),
                         icon = Icons.Default.ChatBubble,
                         iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -95,6 +108,15 @@ fun SettingsRootContent(
                         iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                         onClick = onSoundsClick
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                    SettingsCategoryRow(
+                        title = stringResource(R.string.settings_privacy_group),
+                        subtitle = stringResource(R.string.settings_privacy_group_subtitle),
+                        icon = Icons.Default.Security,
+                        iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        onClick = onPrivacyClick
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                     SettingsCategoryRow(

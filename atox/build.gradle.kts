@@ -68,7 +68,7 @@ android {
         viewBinding = true
     }
     lint {
-        disable += setOf("GoogleAppIndexingWarning", "MissingTranslation", "LocalContextGetResourceValueCall", "MissingPermission", "PlaySdkIndexNonCompliant")
+        disable += setOf("GoogleAppIndexingWarning", "MissingTranslation", "LocalContextGetResourceValueCall", "MissingPermission", "PlaySdkIndexNonCompliant", "UseKtx", "NewerVersionAvailable")
         error += "HardcodedText"
     }
     packaging {

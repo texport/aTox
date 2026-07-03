@@ -8,6 +8,7 @@ import ltd.evilcorp.domain.features.settings.model.AppSound
 
 private const val MAX_VOLUME = 100
 
+@Suppress("unused")
 @Singleton
 class SoundEffectPlayer @Inject constructor() {
     fun play(

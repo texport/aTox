@@ -9,6 +9,8 @@ import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.res.stringResource
 import ltd.evilcorp.atox.R
@@ -31,6 +33,8 @@ import ltd.evilcorp.atox.ui.settings.screens.SettingsAppearanceScreen
 import ltd.evilcorp.atox.ui.settings.screens.SettingsChatScreen
 import ltd.evilcorp.atox.ui.settings.screens.SoundPickerTarget
 import ltd.evilcorp.atox.ui.settings.screens.ThemeSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.GeneralSettingsScreen
+import ltd.evilcorp.atox.ui.settings.screens.PrivacySettingsScreen
 
 @Suppress(
     "FunctionNaming",
@@ -85,16 +89,15 @@ internal fun SettingsScreenContent(
                 AppCompatDelegate.MODE_NIGHT_NO -> stringResource(R.string.pref_theme_light)
                 else -> stringResource(R.string.pref_theme_follow_system)
             },
+            onGeneralClick = { state.destination = SettingsDestination.General },
             onAppearanceClick = { state.destination = SettingsDestination.Appearance },
             onChatClick = { state.destination = SettingsDestination.Chat },
             onSoundsClick = { state.destination = SettingsDestination.Sounds },
+            onPrivacyClick = { state.destination = SettingsDestination.Privacy },
             onConnectionClick = { state.destination = SettingsDestination.Connection },
             onBackupClick = { state.destination = SettingsDestination.Backup }
         )
         SettingsDestination.Appearance -> {
-            val showProfilePicker = androidx.compose.runtime.remember {
-                androidx.compose.runtime.mutableStateOf(ltd.evilcorp.core.profile.ProfileManager.getShowProfilePicker(context))
-            }
             SettingsAppearanceScreen(
                 paddingValues = paddingValues,
                 currentLanguageCode = currentLanguageCode,
@@ -105,7 +108,6 @@ internal fun SettingsScreenContent(
                 dynamicColor = appearance.dynamicColorEnabled,
                 currentAccentSeed = appearance.accentColorSeed,
                 hapticEnabled = storedSettings.hapticEnabled,
-                showProfilePicker = showProfilePicker.value,
                 performHaptic = performHaptic,
                 onLanguageClick = { state.destination = SettingsDestination.Language },
                 onThemeClick = { state.destination = SettingsDestination.Theme },
@@ -113,11 +115,7 @@ internal fun SettingsScreenContent(
                 onTimeFormatClick = { state.showTimeFormatDialog = true },
                 onDynamicColorChanged = onDynamicColorChanged,
                 onAccentColorClick = { state.showAccentColorDialog = true },
-                onHapticEnabledChanged = { settings.hapticEnabled = it },
-                onShowProfilePickerChanged = {
-                    ltd.evilcorp.core.profile.ProfileManager.setShowProfilePicker(context, it)
-                    showProfilePicker.value = it
-                }
+                onHapticEnabledChanged = { settings.hapticEnabled = it }
             )
         }
         SettingsDestination.Chat -> SettingsChatScreen(
@@ -137,34 +135,135 @@ internal fun SettingsScreenContent(
             },
             onEnableRepliesChanged = { settings.enableReplies = it }
         )
-        SettingsDestination.Connection -> NetworkSettingsScreen(
-            paddingValues = paddingValues,
-            udpEnabled = storedSettings.udpEnabled,
-            runAtStartup = storedSettings.runAtStartup,
-            bootstrapNodeSource = bootstrapNodeSource,
-            disableScreenshots = storedSettings.disableScreenshots,
-            confirmQuitting = storedSettings.confirmQuitting,
-            confirmCalling = storedSettings.confirmCalling,
-            proxyType = proxyType,
-            proxyAddress = proxyAddress,
-            proxyPortInput = state.proxyPortInput,
-            focusManager = focusManager,
-            performHaptic = performHaptic,
-            onUdpEnabledChanged = viewModel::setUdpEnabled,
-            onRunAtStartupChanged = viewModel::setRunAtStartup,
-            onBootstrapNodesClick = { viewModel.setShowBootstrapDialog(true) },
-            onDisableScreenshotsChanged = onDisableScreenshotsChanged,
-            onConfirmQuittingChanged = { settings.confirmQuitting = it },
-            onConfirmCallingChanged = { settings.confirmCalling = it },
-            onProxyTypeClick = { viewModel.setShowProxyDialog(true) },
-            onProxyAddressChanged = viewModel::setProxyAddress,
-            onProxyPortInputChanged = {
-                if (it.isEmpty() || it.all { char -> char.isDigit() }) {
-                    state.proxyPortInput = it
-                    viewModel.setProxyPortString(it)
+        SettingsDestination.Connection -> {
+            NetworkSettingsScreen(
+                paddingValues = paddingValues,
+                udpEnabled = storedSettings.udpEnabled,
+                bootstrapNodeSource = bootstrapNodeSource,
+                proxyType = proxyType,
+                proxyAddress = proxyAddress,
+                proxyPortInput = state.proxyPortInput,
+                focusManager = focusManager,
+                performHaptic = performHaptic,
+                onUdpEnabledChanged = viewModel::setUdpEnabled,
+                onBootstrapNodesClick = { viewModel.setShowBootstrapDialog(true) },
+                onProxyTypeClick = { viewModel.setShowProxyDialog(true) },
+                onProxyAddressChanged = viewModel::setProxyAddress,
+                onProxyPortInputChanged = {
+                    if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+                        state.proxyPortInput = it
+                        viewModel.setProxyPortString(it)
+                    }
                 }
+            )
+        }
+        SettingsDestination.General -> {
+            val showProfilePicker = androidx.compose.runtime.remember {
+                androidx.compose.runtime.mutableStateOf(ltd.evilcorp.core.profile.ProfileManager.getShowProfilePicker(context))
             }
-        )
+            GeneralSettingsScreen(
+                paddingValues = paddingValues,
+                showProfilePicker = showProfilePicker.value,
+                runAtStartup = storedSettings.runAtStartup,
+                confirmQuitting = storedSettings.confirmQuitting,
+                performHaptic = performHaptic,
+                onShowProfilePickerChanged = {
+                    ltd.evilcorp.core.profile.ProfileManager.setShowProfilePicker(context, it)
+                    showProfilePicker.value = it
+                },
+                onRunAtStartupChanged = viewModel::setRunAtStartup,
+                onConfirmQuittingChanged = { settings.confirmQuitting = it }
+            )
+        }
+        SettingsDestination.Privacy -> {
+            val biometricManager = androidx.compose.runtime.remember(context) { androidx.biometric.BiometricManager.from(context) }
+            val isBiometricHardwareAvailable = androidx.compose.runtime.remember(biometricManager) {
+                biometricManager.canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG) !=
+                        androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
+            }
+            var biometricEnabled by androidx.compose.runtime.remember(state.showChangePasswordDialog) {
+                androidx.compose.runtime.mutableStateOf(ltd.evilcorp.atox.infrastructure.security.BiometricStorage.isBiometricEnabled(context))
+            }
+            PrivacySettingsScreen(
+                paddingValues = paddingValues,
+                disableScreenshots = storedSettings.disableScreenshots,
+                confirmCalling = storedSettings.confirmCalling,
+                isBiometricHardwareAvailable = isBiometricHardwareAvailable,
+                biometricEnabled = biometricEnabled,
+                hasPassword = viewModel.hasPassword(),
+                performHaptic = performHaptic,
+                onDisableScreenshotsChanged = onDisableScreenshotsChanged,
+                onConfirmCallingChanged = { settings.confirmCalling = it },
+                onChangePasswordClick = { state.showChangePasswordDialog = true },
+                onBiometricEnabledChanged = { enabled ->
+                    if (enabled) {
+                        val activity = context as? androidx.fragment.app.FragmentActivity
+                        if (!viewModel.hasPassword()) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.biometric_setup_failed),
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        } else if (activity != null) {
+                            val executor = androidx.core.content.ContextCompat.getMainExecutor(context)
+                            val biometricPrompt = androidx.biometric.BiometricPrompt(
+                                activity,
+                                executor,
+                                object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                        super.onAuthenticationError(errorCode, errString)
+                                        android.widget.Toast.makeText(context, errString, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+
+                                    override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                                        super.onAuthenticationSucceeded(result)
+                                        val unlockedCipher = result.cryptoObject?.cipher
+                                        if (unlockedCipher != null) {
+                                            val success = viewModel.enableBiometric(context, unlockedCipher)
+                                            if (success) {
+                                                biometricEnabled = true
+                                            } else {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.biometric_setup_failed),
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                                .setTitle(context.getString(R.string.pref_biometric_login))
+                                .setSubtitle(context.getString(R.string.pref_biometric_login_description))
+                                .setNegativeButtonText(context.getString(android.R.string.cancel))
+                                .build()
+
+                            try {
+                                val cipher = ltd.evilcorp.atox.infrastructure.security.BiometricCipherHelper.getInitializedCipherForEncryption()
+                                biometricPrompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
+                            } catch (e: Exception) {
+                                android.util.Log.e("SettingsScreenContent", "Failed to init cipher: $e", e)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.biometric_setup_failed),
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.biometric_setup_failed),
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } else {
+                        viewModel.disableBiometric(context)
+                        biometricEnabled = false
+                    }
+                }
+            )
+        }
         SettingsDestination.Language -> LanguageSettingsScreen(
             paddingValues = paddingValues,
             currentLanguageCode = currentLanguageCode,
@@ -263,8 +362,7 @@ internal fun SettingsScreenContent(
             },
             onCreateBackupClick = backupViewModel::createBackup,
             onRestoreBackupClick = {
-                state.pendingRestoreUri = null
-                state.showRestoreConfirmDialog = true
+                launchers.restoreBackupLauncher.launch(arrayOf("*/*"))
             },
             onRestoreGoogleBackupClick = {
                 state.googleSignInPurpose = GoogleSignInPurpose.Restore

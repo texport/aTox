@@ -39,7 +39,7 @@ class ToxServiceLifecycleController @Inject constructor(
     fun start(
         lifecycleOwner: LifecycleOwner,
         onConnectionStatusChanged: (ConnectionStatus) -> Unit,
-        onCallStateChanged: (Boolean) -> Unit
+        onCallStateChanged: (CallState) -> Unit
     ) {
         val scope = lifecycleOwner.lifecycleScope
         val lifecycle = lifecycleOwner.lifecycle
@@ -75,7 +75,7 @@ class ToxServiceLifecycleController @Inject constructor(
 
         scope.launch {
             callManager.inCall.collect {
-                onCallStateChanged(it !is CallState.Idle)
+                onCallStateChanged(it)
                 if (it is CallState.Active) {
                     if (!callManager.speakerphoneOnState.value) {
                         proximityScreenOff.acquire()

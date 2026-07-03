@@ -31,6 +31,7 @@ internal class SettingsScreenState(
     cacheSizeText: String,
     showGoogleDriveRestoreDialog: Boolean,
     googleSignInPurpose: GoogleSignInPurpose,
+    showChangePasswordDialog: Boolean,
 ) {
     var destination by mutableStateOf(destination)
     var searchQuery by mutableStateOf(searchQuery)
@@ -45,6 +46,7 @@ internal class SettingsScreenState(
     var cacheSizeText by mutableStateOf(cacheSizeText)
     var showGoogleDriveRestoreDialog by mutableStateOf(showGoogleDriveRestoreDialog)
     var googleSignInPurpose by mutableStateOf(googleSignInPurpose)
+    var showChangePasswordDialog by mutableStateOf(showChangePasswordDialog)
 }
 
 @Suppress("UnstableCollections")
@@ -68,5 +70,6 @@ internal fun rememberSettingsScreenState(
         cacheSizeText = defaultCacheSize,
         showGoogleDriveRestoreDialog = false,
         googleSignInPurpose = GoogleSignInPurpose.Connect,
+        showChangePasswordDialog = false,
     )
 }

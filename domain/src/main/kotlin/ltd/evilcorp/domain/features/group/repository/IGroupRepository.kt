@@ -30,6 +30,7 @@ interface IGroupRepository {
     suspend fun setHasUnreadMessages(chatId: String, hasUnread: Boolean)
     suspend fun setDraftMessage(chatId: String, draft: String)
     suspend fun setConnected(chatId: String, connected: Boolean)
+    suspend fun resetTransientData()
     suspend fun setGroupNumber(chatId: String, groupNumber: Int)
     suspend fun findChatIdByGroupNumber(groupNumber: Int): String?
 

@@ -129,28 +129,8 @@ class NotificationHelper @Inject constructor(
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun showOngoingCallNotification(contact: Contact) {
-        if (!permissionManager.canPostNotifications()) {
-            Log.w(TAG, "Call ongoing, notifications disallowed")
-            return
-        }
-
-        dismissCallNotification(PublicKey(contact.publicKey))
-
-        val builder = callNotificationFactory.buildOngoingCallNotification(contact)
-
-        try {
-            notifier.notify(contact.publicKey.hashCode() + CHANNEL_CALL.hashCode(), builder.build())
-        } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "Failed to post CallStyle notification, falling back to standard style", e)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                builder.setStyle(null)
-            }
-            try {
-                notifier.notify(contact.publicKey.hashCode() + CHANNEL_CALL.hashCode(), builder.build())
-            } catch (ex: Exception) {
-                Log.e(TAG, "Failed to post fallback call notification", ex)
-            }
-        }
+        // No-op. ToxService manages the ongoing call notification directly inside its foreground service
+        // to support the system bar ongoing activity call chip/pill on Android 12+ (e.g. Samsung).
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)

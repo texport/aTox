@@ -49,7 +49,7 @@ class ToxWrapper(
         val sd = options.saveData
         var ptr = nativeTox.toxNewWithOptions(
             savedata = sd,
-            ipv6Enabled = true,
+            ipv6Enabled = false,
             udpEnabled = options.udpEnabled,
             localDiscoveryEnabled = true,
             proxyType = options.proxyType.ordinal,
@@ -150,7 +150,10 @@ class ToxWrapper(
 
     // Adds a new contact by their full Tox ID and sends a friend request.
     fun addContact(toxId: ToxID, message: String) = withTox { ptr ->
-        nativeTox.toxAddFriend(ptr, toxId.bytes(), message.toByteArray())
+        val result = nativeTox.toxAddFriend(ptr, toxId.bytes(), message.toByteArray())
+        if (result < 0) {
+            throw Exception("toxAddFriend failed: $result")
+        }
         updateContactMapping()
     }
 
@@ -196,9 +199,13 @@ class ToxWrapper(
     // Accepts an incoming friend request and adds the contact to the list.
     fun acceptFriendRequest(pk: PublicKey): Result<Unit> = withTox { ptr ->
         try {
-            nativeTox.toxAddFriendNorequest(ptr, pk.bytes())
-            updateContactMapping()
-            Result.success(Unit)
+            val result = nativeTox.toxAddFriendNorequest(ptr, pk.bytes())
+            if (result < 0) {
+                Result.failure(Exception("toxAddFriendNorequest failed: $result"))
+            } else {
+                updateContactMapping()
+                Result.success(Unit)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Exception while accepting friend request $pk: $e")
             Result.failure(e)

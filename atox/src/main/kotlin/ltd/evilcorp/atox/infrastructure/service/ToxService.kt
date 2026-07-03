@@ -9,6 +9,7 @@ import ltd.evilcorp.atox.R
 import ltd.evilcorp.atox.MainActivity
 import ltd.evilcorp.atox.infrastructure.util.PendingIntentCompat
 import ltd.evilcorp.atox.infrastructure.util.PermissionManager
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Intent
@@ -28,18 +29,31 @@ import ltd.evilcorp.domain.features.auth.usecase.InitializeToxUseCase
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 import ltd.evilcorp.domain.core.di.IoDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
+import ltd.evilcorp.domain.features.call.CallState
+import ltd.evilcorp.domain.features.contacts.model.Contact
+import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
+import ltd.evilcorp.atox.ui.notification.CallNotificationFactory
 
 private const val TAG = "ToxService"
 private const val NOTIFICATION_ID = 1984
+private const val NOTIFICATION_ID_CALL = 1985
 
 @AndroidEntryPoint
 class ToxService : LifecycleService() {
     private val channelId = "ToxService"
     private var connectionStatus: ConnectionStatus? = null
     private var serviceSessionId: String? = null
+    private var activeCallState: CallState = CallState.Idle
+
+    @Inject
+    lateinit var contactRepository: IContactRepository
+
+    @Inject
+    lateinit var callNotificationFactory: CallNotificationFactory
     private val notifier by lazy { NotificationManagerCompat.from(this) }
 
     @Inject
@@ -131,7 +145,7 @@ class ToxService : LifecycleService() {
                 lifecycleOwner = this@ToxService,
                 onConnectionStatusChanged = { newStatus ->
                     connectionStatus = newStatus
-                    if (permissionManager.canPostNotifications()) {
+                    if (activeCallState is CallState.Idle && permissionManager.canPostNotifications()) {
                         notifier.notify(NOTIFICATION_ID, notificationFor(connectionStatus))
                     }
                 },
@@ -158,36 +172,94 @@ class ToxService : LifecycleService() {
         }
     }
 
-    private fun handleCallStateChanged(inCall: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+    private fun handleCallStateChanged(callState: CallState) {
+        activeCallState = callState
+        lifecycleScope.launch {
+            val contact = when (callState) {
+                is CallState.IncomingRinging -> callState.contact
+                is CallState.OutgoingRequesting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.OutgoingWaiting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.OutgoingRinging -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.Connecting -> contactRepository.get(callState.publicKey.string()).first()
+                is CallState.Active -> contactRepository.get(callState.publicKey.string()).first()
+                CallState.Idle -> null
             }
-            val foregroundType = if (inCall) {
+            updateForeground(callState, contact)
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun updateForeground(callState: CallState, contact: Contact?) {
+        val inCall = callState !is CallState.Idle
+        val defaultType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        }
+        val foregroundType = if (inCall) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or defaultType
             } else {
-                defaultType
+                0
             }
-            try {
+        } else {
+            defaultType
+        }
+
+        if (inCall && contact != null) {
+            startCallForeground(contact, foregroundType, defaultType)
+        } else {
+            startServiceForeground(defaultType)
+        }
+    }
+
+    private fun startCallForeground(contact: Contact, foregroundType: Int, defaultType: Int) {
+        val notification = callNotificationFactory.buildOngoingCallNotification(contact).build()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    NOTIFICATION_ID,
-                    notificationFor(connectionStatus),
+                    NOTIFICATION_ID_CALL,
+                    notification,
                     foregroundType
                 )
-            } catch (e: SecurityException) {
-                Log.e(TAG, "Failed to start foreground service with type microphone", e)
-                try {
+            } else {
+                startForeground(NOTIFICATION_ID_CALL, notification)
+            }
+            notifier.cancel(NOTIFICATION_ID)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Failed to start foreground service with type microphone", e)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
                         NOTIFICATION_ID,
                         notificationFor(connectionStatus),
                         defaultType
                     )
-                } catch (ex: Exception) {
-                    Log.e(TAG, "Failed to start fallback foreground service", ex)
+                } else {
+                    startForeground(NOTIFICATION_ID, notificationFor(connectionStatus))
                 }
+                notifier.cancel(NOTIFICATION_ID_CALL)
+            } catch (ex: Exception) {
+                Log.e(TAG, "Failed to start fallback foreground service", ex)
             }
+        }
+    }
+
+    private fun startServiceForeground(defaultType: Int) {
+        val notification = notificationFor(connectionStatus)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    defaultType
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            notifier.cancel(NOTIFICATION_ID_CALL)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start service foreground", e)
         }
     }
 

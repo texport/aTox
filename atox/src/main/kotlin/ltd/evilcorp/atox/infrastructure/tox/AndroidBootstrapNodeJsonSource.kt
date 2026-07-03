@@ -13,10 +13,13 @@ class AndroidBootstrapNodeJsonSource @Inject constructor(
     private val settings: Settings,
 ) : IBootstrapNodeJsonSource {
     override fun load(): String? = runCatching {
-        if (settings.bootstrapNodeSource == BootstrapNodeSource.BuiltIn) {
+        val userFile = File(context.filesDir, "user_nodes.json")
+        if (userFile.exists()) {
+            userFile.readBytes().decodeToString()
+        } else if (settings.bootstrapNodeSource == BootstrapNodeSource.BuiltIn) {
             context.resources.openRawResource(R.raw.nodes).use { String(it.readBytes()) }
         } else {
-            File(context.filesDir, "user_nodes.json").takeIf(File::exists)?.readBytes()?.decodeToString()
+            null
         }
     }.getOrNull()
 }

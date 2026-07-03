@@ -11,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -38,8 +36,8 @@ fun GroupPeersSheet(
 ) {
     val sortedPeers = remember(peers) {
         peers.sortedWith(
-            compareByDescending<GroupPeer> { it.role == "FOUNDER" || it.role == "Owner" }
-                .thenByDescending { it.isOurselves }
+            compareByDescending<GroupPeer> { it.isOurselves }
+                .thenBy { it.name }
         )
     }
 
@@ -76,23 +74,11 @@ fun GroupPeersSheet(
                     }
                     val statusColor = if (isOnline) ltd.evilcorp.atox.ui.theme.StatusAvailable else ltd.evilcorp.atox.ui.theme.StatusOffline
 
-                    val isOwner = peer.role == "FOUNDER" || peer.role == "Owner"
-                    val cardBorder = if (isOwner) {
-                        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                    } else {
-                        null
-                    }
-
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        border = cardBorder,
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isOwner) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            }
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         ListItem(
@@ -115,36 +101,11 @@ fun GroupPeersSheet(
                                 }
                             },
                             headlineContent = {
-                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                    Text(
-                                        text = peer.name.ifEmpty { stringResource(R.string.contact_default_name) },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = if (peer.isOurselves) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    if (isOwner) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = stringResource(R.string.group_role_owner),
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            supportingContent = {
                                 Text(
-                                    text = stringResource(
-                                        when (peer.role) {
-                                            "FOUNDER", "Owner" -> R.string.group_role_owner
-                                            "MODERATOR", "Moderator" -> R.string.group_role_moderator
-                                            "OBSERVER", "Observer" -> R.string.group_role_observer
-                                            else -> R.string.group_role_user
-                                        }
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = peer.name.ifEmpty { stringResource(R.string.contact_default_name) },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (peer.isOurselves) FontWeight.Bold else FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -153,66 +114,6 @@ fun GroupPeersSheet(
                 }
             }
 
-            // Diagnostics Card
-            val groupOwner = sortedPeers.find { it.role == "FOUNDER" || it.role == "Owner" }
-            val matchingOwnerContact = groupOwner?.let { owner ->
-                contacts.find { it.publicKey.equals(owner.publicKey, ignoreCase = true) }
-            }
-            val isOwnerOnline = when {
-                groupOwner == null -> false
-                groupOwner.isOurselves -> true
-                matchingOwnerContact != null -> matchingOwnerContact.connectionStatus != ConnectionStatus.None
-                else -> false
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(R.string.group_diagnostics_title),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(
-                            R.string.group_diagnostics_host,
-                            groupOwner?.name ?: stringResource(R.string.contact_default_name)
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    val hostStatusStr = when {
-                        groupOwner == null -> stringResource(R.string.group_diagnostics_status_undefined)
-                        groupOwner.isOurselves -> stringResource(R.string.group_diagnostics_status_self)
-                        isOwnerOnline -> stringResource(R.string.group_diagnostics_status_online)
-                        else -> stringResource(R.string.group_diagnostics_status_offline)
-                    }
-                    Text(
-                        text = stringResource(R.string.group_diagnostics_status_label, hostStatusStr),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = when {
-                            groupOwner == null -> stringResource(R.string.group_diagnostics_desc_undefined)
-                            groupOwner.isOurselves -> stringResource(R.string.group_diagnostics_desc_self)
-                            isOwnerOnline -> stringResource(R.string.group_diagnostics_desc_online)
-                            else -> stringResource(R.string.group_diagnostics_desc_offline)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

@@ -104,7 +104,7 @@ fun GroupInviteSheet(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = if (isCopying) "Generating link..." else stringResource(R.string.group_copy_invite),
+                        text = if (isCopying) stringResource(R.string.group_invite_generating_link) else stringResource(R.string.group_copy_invite),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = if (isCopying) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.primary
@@ -122,7 +122,7 @@ fun GroupInviteSheet(
                 trailingIcon = {
                     if (inviteSearchQuery.isNotEmpty()) {
                         IconButton(onClick = { inviteSearchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear))
                         }
                     }
                 },
@@ -161,7 +161,11 @@ fun GroupInviteSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (inviteSearchQuery.isEmpty()) "No friends to invite" else "No matching friends",
+                        text = if (inviteSearchQuery.isEmpty()) {
+                            stringResource(R.string.group_invite_no_friends)
+                        } else {
+                            stringResource(R.string.group_invite_no_matching_friends)
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
@@ -258,7 +262,7 @@ fun GroupInviteSheet(
                                         }
                                     } else if (isThisContactInviting) {
                                         Text(
-                                            text = "Sending invitation...",
+                                            text = stringResource(R.string.group_invite_sending),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )

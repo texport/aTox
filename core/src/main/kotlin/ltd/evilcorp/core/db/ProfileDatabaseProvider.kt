@@ -37,7 +37,14 @@ class ProfileDatabaseProvider @Inject constructor(
             }
         }
 
-        val dbName = if (profileId == ProfileManager.DEFAULT_PROFILE_ID) "core_db" else "core_db_$profileId"
+        val targetDbName = if (profileId == ProfileManager.DEFAULT_PROFILE_ID) "core_db" else "core_db_$profileId"
+        val dbDir = context.getDatabasePath(targetDbName).parentFile
+        val existingDbName = if (dbDir?.exists() == true) {
+            dbDir.listFiles()?.find { it.name.equals(targetDbName, ignoreCase = true) }?.name
+        } else {
+            null
+        }
+        val dbName = existingDbName ?: targetDbName
         val db = Room.databaseBuilder(context, Database::class.java, dbName)
             .addMigrations(*ALL_MIGRATIONS)
             .build()

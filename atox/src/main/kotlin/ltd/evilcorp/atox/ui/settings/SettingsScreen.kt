@@ -156,6 +156,8 @@ fun SettingsScreen(
         SettingsDestination.Language -> stringResource(R.string.select_language)
         SettingsDestination.Theme -> stringResource(R.string.settings_app_theme_dialog_title)
         SettingsDestination.Search -> stringResource(R.string.search_settings)
+        SettingsDestination.General -> stringResource(R.string.pref_heading_general)
+        SettingsDestination.Privacy -> stringResource(R.string.settings_privacy_group)
     }
     LaunchedEffect(state.destination, title, showBackButton) {
         if (!showBackButton) {

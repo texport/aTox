@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import ltd.evilcorp.domain.features.contacts.model.ConnectionStatus
 import ltd.evilcorp.domain.features.contacts.repository.IContactRepository
 import ltd.evilcorp.domain.features.auth.repository.IUserRepository
+import ltd.evilcorp.domain.features.group.repository.IGroupRepository
 import ltd.evilcorp.domain.core.network.ITox
 import ltd.evilcorp.domain.features.group.usecase.ReconnectGroupsUseCase
 
@@ -14,6 +15,7 @@ import android.util.Log
 class ToxStartupSynchronizer @Inject constructor(
     private val scope: CoroutineScope,
     private val contactRepository: IContactRepository,
+    private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
     private val tox: ITox,
     private val reconnectGroupsUseCase: ReconnectGroupsUseCase,
@@ -21,6 +23,7 @@ class ToxStartupSynchronizer @Inject constructor(
     fun synchronizeAfterStart() {
         scope.launch {
             contactRepository.resetTransientData()
+            groupRepository.resetTransientData()
 
             for ((publicKey, _) in tox.getContacts()) {
                 val pkStr = publicKey.string()

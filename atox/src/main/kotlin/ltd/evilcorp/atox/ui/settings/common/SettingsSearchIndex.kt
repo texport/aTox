@@ -19,6 +19,8 @@ internal enum class SettingsDestination {
     Language,
     Theme,
     Search,
+    General,
+    Privacy,
 }
 
 internal data class SearchableSetting(

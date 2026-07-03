@@ -63,6 +63,10 @@ class GroupConnectionSchedulerImplTest {
             setConnectedCalled.add(Pair(chatId, connected))
             groups[chatId]?.let { groups[chatId] = it.copy(connected = connected) }
         }
+
+        override suspend fun resetTransientData() {
+            groups.replaceAll { chatId, group -> group.copy(connected = false) }
+        }
         
         override suspend fun setGroupNumber(chatId: String, groupNumber: Int) {
             setGroupNumberCalled.add(Pair(chatId, groupNumber))
@@ -97,8 +101,9 @@ class GroupConnectionSchedulerImplTest {
         override suspend fun setPeerName(groupChatId: String, peerId: Int, name: String) {}
         override suspend fun setPeerRole(groupChatId: String, peerId: Int, role: String) {}
         override suspend fun setPeerStatus(groupChatId: String, peerId: Int, status: UserStatus) {}
-        override fun peerCount(groupChatId: String): Flow<Int> = flowOf(0)
-        override suspend fun peerCountDirect(groupChatId: String): Int = 0
+        var fakePeerCount: Int = 2
+        override fun peerCount(groupChatId: String): Flow<Int> = flowOf(fakePeerCount)
+        override suspend fun peerCountDirect(groupChatId: String): Int = fakePeerCount
     }
 
     private class FakeContactRepository : IContactRepository {

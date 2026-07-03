@@ -9,6 +9,7 @@ import ltd.evilcorp.domain.features.backup.repository.IBackupDataProvider
 import ltd.evilcorp.domain.features.backup.repository.IChatHistoryBackupHelper
 import ltd.evilcorp.domain.features.chat.model.Message
 
+@Suppress("unused")
 class ChatHistoryBackupDataProvider @Inject constructor(
     private val helper: IChatHistoryBackupHelper,
 ) : IBackupDataProvider {
@@ -50,6 +51,7 @@ class ChatHistoryBackupDataProvider @Inject constructor(
     }
 }
 
+@Suppress("unused")
 class CallLogBackupDataProvider @Inject constructor(
     private val helper: IChatHistoryBackupHelper,
 ) : IBackupDataProvider {

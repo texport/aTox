@@ -433,6 +433,7 @@ class GroupSyncManagerTest {
         override suspend fun setHasUnreadMessages(chatId: String, hasUnread: Boolean) {}
         override suspend fun setDraftMessage(chatId: String, draft: String) {}
         override suspend fun setConnected(chatId: String, connected: Boolean) {}
+        override suspend fun resetTransientData() {}
         override suspend fun setGroupNumber(chatId: String, groupNumber: Int) {}
         override suspend fun findChatIdByGroupNumber(groupNumber: Int): String? = null
         override suspend fun addMessage(message: GroupMessage) { addedMessages.add(message) }

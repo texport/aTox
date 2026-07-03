@@ -23,10 +23,10 @@ fun NavGraphBuilder.contactProfileRoute(
     navController: NavHostController
 ) {
     composable<AppRoutes.ContactProfile>(
-        enterTransition = { AToxMotion.sharedAxisZEnter(forward = true) },
-        exitTransition = { AToxMotion.sharedAxisZExit(forward = true) },
-        popEnterTransition = { AToxMotion.sharedAxisZEnter(forward = false) },
-        popExitTransition = { AToxMotion.sharedAxisZExit(forward = false) }
+        enterTransition = { AToxMotion.slideXEnter(forward = true) },
+        exitTransition = { AToxMotion.slideXExit(forward = true) },
+        popEnterTransition = { AToxMotion.slideXEnter(forward = false) },
+        popExitTransition = { AToxMotion.slideXExit(forward = false) }
     ) { backStackEntry ->
         val route = backStackEntry.toRoute<AppRoutes.ContactProfile>()
         val viewModel: ContactProfileViewModel = hiltViewModel()

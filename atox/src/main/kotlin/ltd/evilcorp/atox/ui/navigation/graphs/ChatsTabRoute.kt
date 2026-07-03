@@ -5,6 +5,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import ltd.evilcorp.atox.ui.common.AtoxConfirmDialog
+import ltd.evilcorp.atox.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
@@ -27,7 +34,8 @@ fun NavGraphBuilder.chatsTabRoute(
     navController: NavHostController,
     contactListViewModel: ContactListViewModel,
     settings: Settings,
-    isExpanded: () -> Boolean
+    isExpanded: () -> Boolean,
+    onQuitApp: () -> Unit
 ) {
     composable<AppRoutes.Chats>(
         enterTransition = { AToxMotion.fadeThroughEnter() },
@@ -35,6 +43,27 @@ fun NavGraphBuilder.chatsTabRoute(
     ) {
         val coroutineScope = rememberCoroutineScope()
         val groupListViewModel: GroupListViewModel = hiltViewModel()
+        var showExitConfirmDialog by remember { mutableStateOf(false) }
+
+        if (settings.confirmQuitting) {
+            BackHandler {
+                showExitConfirmDialog = true
+            }
+        }
+
+        if (showExitConfirmDialog) {
+            AtoxConfirmDialog(
+                onDismiss = { showExitConfirmDialog = false },
+                onConfirm = {
+                    showExitConfirmDialog = false
+                    onQuitApp()
+                },
+                title = stringResource(R.string.pref_confirm_quitting),
+                text = stringResource(R.string.quit_confirm),
+                confirmText = stringResource(R.string.quit),
+                dismissText = stringResource(android.R.string.cancel)
+            )
+        }
 
         val searchQuery by contactListViewModel.searchQuery.collectAsStateWithLifecycle()
         val friendRequestsViewModel: ltd.evilcorp.atox.ui.friendrequest.FriendRequestsViewModel = hiltViewModel()

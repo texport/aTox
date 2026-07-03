@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="UnusedResources">
     <string name="accept">Принять</string>
     <string name="cannot_call_offline">Невозможно позвонить, контакт не в сети</string>
     <string name="cannot_send_file_offline">Невозможно отправить файл, контакт не в сети</string>
@@ -78,7 +78,7 @@
     <string name="tox_service_running">aTox запущен…</string>
     <string name="pref_heading_network">Сеть</string>
     <string name="pref_udp_enabled">UDP включён</string>
-    <string name="pref_heading_general">Основные</string>
+    <string name="pref_heading_general">Основное</string>
     <string name="pref_run_at_startup">Запускать при загрузке Android</string>
     <string name="friend_request">Запрос в друзья</string>
     <string name="status_available">В сети</string>
@@ -156,6 +156,10 @@
     <string name="pref_new_password">Новый пароль</string>
     <string name="pref_current_password">Текущий пароль</string>
     <string name="pref_heading_change_password">Сменить пароль</string>
+    <string name="pref_heading_set_password">Установить пароль профиля</string>
+    <string name="pref_set_password_description">Защитить данные вашего профиля паролем</string>
+    <string name="pref_change_password_description">Обновить пароль для защиты профиля</string>
+    <string name="password_cannot_be_empty">Пароль не может быть пустым</string>
     <string name="unlock_profile">Разблокировать профиль</string>
     <string name="incorrect_password">Неверный пароль</string>
     <string name="password">Пароль</string>
@@ -177,6 +181,13 @@
     <string name="export_history_failure">Экспортирование истории сообщений не удалось: %1$s</string>
     <string name="call_confirm">Вы уверены, что хотите совершить звонок\?</string>
     <string name="pref_confirm_calling">Подтвердить звонок</string>
+    <string name="pref_show_profile_picker">Выбор профиля при входе</string>
+    <string name="pref_show_profile_picker_description">Спрашивать, под каким профилем войти при запуске приложения</string>
+    <string name="pref_biometric_login">Биометрический вход</string>
+    <string name="pref_biometric_login_description">Защитить открытие профиля с помощью Face ID или отпечатка пальца</string>
+    <string name="biometric_setup_failed">Не удалось настроить биометрию. Убедитесь, что для вашего профиля задан пароль и на устройстве настроена биометрия.</string>
+    <string name="settings_general_group_subtitle">Выбор профиля, автозапуск, подтверждение выхода</string>
+    <string name="settings_privacy_group_subtitle">Биометрия, скриншоты, подтверждение звонков</string>
     <string name="select_language">Выбор языка</string>
     <string name="accent_color">Акцентный цвет</string>
     <string name="appearance_and_design">Внешний вид и дизайн</string>
@@ -255,7 +266,8 @@
     <string name="settings_nodes_builtin">Встроенные Tox ноды</string>
     <string name="settings_nodes_user">Пользовательские ноды</string>
     <string name="settings_nodes_list">Список bootstrap-нод</string>
-    <string name="settings_ft_group">Передача файлов</string>
+    <string name="settings_ft_group">Чат</string>
+    <string name="settings_chat_group_subtitle">Ответы, передача файлов, кэш</string>
     <string name="settings_proxy_group">Прокси-сервер</string>
     <string name="settings_proxy_type">Тип прокси</string>
     <string name="settings_proxy_address">Адрес прокси</string>
@@ -278,8 +290,8 @@
     <string name="settings_lang_title">Язык</string>
     <string name="settings_accent_color_desc">Выберите пресет цветовой темы</string>
     <string name="settings_accent_dialog_title">Выбор акцентного цвета</string>
-    <string name="settings_auto_save_title">Автосохранение в Загрузки</string>
-    <string name="settings_auto_save_subtitle">Автоматически сохранять файлы в папку Download/aTox</string>
+    <string name="settings_auto_save_title">Автоматически сохранять входящие файлы</string>
+    <string name="settings_auto_save_subtitle">Автоматически сохранять входящие файлы в папку</string>
     <string name="settings_auto_save_directory_title">Папка автосохранения</string>
     <string name="settings_auto_save_directory_default">Download/aTox</string>
     <string name="settings_storage_group">Использование памяти и кэш</string>
@@ -371,6 +383,23 @@
     <string name="group_password_save_confirm">Сохранить пароль</string>
     <string name="group_password_dismiss">Не сейчас</string>
     <string name="group_password_copied">Пароль скопирован в буфер обмена</string>
+    <string name="group_invite_generating_link">Создание ссылки…</string>
+    <string name="group_invite_no_friends">Нет доступных друзей для приглашения</string>
+    <string name="group_invite_no_matching_friends">Совпадений не найдено</string>
+    <string name="group_invite_sending">Отправка приглашения…</string>
+    <string name="clear">Очистить</string>
+
+    <string name="group_diagnostics_title">Диагностика подключения к группе</string>
+    <string name="group_diagnostics_host">Создатель группы (Хост): %1$s</string>
+    <string name="group_diagnostics_status_label">Статус хоста: %1$s</string>
+    <string name="group_diagnostics_status_undefined">Неопределён</string>
+    <string name="group_diagnostics_status_self">Вы хост (В сети)</string>
+    <string name="group_diagnostics_status_online">В сети (Прямой канал активен)</string>
+    <string name="group_diagnostics_status_offline">Не в сети (Ожидание присутствия)</string>
+    <string name="group_diagnostics_desc_undefined">Не удалось определить хост.</string>
+    <string name="group_diagnostics_desc_self">Вы управляете этой группой. Маршрутизация автоподключения и синхронизация активны.</string>
+    <string name="group_diagnostics_desc_online">Соединение с хостом установлено. Синхронизация группы и резервные каналы приглашений активны.</string>
+    <string name="group_diagnostics_desc_offline">Хост не в сети. Ожидайте возвращения хоста в сеть для автоматического восстановления подключения к группе.</string>
 
     <!-- Backups & Storage -->
 
@@ -452,7 +481,7 @@
     <string name="forward_message_title">Переслать сообщение</string>
     <string name="share_contact">Поделиться контактом</string>
     <string name="contacts_empty">Контакты не найдены</string>
-    <string name="copy">Копировать</string>
+    <string name="copy" tools:override="true">Копировать</string>
     <string name="forward">Переслать</string>
     <string name="slide_to_cancel">Сдвиньте для отмены</string>
     <string name="voice_message">Голосовое сообщение</string>
@@ -503,4 +532,39 @@
     <string name="google_sign_in_cancelled">Вход в Google отменен или не удался</string>
     <string name="google_sign_in_developer_error">Ошибка разработчика: проверьте подпись/OAuth в Cloud Console (код 10)</string>
     <string name="google_sign_in_error_code">Ошибка входа в Google (код: %1$d)</string>
+    <string name="group_info">Информация о группе</string>
+    <string name="more_options">Другие параметры</string>
+    <string name="profile_avatar_change">Изменить изображение профиля</string>
+    <string name="avatar_too_large">Ошибка: Аватар слишком большой (макс. 64 КБ)</string>
+    <string name="avatar_editor_title">Редактирование изображения профиля</string>
+    <string name="avatar_editor_rotate">Повернуть</string>
+    <string name="avatar_editor_reset">Сбросить</string>
+    <string name="avatar_editor_zoom">Масштаб</string>
+    <string name="avatar_editor_save">Сохранить</string>
+    <string name="avatar_editor_cancel">Отмена</string>
+    <string-array name="pref_theme_options">
+        <item>@string/pref_theme_follow_system</item>
+        <item>@string/pref_theme_light</item>
+        <item>@string/pref_theme_dark</item>
+    </string-array>
+    <string-array name="pref_ft_auto_accept_options">
+        <item>@string/pref_ft_auto_accept_none</item>
+        <item>@string/pref_ft_auto_accept_images</item>
+        <item>@string/pref_ft_auto_accept_all</item>
+    </string-array>
+    <string-array name="pref_proxy_type_options">
+        <item>@string/pref_proxy_type_none</item>
+        <item>@string/pref_proxy_type_http</item>
+        <item>@string/pref_proxy_type_socks5</item>
+    </string-array>
+    <string-array name="pref_bootstrap_node_options">
+        <item>@string/pref_bootstrap_node_builtin</item>
+        <item>@string/pref_bootstrap_node_user_provided</item>
+    </string-array>
+    <string-array name="user_statuses">
+        <item>@string/status_available</item>
+        <item>@string/status_away</item>
+        <item>@string/status_busy</item>
+    </string-array>
 </resources>
+

@@ -274,7 +274,7 @@ class ChatFeaturesTest {
         }
 
         // Verify the completion card is rendered
-        composeTestRule.onNodeWithText("photo.jpg").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("photo.jpg").assertIsDisplayed()
     }
 
     @Test

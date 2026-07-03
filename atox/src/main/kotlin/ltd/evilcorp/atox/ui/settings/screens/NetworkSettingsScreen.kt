@@ -48,22 +48,14 @@ private const val DISABLED_ALPHA = 0.38f
 fun NetworkSettingsScreen(
     paddingValues: PaddingValues,
     udpEnabled: Boolean,
-    runAtStartup: Boolean,
     bootstrapNodeSource: BootstrapNodeSource,
-    disableScreenshots: Boolean,
-    confirmQuitting: Boolean,
-    confirmCalling: Boolean,
     proxyType: ProxyType,
     proxyAddress: String,
     proxyPortInput: String,
     focusManager: FocusManager,
     performHaptic: () -> Unit,
     onUdpEnabledChanged: (Boolean) -> Unit,
-    onRunAtStartupChanged: (Boolean) -> Unit,
     onBootstrapNodesClick: () -> Unit,
-    onDisableScreenshotsChanged: (Boolean) -> Unit,
-    onConfirmQuittingChanged: (Boolean) -> Unit,
-    onConfirmCallingChanged: (Boolean) -> Unit,
     onProxyTypeClick: () -> Unit,
     onProxyAddressChanged: (String) -> Unit,
     onProxyPortInputChanged: (String) -> Unit,
@@ -92,16 +84,6 @@ fun NetworkSettingsScreen(
                     performHaptic()
                     onUdpEnabledChanged(checked)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
-                SettingsSwitchRow(
-                    title = stringResource(R.string.pref_run_at_startup),
-                    subtitle = stringResource(R.string.settings_start_on_boot_sub),
-                    checked = runAtStartup
-                ) { checked ->
-                    performHaptic()
-                    onRunAtStartupChanged(checked)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
                 val bootstrapLabel = when (bootstrapNodeSource) {
                     BootstrapNodeSource.BuiltIn -> stringResource(R.string.settings_nodes_builtin)
                     BootstrapNodeSource.UserProvided -> stringResource(R.string.settings_nodes_user)
@@ -173,37 +155,6 @@ fun NetworkSettingsScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                }
-            }
-        }
-
-        item {
-            SettingsGroup(title = stringResource(R.string.settings_privacy_group)) {
-                SettingsSwitchRow(
-                    title = stringResource(R.string.pref_block_screenshots),
-                    subtitle = stringResource(R.string.pref_block_screenshots_description),
-                    checked = disableScreenshots
-                ) { checked ->
-                    performHaptic()
-                    onDisableScreenshotsChanged(checked)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
-                SettingsSwitchRow(
-                    title = stringResource(R.string.pref_confirm_quitting),
-                    subtitle = stringResource(R.string.quit_confirm),
-                    checked = confirmQuitting
-                ) { checked ->
-                    performHaptic()
-                    onConfirmQuittingChanged(checked)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA))
-                SettingsSwitchRow(
-                    title = stringResource(R.string.pref_confirm_calling),
-                    subtitle = stringResource(R.string.call_confirm),
-                    checked = confirmCalling
-                ) { checked ->
-                    performHaptic()
-                    onConfirmCallingChanged(checked)
                 }
             }
         }

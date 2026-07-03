@@ -91,6 +91,10 @@ class FakeGroupRepository : IGroupRepository {
         updateField(chatId) { it.copy(connected = connected) }
     }
 
+    override suspend fun resetTransientData() {
+        groups.value = groups.value.mapValues { (_, group) -> group.copy(connected = false) }.toMutableMap()
+    }
+
     override suspend fun setGroupNumber(chatId: String, groupNumber: Int) {
         updateField(chatId) { it.copy(groupNumber = groupNumber) }
     }

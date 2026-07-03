@@ -50,6 +50,7 @@ class GroupRepositoryImpl @Inject constructor(
     override suspend fun setHasUnreadMessages(chatId: String, hasUnread: Boolean) = activeGroupDao.setHasUnreadMessages(chatId, hasUnread)
     override suspend fun setDraftMessage(chatId: String, draft: String) = activeGroupDao.setDraftMessage(chatId, draft)
     override suspend fun setConnected(chatId: String, connected: Boolean) = activeGroupDao.setConnected(chatId, connected)
+    override suspend fun resetTransientData() = activeGroupDao.resetConnectionStatuses()
     override suspend fun setGroupNumber(chatId: String, groupNumber: Int) = activeGroupDao.setGroupNumber(chatId, groupNumber)
     override suspend fun findChatIdByGroupNumber(groupNumber: Int): String? = activeGroupDao.findChatIdByGroupNumber(groupNumber)
 

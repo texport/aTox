@@ -45,7 +45,7 @@ data class UserSettings(
     val localeTag: String = "",
     val dateFormatPreference: DateFormatPreference = DateFormatPreference.System,
     val timeFormatPreference: TimeFormatPreference = TimeFormatPreference.System,
-    val udpEnabled: Boolean = false,
+    val udpEnabled: Boolean = true,
     val runAtStartup: Boolean = false,
     val autoAwayEnabled: Boolean = false,
     val autoAwaySeconds: Long = 180L,

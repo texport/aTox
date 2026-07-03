@@ -41,5 +41,9 @@ class AndroidSaveManagerImpl @Inject constructor(val context: Context) : ISaveMa
 
     override fun delete(pk: PublicKey): Boolean = fileFor(pk).delete()
 
-    private fun fileFor(pk: PublicKey) = File("$saveDir/${pk.string()}.tox")
+    private fun fileFor(pk: PublicKey): File {
+        val targetName = "${pk.string()}.tox"
+        val existingFile = saveDir.listFiles()?.find { it.name.equals(targetName, ignoreCase = true) }
+        return existingFile ?: File(saveDir, targetName)
+    }
 }

@@ -13,7 +13,7 @@ import javax.inject.Singleton
 import kotlin.concurrent.schedule
 
 private const val TAG = "ToxBootstrapper"
-private const val BOOTSTRAP_INTERVAL_MS = 60_000L
+private const val BOOTSTRAP_INTERVAL_MS = 15_000L
 
 @Singleton
 class ToxBootstrapper @Inject constructor(

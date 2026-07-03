@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
+
+
 package ltd.evilcorp.atox.ui.common.chat
 
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +49,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
@@ -66,6 +70,7 @@ private const val TAG = "VoiceMessageCard"
 private const val PLAYBACK_DELAY_MS = 100L
 private const val MILLIS_IN_SECOND = 1000
 private const val SECONDS_IN_MINUTE = 60
+private const val REPLAY_THRESHOLD_MS = 200
 
 @Composable
 fun VoiceMessageCard(
@@ -123,11 +128,23 @@ fun VoiceMessageCard(
             if (exists) {
                 try {
                     val retriever = android.media.MediaMetadataRetriever()
-                    if (uri.scheme == "content" || uri.scheme == "file") {
-                        retriever.setDataSource(context, uri)
-                    } else {
-                        val file = java.io.File(audioPath)
-                        retriever.setDataSource(context, android.net.Uri.fromFile(file))
+                    when (uri.scheme) {
+                        "content" -> {
+                            retriever.setDataSource(context, uri)
+                        }
+                        "file" -> {
+                            val path = uri.path
+                            if (path != null) {
+                                val fis = java.io.FileInputStream(java.io.File(path))
+                                try { retriever.setDataSource(fis.fd) } finally { fis.close() }
+                            } else {
+                                retriever.setDataSource(context, uri)
+                            }
+                        }
+                        else -> {
+                            val fis = java.io.FileInputStream(java.io.File(audioPath))
+                            try { retriever.setDataSource(fis.fd) } finally { fis.close() }
+                        }
                     }
                     val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
                     retriever.release()
@@ -163,7 +180,7 @@ fun VoiceMessageCard(
             VoiceMessagePlayer.pause()
             isPlaying = false
         } else {
-            if (VoiceMessagePlayer.isPlayingUri(audioPath)) {
+            if (VoiceMessagePlayer.isPlayingUri(audioPath) && currentPosition < duration - REPLAY_THRESHOLD_MS) {
                 VoiceMessagePlayer.resume()
                 isPlaying = true
             } else {
@@ -271,6 +288,7 @@ private fun PlaybackControl(
     onPlayPause: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     Box(
         modifier = modifier.size(36.dp),
         contentAlignment = Alignment.Center
@@ -278,7 +296,10 @@ private fun PlaybackControl(
         if (!isComplete) {
             if (!isStarted) {
                 IconButton(
-                    onClick = onAcceptFt,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAcceptFt()
+                    },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -300,7 +321,10 @@ private fun PlaybackControl(
                         modifier = Modifier.fillMaxSize()
                     )
                     IconButton(
-                        onClick = onRejectFt,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onRejectFt()
+                        },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -319,7 +343,10 @@ private fun PlaybackControl(
                 modifier = Modifier.size(36.dp)
             ) {
                 IconButton(
-                    onClick = onPlayPause,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onPlayPause()
+                    },
                     modifier = Modifier.fillMaxSize()
                 ) {
                     Icon(

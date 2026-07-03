@@ -44,7 +44,7 @@ import ltd.evilcorp.domain.features.contacts.usecase.GetFriendPublicKeyUseCase
 import ltd.evilcorp.domain.features.contacts.usecase.GetContactUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetToxRunningStateUseCase
 import ltd.evilcorp.domain.features.settings.usecase.GetUserSettingsUseCase
-import ltd.evilcorp.domain.features.transfer.repository.IFileTransferRepository
+import ltd.evilcorp.domain.features.transfer.usecase.GetFileTransferUseCase
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 
@@ -63,7 +63,7 @@ class ContactListViewModel @Inject constructor(
     private val declineGroupInviteUseCase: DeclineGroupInviteUseCase,
     private val sendChatMessageUseCase: SendChatMessageUseCase,
     private val manageFileTransferUseCase: ManageFileTransferUseCase,
-    private val fileTransferRepository: IFileTransferRepository,
+    private val getFileTransferUseCase: GetFileTransferUseCase,
     private val sharedContentRegistry: SharedContentRegistry,
 ) : ViewModel() {
     val sharedContent: StateFlow<SharedContent?> = sharedContentRegistry.sharedContent
@@ -222,7 +222,7 @@ class ContactListViewModel @Inject constructor(
 
     fun forwardFile(correlationId: Int, to: Contact) {
         viewModelScope.launch {
-            val transfer = fileTransferRepository.get(correlationId).firstOrNull()
+            val transfer = getFileTransferUseCase.execute(correlationId).firstOrNull()
             if (transfer != null) {
                 manageFileTransferUseCase.execute(
                     FileTransferAction.Create(PublicKey(to.publicKey), transfer.destination)

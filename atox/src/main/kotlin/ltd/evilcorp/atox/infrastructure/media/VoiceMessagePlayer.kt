@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
+import java.io.File
+import java.io.FileInputStream
 
 private const val TAG = "VoiceMessagePlayer"
 
@@ -14,26 +16,68 @@ object VoiceMessagePlayer {
     fun play(context: Context, uriString: String, onComplete: () -> Unit, onError: () -> Unit) {
         try {
             stop()
-            val uri = Uri.parse(uriString)
-            mediaPlayer = MediaPlayer().apply {
-                if (uri.scheme == "content" || uri.scheme == "file") {
-                    setDataSource(context, uri)
-                } else {
-                    val file = java.io.File(uriString)
-                    setDataSource(context, Uri.fromFile(file))
+
+            val player = MediaPlayer()
+            mediaPlayer = player
+
+            val parsedUri = Uri.parse(uriString)
+
+            // For file:// URIs pointing to app-private directories, we must use
+            // FileDescriptor because MediaPlayer.setDataSource(Context, Uri) with file:// URIs
+            // delegates to the system mediaserver process which lacks read permission
+            // on the app's private cache directory.
+            when (parsedUri.scheme) {
+                "content" -> {
+                    player.setDataSource(context, parsedUri)
                 }
-                prepare()
-                setOnCompletionListener {
-                    onComplete()
-                    stop()
+                "file" -> {
+                    val path = parsedUri.path
+                    if (path != null) {
+                        val fis = FileInputStream(File(path))
+                        try {
+                            player.setDataSource(fis.fd)
+                        } finally {
+                            fis.close()
+                        }
+                    } else {
+                        player.setDataSource(context, parsedUri)
+                    }
                 }
-                start()
+                null -> {
+                    val fis = FileInputStream(File(uriString))
+                    try {
+                        player.setDataSource(fis.fd)
+                    } finally {
+                        fis.close()
+                    }
+                }
+                else -> {
+                    player.setDataSource(context, parsedUri)
+                }
             }
+
+            player.setOnErrorListener { _, what, extra ->
+                Log.e(TAG, "MediaPlayer native error: what=$what, extra=$extra")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    stop()
+                    onError()
+                }
+                true
+            }
+            player.setOnCompletionListener {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    stop()
+                    onComplete()
+                }
+            }
+
+            player.prepare()
+            player.start()
             currentPlayingUri = uriString
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play voice message", e)
-            onError()
             stop()
+            onError()
         }
     }
 
@@ -41,23 +85,28 @@ object VoiceMessagePlayer {
         mediaPlayer?.pause()
     }
 
+    @Suppress("unused")
     fun resume() {
         mediaPlayer?.start()
     }
 
     fun stop() {
-        try {
-            mediaPlayer?.stop()
-        } catch (e: Exception) {
-            // Ignore
-        }
-        try {
-            mediaPlayer?.release()
-        } catch (e: Exception) {
-            // Ignore
-        }
+        val player = mediaPlayer
         mediaPlayer = null
         currentPlayingUri = null
+        if (player != null) {
+            try {
+                player.setOnErrorListener(null)
+                player.setOnCompletionListener(null)
+            } catch (_: Exception) {
+                // Ignore
+            }
+            try {
+                player.release()
+            } catch (_: Exception) {
+                // Ignore
+            }
+        }
     }
 
     fun seekTo(positionMs: Int) {
@@ -66,6 +115,7 @@ object VoiceMessagePlayer {
 
     fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
+    @Suppress("unused")
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying ?: false
-    fun isPlayingUri(uriString: String): Boolean = currentPlayingUri == uriString
+    fun isPlayingUri(uriString: String): Boolean = currentPlayingUri == uriString && mediaPlayer != null
 }

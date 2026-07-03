@@ -66,6 +66,9 @@ interface GroupDao {
     @Query("UPDATE `groups` SET connected = :connected WHERE chat_id = :chatId")
     suspend fun setConnected(chatId: String, connected: Boolean)
 
+    @Query("UPDATE `groups` SET connected = 0")
+    suspend fun resetConnectionStatuses()
+
     @Query("UPDATE `groups` SET group_number = :groupNumber WHERE chat_id = :chatId")
     suspend fun setGroupNumber(chatId: String, groupNumber: Int)
 
