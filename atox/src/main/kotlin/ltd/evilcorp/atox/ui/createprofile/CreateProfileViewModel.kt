@@ -49,6 +49,7 @@ class CreateProfileViewModel @Inject constructor(
     private val downloadCloudBackupUseCase: ltd.evilcorp.domain.features.backup.usecase.DownloadCloudBackupUseCase,
     private val tox: ltd.evilcorp.domain.core.network.ITox,
     private val profileRegistryUseCase: ProfileRegistryUseCase,
+    private val saveAvatarUseCase: ltd.evilcorp.domain.features.auth.usecase.SaveAvatarUseCase,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CreateProfileUiState>(CreateProfileUiState.Idle)
@@ -135,13 +136,23 @@ class CreateProfileViewModel @Inject constructor(
         }
     }
 
-    fun createProfile(name: String) {
+    fun createProfile(name: String, statusMessage: String = "", avatarBytes: ByteArray? = null) {
         viewModelScope.launch {
             _uiState.value = CreateProfileUiState.Loading
             val status = withContext(ioDispatcher) {
                 val status = startTox()
                 if (status == ToxSaveStatus.Ok) {
                     create(User(publicKey = getSelfUserUseCase.publicKey.string(), name = name))
+
+                    // Set status message if provided
+                    if (statusMessage.isNotBlank()) {
+                        tox.setStatusMessage(statusMessage)
+                    }
+
+                    // Set avatar if provided
+                    avatarBytes?.let { bytes ->
+                        saveAvatarUseCase.execute(bytes)
+                    }
                 }
                 status
             }
